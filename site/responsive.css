@@ -1,5 +1,8 @@
 
 html { scroll-padding-top: 100px; }
+.care-moment-gallery:focus-visible { outline: 3px solid var(--deep-teal); outline-offset: 4px; }
+.chat-launcher,
+.chat-contact a:first-child { background: var(--coral-dark); }
 [data-inquiry-form] { min-width: 0; }
 [data-inquiry-form] label { min-width: 0; }
 [data-inquiry-form] input, [data-inquiry-form] textarea { scroll-margin-top: 120px; }

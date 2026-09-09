@@ -109,6 +109,8 @@ for (const pagePath of pages) {
 }
 
 const contactHtml = await readFile(resolve(projectDir, "contact/index.html"), "utf8");
+const homeHtml = await readFile(resolve(projectDir, "index.html"), "utf8");
+assert(/class="care-moment-gallery"[^>]*role="region"[^>]*tabindex="0"[^>]*aria-label="[^"]+"/.test(homeHtml), "The horizontal photo gallery must be named and keyboard-focusable");
 assert(/<form\b[^>]*data-contact-form/.test(contactHtml), "Contact page is missing the email-draft form");
 assert((contactHtml.match(/<label/g) || []).length >= 5, "Contact form fields are not fully labelled");
 
