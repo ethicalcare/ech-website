@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="162" height="162" viewBox="0 0 162 162" role="img" aria-labelledby="title">
+  <title id="title">Rehabilitation network: a team of three care professionals</title>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.6">
+    <g stroke="#53a5aa">
+      <circle cx="36" cy="48" r="14"/><circle cx="126" cy="48" r="14"/>
+      <path d="M27 135v-8c-8-2-12-7-12-16V92c0-12 5-20 13-23l8 8 8-8c6 2 10 5 13 10M135 135v-8c8-2 12-7 12-16V92c0-12-5-20-13-23l-8 8-8-8c-6 2-10 5-13 10"/>
+    </g>
+    <g stroke="#b86164">
+      <circle cx="81" cy="43" r="17"/>
+      <path d="M64 136v-23M98 136v-11c10-1 13-5 13-15V94c0-14-6-23-18-26L81 77 69 68c-12 3-18 12-18 26v10c0 6 4 9 10 9h30c6 0 6-10 0-10H66V85h28v15"/>
+    </g>
+  </g>
+</svg>

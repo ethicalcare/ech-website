@@ -1,0 +1,15 @@
+{
+  "name": "ech-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ethical Care at Home website",
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "verify": "node scripts/verify-site.mjs && node scripts/check-release.mjs",
+    "audit": "node scripts/audit-site.mjs",
+    "check": "npm run verify && npm run audit",
+    "dev": "node scripts/serve.mjs"
+  }
+}

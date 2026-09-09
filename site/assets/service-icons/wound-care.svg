@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="162" height="162" viewBox="0 0 162 162" role="img" aria-labelledby="title">
+  <title id="title">Wound care: two crossed bandages with a centred heart</title>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="3.6">
+    <g>
+      <g stroke="#53a5aa" transform="rotate(45 81 81)">
+        <rect x="21" y="61" width="120" height="40" rx="20"/>
+        <path d="M52 67v28M110 67v28M39 73h.1M45 81h.1M39 89h.1M123 73h.1M117 81h.1M123 89h.1"/>
+      </g>
+      <g stroke="#b86164" transform="rotate(-45 81 81)">
+        <rect x="21" y="61" width="120" height="40" rx="20"/>
+        <path d="M52 67v28M110 67v28M39 73h.1M45 81h.1M39 89h.1M123 73h.1M117 81h.1M123 89h.1"/>
+      </g>
+    </g>
+    <path transform="translate(81 84) scale(.85) translate(-81 -81)" stroke-width="4.2352941176" stroke="#b86164" d="M81 96 67.5 83.5C57.5 74.5 70.2 62.5 81 74.4c10.8-11.9 23.5.1 13.5 9.1Z"/>
+  </g>
+</svg>

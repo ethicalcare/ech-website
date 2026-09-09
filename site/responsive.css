@@ -1,0 +1,102 @@
+
+html { scroll-padding-top: 100px; }
+[data-inquiry-form] { min-width: 0; }
+[data-inquiry-form] label { min-width: 0; }
+[data-inquiry-form] input, [data-inquiry-form] textarea { scroll-margin-top: 120px; }
+[data-inquiry-form] [aria-invalid="true"] { border-color: #a73728; }
+[data-inquiry-form] .field-error { display: block; color: #922f23; font-size: .875rem; line-height: 1.5; margin-top: 6px; }
+[data-inquiry-form] .field-error:empty { display: none; }
+[data-inquiry-form] .inquiry-trap { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+[data-inquiry-form] .contact-form-status { font-size: .9375rem; line-height: 1.6; overflow-wrap: anywhere; }
+[data-inquiry-form] .contact-form-status:empty { min-height: 0; }
+[data-inquiry-form] .contact-form-status[data-kind] { padding: 14px; border-radius: 10px; }
+[data-inquiry-form] .contact-form-status[data-kind="success"] { background: #e3f2e8; color: #17482e; }
+[data-inquiry-form] .contact-form-status[data-kind="error"] { background: #fff0eb; color: #922f23; }
+[data-inquiry-form] .contact-form-status:focus-visible { outline: 3px solid #347b76; outline-offset: 4px; }
+[data-inquiry-form] .button:disabled { opacity: .65; cursor: wait; }
+.inquiry-preview-notice { margin: 0; border-left: 3px solid #ba7456; padding: 10px 12px; background: #fff5e9; font-size: .875rem; color: #654832; }
+[data-inquiry-verification]:empty { display: none; }
+.contact-method-grid strong, .footer-inner a { overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .inner-hero, .detail-hero, .area-detail-hero, .area-local, .accessibility-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .inner-hero-copy, .area-detail-copy, .area-local > div, .accessibility-grid > div { min-width: 0; }
+}
+@media (max-width: 650px) {
+  .inner-main h1, .inner-main h2, .inner-main h3 { overflow-wrap: anywhere; hyphens: auto; }
+  .hero-inner { padding: 28px 0 56px; }
+  .hero h1 { font-size: clamp(2.5rem, 10.7vw, 3rem); line-height: 1.06; }
+  .hero-lede { font-size: 1.0625rem; line-height: 1.65; }
+  .header-phone, .menu-button { min-height: 44px; }
+  .contact-form-band { padding: 28px 12px; gap: 24px; }
+  .contact-form-band form { padding: 24px 12px; gap: 20px; }
+  .contact-form-band label > span { font-size: .875rem; line-height: 1.5; }
+  .contact-form-band input[type="text"], .contact-form-band textarea { font-size: 16px; min-height: 48px; }
+  .contact-consent { grid-template-columns: 24px minmax(0, 1fr); min-height: 44px; cursor: pointer; }
+  .contact-consent input { width: 24px; height: 24px; margin: 0; accent-color: #347b76; }
+  .contact-consent > span { font-size: .875rem !important; line-height: 1.6; }
+  .contact-consent .field-error { grid-column: 2; }
+  .contact-form-band .button { width: 100%; min-height: 48px; justify-content: center; }
+  .contact-method-grid a { gap: 4px 12px; padding-inline: 16px; }
+  .footer-inner a { display: inline-flex; align-items: center; min-height: 44px; }
+  .nurse-chat { max-height: calc(100dvh - 110px); }
+  body:has([data-inquiry-form]:focus-within) .floating-actions { visibility: hidden; pointer-events: none; }
+}
+
+@media (max-width: 650px) {
+  .service-card, .service-card-wide { min-height: 0; }
+  .service-card-top { display: grid; grid-template-columns: 34px minmax(0, 1fr); min-height: 0; gap: 12px; margin-bottom: 20px; }
+  .service-card .icon-pair { --service-icon-size: clamp(80px, 23.5vw, 92px); height: auto; padding-bottom: 14px; gap: 8px; justify-self: end; transform: none; }
+  .service-card .icon-pair.icon-single { --service-icon-size: 96px; }
+  .service-card .icon-pair.icon-trio { --service-icon-size: clamp(56px, calc((100vw - 164px) / 3), 76px); gap: 3px; }
+  .service-card h3 { font-size: 1.625rem; }
+  .service-card p { font-size: 1rem; line-height: 1.6; margin-bottom: 20px; }
+  .service-card-link { width: fit-content; max-width: 100%; min-height: 44px; font-size: .875rem; line-height: 1.5; }
+  .service-card-link .journey-mark { flex-shrink: 0; }
+
+  .inner-page .care-steps { gap: 16px; }
+  .inner-page .care-steps li { display: block; min-height: 0; padding: 24px; }
+  .inner-page .care-steps li::before { margin-bottom: 16px; }
+  .inner-page .care-steps h3 { margin-bottom: 12px; }
+  .inner-page .care-steps p { font-size: 1rem; line-height: 1.65; }
+  body:not(.inner-page) .care-steps li { grid-template-columns: 48px minmax(0, 1fr); gap: 14px; padding: 0; }
+  body:not(.inner-page) .care-steps .step-number { width: 48px; height: 48px; }
+  body:not(.inner-page) .care-steps p { font-size: 1rem; line-height: 1.65; }
+}
+@media (max-width: 360px) {
+  .brand { width: 96px; }
+  .header-inner { gap: 6px; }
+  .header-phone strong { white-space: nowrap; }
+}
+
+
+.footer-brand img { height: auto; border-radius: 42px 14px 42px 14px; padding: 18px 20px; background: #fdfdfd; }
+
+
+
+
+body:not(.inner-page) { --muted: #46615d; }
+body:not(.inner-page) .section-heading > p:last-child { font-size: 1.125rem; line-height: 1.65; }
+body:not(.inner-page) .service-card { background: linear-gradient(145deg, #f8e5e2, #fff8f5); color: var(--deep-teal); }
+body:not(.inner-page) .service-card p { color: var(--muted); font-size: 1rem; line-height: 1.65; }
+body:not(.inner-page) .service-card h3 { color: var(--deep-teal); }
+body:not(.inner-page) .service-card .service-card-link { color: var(--deep-teal); font-size: .9375rem; }
+body:not(.inner-page) .service-card .service-index { color: var(--coral-dark); }
+body:not(.inner-page) .service-card .journey-mark { --journey-dot: var(--coral-dark); --journey-destination: var(--teal); border-color: rgba(151,73,77,.24); background: rgba(255,255,255,.46); }
+
+body:not(.inner-page) .heart-scroll-trace { stroke-dasharray: none; stroke-dashoffset: 0; opacity: 1; }
+.site-header .brand, .site-header .brand img { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+@media (min-width: 651px) {
+ body:not(.inner-page) .service-card .icon-pair { --service-icon-size: clamp(76px,7vw,96px); height: auto; min-height: 104px; padding-bottom: 12px; transform: none; }
+ body:not(.inner-page) .service-card .icon-pair.icon-trio { --service-icon-size: clamp(62px,6vw,80px); }
+ body:not(.inner-page) .service-card h3 { font-size: clamp(1.55rem,1.8vw,1.8rem); }
+}
+@media (max-width: 650px) {
+ body:not(.inner-page) .hero h1 { font-size: clamp(2.25rem,9.2vw,2.7rem); line-height: 1.1; }
+ body:not(.inner-page) .hero-lede { font-size: 1.125rem; line-height: 1.65; }
+}
+
+
+body:not(.inner-page) .service-card .service-card-link { width: fit-content; max-width: 100%; min-width: 0; line-height: 1.5; }
+body:not(.inner-page) .service-card .service-card-link .journey-mark { flex-shrink: 0; }
