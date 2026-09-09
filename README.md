@@ -16,6 +16,8 @@ npm run dev
 
 The local website opens at http://127.0.0.1:4197/. Rebuild after editing files. Do not edit `dist/` directly.
 
+Review pages through the running server, for example `http://127.0.0.1:4197/services/` or `http://127.0.0.1:4197/contact/`. Opening an `index.html` file directly or viewing it on GitHub does not serve the website. Keep `index.html` as each page's filename; use the directory URL in the browser. The local server redirects missing trailing slashes and explicit `index.html` URLs to the directory address. Do not put localhost addresses into website navigation: the same links must work on local previews and the hosted site.
+
 `npm run check` validates page structure, metadata, links, images, structured data and the canonical sitemap inventory. Every build runs the checks, and GitHub runs the build for pushes and pull requests. Image checks reject unnecessary embedded metadata.
 
 ## Deployment

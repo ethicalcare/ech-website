@@ -11,10 +11,20 @@ createServer(async (request, response) => {
   response.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
   response.setHeader("X-Content-Type-Options", "nosniff");
   try {
-    const pathname = decodeURIComponent(new URL(request.url, "http://localhost").pathname);
+    const url = new URL(request.url, "http://localhost");
+    const pathname = decodeURIComponent(url.pathname);
     let path = resolve(root, "." + pathname);
     if (path !== root && !path.startsWith(root + sep)) throw new Error("Invalid path");
-    if ((await stat(path)).isDirectory()) path = resolve(path, "index.html");
+    const directory = (await stat(path)).isDirectory();
+    if (pathname.endsWith("/index.html") || (directory && !url.pathname.endsWith("/"))) {
+      const canonicalPath = pathname.endsWith("/index.html")
+        ? url.pathname.slice(0, url.pathname.lastIndexOf("/") + 1)
+        : url.pathname + "/";
+      response.writeHead(308, { Location: canonicalPath.replace(/^\/+/, "/") + url.search });
+      response.end();
+      return;
+    }
+    if (directory) path = resolve(path, "index.html");
     response.setHeader("Content-Type", types[extname(path)] || "application/octet-stream");
     response.end(await readFile(path));
   } catch {
