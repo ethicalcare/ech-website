@@ -8,7 +8,7 @@ const site = resolve(root, output ? "dist" : "site");
 const config = JSON.parse(await readFile(resolve(root, "site.config.json"), "utf8"));
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 if (!output) {
-  const rootFiles = new Set([".git", ".github", ".gitignore", ".vercel", ".vercelignore", "node_modules", "dist", "site", "scripts", "package.json", "package-lock.json", "site.config.json", "vercel.json", "README.md", "LAUNCH_CHECKLIST.md"]);
+  const rootFiles = new Set([".git", ".github", ".gitignore", ".vercel", ".vercelignore", "node_modules", "dist", "site", "scripts", "functions", "lib", "tests", "package.json", "package-lock.json", "site.config.json", "vercel.json", "README.md", "LAUNCH_CHECKLIST.md"]);
   for (const entry of await readdir(root)) assert(rootFiles.has(entry), `Unexpected repository entry: ${entry}`);
   const scripts = new Set(["build.mjs", "serve.mjs", "audit-site.mjs", "verify-site.mjs", "check-release.mjs"]);
   for (const entry of await readdir(resolve(root, "scripts"))) assert(scripts.has(entry), `Unexpected development script: ${entry}`);

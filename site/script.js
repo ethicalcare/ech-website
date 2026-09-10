@@ -42,8 +42,6 @@ const careMomentGallery = document.querySelector(".care-moment-gallery");
 const careMoments = careMomentGallery ? [...careMomentGallery.querySelectorAll(".care-moment")] : [];
 const detailParallaxHero = document.querySelector("[data-detail-parallax]");
 const detailParallaxPhoto = document.querySelector("[data-detail-parallax-photo]");
-const contactForm = document.querySelector("[data-contact-form]");
-const contactFormStatus = document.querySelector("[data-contact-form-status]");
 
 function closeMenu() {
   if (!menuButton || !primaryNav) return;
@@ -63,29 +61,6 @@ primaryNav?.querySelectorAll("a").forEach((link) => {
   link.addEventListener("click", closeMenu);
 });
 
-contactForm?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const data = new FormData(contactForm);
-  const name = String(data.get("name") || "").trim();
-  const contact = String(data.get("contact") || "").trim();
-  const location = String(data.get("location") || "").trim();
-  const message = String(data.get("message") || "").trim();
-  const subject = `Home-care question from ${name}`;
-  const body = [
-    `Name: ${name}`,
-    `Preferred phone or email: ${contact}`,
-    `General location: ${location || "Not provided"}`,
-    "",
-    message,
-    "",
-    "I understand this email is not for emergencies or urgent clinical advice."
-  ].join("\n");
-
-  if (contactFormStatus) {
-    contactFormStatus.textContent = "Opening a new message in your email app. This website has not stored your information.";
-  }
-  window.location.href = `mailto:info@ethicalcarehome.ca?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-});
 
 function updatePersistentUI() {
   const scrolled = window.scrollY > 16;
