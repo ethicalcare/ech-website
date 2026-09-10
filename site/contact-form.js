@@ -18,9 +18,9 @@
     window.contactVerificationReady = () => {
       widget = window.turnstile.render(verification, {
         sitekey: config.siteKey, action: "inquiry", theme: "light", size: "flexible",
-        callback: value => { token = value; say(""); enable(); },
-        "expired-callback": () => { token = ""; say("Please complete the security check again."); enable(); },
-        "error-callback": () => { token = ""; say("The security check could not load. Please try reloading the page, or use the phone or email links above."); enable(); }
+        callback: value => { if (sending || finished) return; token = value; say(""); enable(); },
+        "expired-callback": () => { if (sending || finished) return; token = ""; say("Please complete the security check again."); enable(); },
+        "error-callback": () => { if (sending || finished) return; token = ""; say("The security check could not load. Please try reloading the page, or use the phone or email links above."); enable(); }
       });
     };
     const script = document.createElement("script");

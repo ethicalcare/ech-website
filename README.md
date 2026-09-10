@@ -44,7 +44,7 @@ Configure these variables in the Pages Production environment before enabling de
 | `TURNSTILE_SECRET_KEY` | Secret | Widget validation secret. |
 | `BREVO_API_KEY` | Secret | Dedicated website delivery key. |
 
-Keep secrets out of code, local reports and Git. Preview environment delivery is disabled unless deliberately configured. Changes to Pages variables take effect on the next deployment. Do not publish the form until Brevo account verification, domain authentication and a real inbox receipt test are complete. The current hosted release still uses an email draft until this integration is released.
+Keep secrets out of code, local reports and Git. Preview environment delivery is disabled unless deliberately configured. Changes to Pages variables take effect on the next deployment. Before public launch, complete Brevo account verification, domain authentication and a real inbox receipt test. The Cloudflare review site now uses this integration; the company domain has not been moved. A labelled review submission reached the company inbox with SPF, DKIM and DMARC passing.
 
 Run `npm test` for validation, origin restrictions, token rejection/replay, recipient routing and provider failure checks. These tests mock providers and do not establish live receipt. For local UI review, `npm run dev` serves the website with sending unavailable; phone and email links remain usable. For complete local function testing, use a Pages-compatible runtime and separate test credentials. Do not put production secrets in browser code.
 
