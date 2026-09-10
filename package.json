@@ -7,6 +7,7 @@
   "engines": { "node": "22.x" },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.js",
     "verify": "node scripts/verify-site.mjs && node scripts/check-release.mjs",
     "audit": "node scripts/audit-site.mjs",
     "check": "npm run verify && npm run audit",
