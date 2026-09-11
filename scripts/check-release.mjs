@@ -1,6 +1,7 @@
 import { readFile, readdir, lstat } from "node:fs/promises";
 import { dirname, resolve, relative, extname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isPublicBuild, staticHeaders } from "../lib/site-policy.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = process.argv.includes("--output");
@@ -32,7 +33,7 @@ for (const path of files) {
   const name = relative(site, path);
   const ext = extname(path);
   assert(!name.split("/").some((part) => part.startsWith(".")), `Hidden release file: ${name}`);
-  assert(allowed.has(ext) || ["robots.txt", "sitemap.xml"].includes(name), `Unexpected release file: ${name}`);
+  assert(allowed.has(ext) || ["robots.txt", "sitemap.xml", "_headers", "_redirects"].includes(name), `Unexpected release file: ${name}`);
   const data = await readFile(path);
   assert(data.length > 0, `Empty file: ${name}`);
   if (ext === ".png") {
@@ -117,7 +118,8 @@ if (!output || files.includes(sitemapPath)) {
   assert(locations.length === routes.size && locations.every((url) => routes.has(url)), "Sitemap and canonical route inventory differ.");
   assert(!xml.includes("<lastmod>"), "Only add modification dates when their source is maintained.");
 }
-if (output && !config.indexing) {
+if (output) assert(await readFile(resolve(site, "_headers"), "utf8") === staticHeaders(isPublicBuild(config)), "Cloudflare headers do not match the build environment.");
+if (output && !isPublicBuild(config)) {
   assert(!files.includes(sitemapPath) && !robots.includes("Sitemap:"), "Review builds must not advertise a production sitemap.");
   for (const path of files.filter((path) => extname(path) === ".html")) {
     assert((await readFile(path, "utf8")).includes('<meta name="robots" content="noindex,nofollow,noarchive">'), `Missing review directive: ${relative(site, path)}`);

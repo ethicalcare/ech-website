@@ -2,7 +2,7 @@ import { validate, composeEmail } from "../../lib/inquiry.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const json = (status, body) => new Response(JSON.stringify(body), {
-  status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }
+  status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex", "X-Frame-Options": "DENY", "Referrer-Policy": "strict-origin-when-cross-origin" }
 });
 
 export async function handleInquiry(request, env, fetcher = fetch) {
