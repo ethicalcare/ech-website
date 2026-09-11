@@ -671,11 +671,23 @@ async function prepareDrawIcon(image) {
 }
 
 if (drawIconImages.length && !reducedMotion.matches) {
-  drawIconImages.forEach((image) => {
-    prepareDrawIcon(image).catch(() => {
-      prepareFallbackDrawIcon(image);
+  const prepareImage = (image) => {
+    prepareDrawIcon(image).catch(() => prepareFallbackDrawIcon(image));
+  };
+  if ("IntersectionObserver" in window) {
+    const preparationObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        prepareImage(entry.target);
+      });
+    }, { rootMargin: "300px" });
+    drawIconImages.forEach((image) => preparationObserver.observe(image));
+  } else {
+    drawIconImages.forEach((image, index) => {
+      window.setTimeout(() => prepareImage(image), index * 50);
     });
-  });
+  }
 }
 
 if (serviceCards.length && !reducedMotion.matches && "IntersectionObserver" in window) {
