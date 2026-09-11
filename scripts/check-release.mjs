@@ -87,6 +87,11 @@ for (const path of files) {
     const text = data.toString("utf8");
     assert(!text.includes("/Users/") && !text.includes("127.0.0.1"), `Local reference in release: ${name}`);
     if (ext === ".html") {
+      if (name === "404.html") {
+        assert(text.includes('<meta name="robots" content="noindex,nofollow,noarchive">'), "The 404 page must remain out of search results.");
+        assert(text.includes('<main class="inner-main" id="main">'), "The 404 page must include the main landmark.");
+        continue;
+      }
       assert(name.endsWith("index.html"), `Unexpected HTML route: ${name}`);
       const route = "/" + name.replace(/index\.html$/, "");
       routes.add(`${config.origin}${route}`);
