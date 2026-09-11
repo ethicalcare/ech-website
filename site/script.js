@@ -508,6 +508,7 @@ function animateIconInk(entry, { restart = false } = {}) {
 
     if (reducedMotion.matches) {
       entry.context.putImageData(entry.source, 0, 0);
+      entry.image.style.opacity = "";
       entry.stage.classList.add("is-complete");
       return;
     }
@@ -618,8 +619,10 @@ function prepareFallbackDrawIcon(image) {
 async function prepareDrawIcon(image) {
   await waitForIconImage(image);
 
-  const width = image.naturalWidth || 162;
-  const height = image.naturalHeight || 162;
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 3);
+  const renderedSize = Math.max(image.getBoundingClientRect().width, 96);
+  const width = Math.max(image.naturalWidth || 162, Math.ceil(renderedSize * pixelRatio));
+  const height = Math.round(width * (image.naturalHeight || 162) / (image.naturalWidth || 162));
   const sourceCanvas = document.createElement("canvas");
   sourceCanvas.width = width;
   sourceCanvas.height = height;

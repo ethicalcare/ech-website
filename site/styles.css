@@ -1531,6 +1531,10 @@ h3 {
 }
 
 .draw-icon-stage.is-complete img {
+  opacity: 1;
+}
+
+.draw-icon-stage.is-complete canvas {
   opacity: 0;
 }
 
@@ -1866,6 +1870,11 @@ h3 {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   content: "";
   pointer-events: none;
+}
+
+.care-standard-photo picture {
+  position: absolute;
+  inset: 0;
 }
 
 .care-standard-photo picture,
