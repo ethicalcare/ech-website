@@ -1,5 +1,6 @@
 {
   "origin": "https://ethicalcarehome.ca",
-  "indexing": false,
-  "pageCount": 49
+  "indexing": true,
+  "pageCount": 49,
+  "productionBranch": "main"
 }
