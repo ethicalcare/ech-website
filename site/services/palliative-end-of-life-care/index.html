@@ -163,14 +163,32 @@
 
   <div class="floating-actions" role="group" aria-label="Persistent page actions">
     <button class="back-to-top" type="button" data-back-to-top aria-label="Back to the top of the page">↑</button>
-    <button class="chat-launcher" aria-label="Open Talk to a Nurse conversation" type="button" data-chat-launcher aria-expanded="false" aria-controls="nurse-chat"><span class="chat-launcher-icon" aria-hidden="true"><i></i><i></i><i></i></span><span>Talk to a Nurse</span></button>
+    <button class="chat-launcher" aria-label="Open contact options to talk to a nurse" type="button" data-contact-launcher aria-expanded="false" aria-controls="contact-panel">
+      <span class="chat-launcher-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M7.4 3.5 9.7 8 7.6 9.7a15.2 15.2 0 0 0 6.7 6.7l1.7-2.1 4.5 2.3v3c0 .8-.7 1.5-1.5 1.5C10.2 21.1 2.9 13.8 2.9 5c0-.8.7-1.5 1.5-1.5h3Z"/></svg>
+      </span>
+      <span>Talk to a Nurse</span>
+    </button>
   </div>
-  <aside class="nurse-chat" id="nurse-chat" data-nurse-chat aria-label="Talk to a Nurse guided conversation" hidden>
-    <header class="chat-header"><div class="chat-identity"><span class="chat-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg></span><span><small>Ethical Care conversation</small><strong>Talk to a Nurse</strong></span></div><button type="button" data-chat-close aria-label="Close guided conversation">×</button></header>
-    <div class="chat-messages" data-chat-messages aria-live="polite"><p class="chat-message">Hi. What would you like help with?</p></div>
-    <div class="chat-choices" aria-label="Suggested replies"><button type="button" data-chat-choice="soon">Care is needed soon</button><button type="button" data-chat-choice="planning">We are planning ahead</button><button type="button" data-chat-choice="unsure">We are not sure where to begin</button></div>
-    <div class="chat-contact"><a href="tel:+17789035683">Call 778-903-5683</a><a href="mailto:info@ethicalcarehome.ca">Email the team</a></div>
-    <p class="chat-safety">This guided conversation does not provide medical advice or emergency help. For an emergency, call 911.</p>
+
+  <aside class="nurse-chat" id="contact-panel" data-contact-panel aria-label="Contact Ethical Care at Home" hidden>
+    <header class="chat-header">
+      <div class="chat-identity">
+        <span class="chat-symbol" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>
+        </span>
+        <span><small>Ethical Care at Home</small><strong>Contact the team</strong></span>
+      </div>
+      <button type="button" data-contact-close aria-label="Close contact options">×</button>
+    </header>
+    <div class="contact-panel-copy">
+      <p>Call us to discuss care, or send an inquiry through our contact form. This is not live chat.</p>
+    </div>
+    <div class="chat-contact">
+      <a href="tel:+17789035683">Call the team</a>
+      <a href="../../contact/">Send an inquiry</a>
+    </div>
+    <p class="chat-safety">This does not provide medical advice or emergency help. For an emergency, call 911.</p>
   </aside>
 </body>
 </html>

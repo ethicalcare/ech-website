@@ -79,7 +79,7 @@ html { scroll-padding-top: 100px; }
 
 
 
-body:not(.inner-page) { --muted: #46615d; }
+body { --ink: #1f302c; --muted: #354d48; }
 body:not(.inner-page) .section-heading > p:last-child { font-size: 1.125rem; line-height: 1.65; }
 body:not(.inner-page) .service-card { background: linear-gradient(145deg, #f8e5e2, #fff8f5); color: var(--deep-teal); }
 body:not(.inner-page) .service-card p { color: var(--muted); font-size: 1rem; line-height: 1.65; }
@@ -103,3 +103,59 @@ body:not(.inner-page) .heart-scroll-trace { stroke-dasharray: none; stroke-dasho
 
 body:not(.inner-page) .service-card .service-card-link { width: fit-content; max-width: 100%; min-width: 0; line-height: 1.5; }
 body:not(.inner-page) .service-card .service-card-link .journey-mark { flex-shrink: 0; }
+
+.service-map-credit, .resource-number { color: var(--muted); }
+.care-standard, .service-card-teal p, .resource-feature p,
+.final-cta-inner p:not(.eyebrow), .site-footer, .chat-identity small { color: #f1f6f4; }
+
+.header-inner { min-height: 96px; height: auto; padding-block: 12px; grid-template-columns: 176px minmax(0, 1fr) auto; gap: 22px; }
+.brand { width: 176px; }
+.primary-nav { gap: clamp(14px, 1.7vw, 26px); }
+.primary-nav a { display: inline-flex; align-items: center; min-height: 44px; font-size: 1rem; }
+.header-phone span { font-size: .625rem; }
+.header-phone strong { font-size: .875rem; }
+.header-nurse-cta { font-size: .875rem; }
+.hero { min-height: calc(100svh - 96px); }
+html { scroll-padding-top: 140px; }
+@media (min-width: 901px) and (max-width: 1120px) {
+  .header-inner { grid-template-columns: 160px minmax(0, 1fr) auto; gap: 16px; }
+  .brand { width: 160px; }
+  .header-nurse-cta { display: none; }
+  .primary-nav { gap: 16px; }
+}
+@media (max-width: 900px) {
+  .header-inner { min-height: 84px; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+  .brand { width: 152px; }
+  .menu-button { min-height: 44px; font-size: .875rem; }
+  .primary-nav { gap: 7px; overflow-y: auto; }
+  .primary-nav a { font-size: 1.375rem; }
+  .hero { min-height: auto; }
+  html { scroll-padding-top: 126px; }
+}
+@media (max-width: 650px) {
+  .brand { width: 132px; }
+  .header-phone strong { font-size: .8125rem; }
+}
+@media (max-width: 360px) {
+  .header-inner { gap: 6px; }
+  .brand { width: 104px; }
+  .header-actions { gap: 4px; }
+  .header-phone { padding-inline: 2px; column-gap: 5px; }
+  .header-phone strong { font-size: .75rem; }
+}
+
+body:not(.inner-page) .hero-lede { font-size: clamp(1.1875rem, 1.6vw, 1.25rem); line-height: 1.65; }
+body:not(.inner-page) .section-heading > p:last-child { font-size: 1.1875rem; }
+body:not(.inner-page) .service-card p { font-size: 1.0625rem; }
+.heart-relief .heart-scroll-core { fill: url(#heart-surface); }
+.heart-relief .heart-scroll-outline { stroke: #fffaf6; stroke-width: 8.8; stroke-linejoin: miter; stroke-linecap: butt; }
+.heart-relief .heart-scroll-ribbon { fill: url(#heart-line-fade); stroke: none; }
+
+.floating-actions { visibility: hidden; transition: opacity 220ms ease, transform 220ms ease, visibility 0s linear 220ms; }
+.floating-actions.is-ready { visibility: visible; transition-delay: 0s; }
+.chat-launcher-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.contact-panel-copy { padding: 20px 18px 16px; background: var(--ivory); }
+.contact-panel-copy p { margin: 0; color: var(--ink); font-size: .9rem; line-height: 1.6; }
+.contact-panel-copy + .chat-contact { padding-top: 16px; }
+.chat-contact a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; font-size: .75rem; }
+.chat-safety { font-size: .675rem; }

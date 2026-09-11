@@ -104,13 +104,32 @@
         <div class="heart-scroll-scene" data-heart-scroll>
           <svg viewBox="45 62 69 58" role="presentation">
             <defs>
-              <path id="ethical-care-heart-geometry" pathLength="100" d="M78.62,79.56c-2.47-3.07-5.25-7.5-11.83-7.5a12.11,12.11,0,0,0-12.1,12.1c0,12.06,13.17,21.51,23.93,26.86A73.79,73.79,0,0,0,89,104.84c22.54-16.32,12.77-32.93,1.51-32.93a12,12,0,0,0-8.31,3.44A38.26,38.26,0,0,0,78.62,79.56Z"></path>
+              <linearGradient id="heart-surface" x1="0" y1="0" x2="0.75" y2="1">
+                <stop offset="0" stop-color="#dfa6a0"/>
+                <stop offset="0.38" stop-color="#bd7475"/>
+                <stop offset="1" stop-color="#984e55"/>
+              </linearGradient>
+              <linearGradient id="heart-line-fade" gradientUnits="userSpaceOnUse" x1="118" y1="67" x2="134.5" y2="67">
+                <stop offset="0" stop-color="#fffaf6"/>
+                <stop offset="0.52" stop-color="#fffaf6" stop-opacity="0.82"/>
+                <stop offset="1" stop-color="#fffaf6" stop-opacity="0"/>
+              </linearGradient>
+              <filter id="heart-emboss" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="0.65" result="soft-shape"/>
+                <feSpecularLighting in="soft-shape" surfaceScale="1.8" specularConstant="0.38" specularExponent="14" lighting-color="#fff5e8" result="light">
+                  <feDistantLight azimuth="225" elevation="45"/>
+                </feSpecularLighting>
+                <feComposite in="light" in2="SourceAlpha" operator="in" result="edge-light"/>
+                <feComposite in="SourceGraphic" in2="edge-light" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="surface"/>
+                <feDropShadow in="surface" dx="0.25" dy="0.75" stdDeviation="0.55" flood-color="#613d40" flood-opacity="0.24"/>
+              </filter>
+              <path id="ethical-care-heart-geometry" pathLength="100" d="M78.62,79.56 C76.15,76.49 73.37,72.06 66.79,72.06 A12.11,12.11 0 0 0 54.69,84.16 C54.69,96.22 67.86,105.67 78.62,111.02 A73.79,73.79 0 0 0 89,104.84 C111.54,88.52 101.77,71.91 90.51,71.91 A12,12 0 0 0 82.2,75.35 A38.26,38.26 0 0 0 78.62,79.56 Z"></path>
             </defs>
+            <g class="heart-relief" filter="url(#heart-emboss)">
+            <path class="heart-scroll-trace heart-scroll-outline" d="M78.62,111.02 A73.79,73.79 0 0 0 89,104.84 C111.54,88.52 101.77,71.91 90.51,71.91 A12,12 0 0 0 82.2,75.35 A38.26,38.26 0 0 0 78.62,79.56 C76.15,76.49 73.37,72.06 66.79,72.06 A12.11,12.11 0 0 0 54.69,84.16 C54.69,96.22 67.86,105.67 78.62,111.02"></path>
+            <path class="heart-scroll-exit heart-scroll-ribbon" d="M82.2,75.35 C87.12,70.51579 93.0196,69.11568 98.65,68.22 C106.47,66.976 113.41,68.8385 119.41,69.37 C124.49,69.82 129.37,69.78 134.55,69.65 A2.2,2.2 0 0 0 134.43961,65.25138 C133.79794,65.26749 133.16287,65.28215 132.53347,65.29461 C131.90406,65.30708 131.28032,65.31735 130.66128,65.32468 C130.04224,65.33202 129.42789,65.33643 128.81722,65.33719 C128.20656,65.33795 127.59958,65.33506 126.99524,65.32782 C126.3909,65.32057 125.7892,65.30897 125.18904,65.29232 C124.58888,65.27566 123.99026,65.25396 123.39205,65.2265 C122.79383,65.19905 122.19603,65.16584 121.59746,65.12619 C120.99889,65.08653 120.39955,65.04043 119.79824,64.98716 C119.12361,64.9274 118.41411,64.84686 117.6726,64.7523 C116.93108,64.65775 116.15756,64.54924 115.35424,64.43499 C114.55091,64.32073 113.71777,64.20077 112.85634,64.08426 C111.99491,63.96775 111.10517,63.8547 110.18821,63.75498 C109.27126,63.65526 108.32706,63.56886 107.35665,63.50619 C106.38624,63.44352 105.38959,63.40459 104.36809,63.40017 C103.3466,63.39576 102.30023,63.42588 101.23114,63.50138 C100.16205,63.57689 99.07022,63.69783 97.95874,63.87464 C97.22599,63.9912 96.47725,64.11778 95.71541,64.26101 C94.95358,64.40424 94.17862,64.56415 93.39354,64.74789 C92.60846,64.93163 91.81322,65.13923 91.01129,65.37825 C90.20936,65.61727 89.40072,65.88773 88.58965,66.19728 C87.77859,66.50684 86.9651,66.85554 86.15458,67.2506 C85.34406,67.64567 84.53653,68.08714 83.73838,68.58119 C82.94022,69.07523 82.15151,69.62186 81.37897,70.22565 C80.60642,70.82944 79.85013,71.49037 79.11621,72.21149 L79.08055,72.24653 L82.16434,75.38504 Z M78.62,111.02 C68.5,115.97182 50.5,115.32 28.83,106.46 A2.2,2.2 0 0 0 27.16482,110.53274 C29.96358,111.67704 32.70882,112.69119 35.39312,113.57987 C38.07743,114.46855 40.70081,115.23177 43.25616,115.87397 C45.81151,116.51616 48.29883,117.03735 50.71144,117.44154 C53.12405,117.84574 55.46195,118.13296 57.71897,118.30649 C59.97598,118.48001 62.15211,118.53988 64.24171,118.48806 C66.33131,118.43624 68.33442,118.27281 70.24556,117.99754 C72.15669,117.72228 73.976,117.33525 75.69687,116.83288 C77.41773,116.33051 79.04048,115.71275 80.55387,114.97223 L80.59878,114.95026 L78.66491,110.99802 Z"></path>
             <use class="heart-scroll-core" href="#ethical-care-heart-geometry"></use>
-            <path class="heart-scroll-trace heart-scroll-outline" d="M78.62,79.56 A38.26,38.26 0 0 1 82.2,75.35 A12,12 0 0 1 90.51,71.91 C101.77,71.91 111.54,88.52 89,104.84 A73.79,73.79 0 0 1 78.62,111.02"></path>
-            <path class="heart-scroll-trace heart-scroll-outline" d="M78.62,111.02 C67.86,105.67 54.69,96.22 54.69,84.16 A12.11,12.11 0 0 1 66.79,72.06 C73.37,72.06 76.15,76.49 78.62,79.56"></path>
-            <path class="heart-scroll-trace heart-scroll-exit" d="M78.62,111.02 C68.5,116.8 50.5,117.7 28,108.5"></path>
-            <path class="heart-scroll-trace heart-scroll-exit" d="M78.62,79.56 C84.5,72.32 89.68,67.42 98.3,66.05 C106.88,64.68 113.58,66.65 119.6,67.18 C124.58,67.62 129.28,67.58 134.5,67.45"></path>
+            </g>
           </svg>
         </div>
         <div class="heart-scroll-ambient" data-heart-scroll-ambient aria-hidden="true"></div>
@@ -583,35 +602,32 @@
 
   <div class="floating-actions" role="group" aria-label="Persistent page actions">
     <button class="back-to-top" type="button" data-back-to-top aria-label="Back to the top of the page">↑</button>
-    <button class="chat-launcher" aria-label="Open Talk to a Nurse conversation" type="button" data-chat-launcher aria-expanded="false" aria-controls="nurse-chat">
-      <span class="chat-launcher-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+    <button class="chat-launcher" aria-label="Open contact options to talk to a nurse" type="button" data-contact-launcher aria-expanded="false" aria-controls="contact-panel">
+      <span class="chat-launcher-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M7.4 3.5 9.7 8 7.6 9.7a15.2 15.2 0 0 0 6.7 6.7l1.7-2.1 4.5 2.3v3c0 .8-.7 1.5-1.5 1.5C10.2 21.1 2.9 13.8 2.9 5c0-.8.7-1.5 1.5-1.5h3Z"/></svg>
+      </span>
       <span>Talk to a Nurse</span>
     </button>
   </div>
 
-  <aside class="nurse-chat" id="nurse-chat" data-nurse-chat aria-label="Talk to a Nurse guided conversation" hidden>
+  <aside class="nurse-chat" id="contact-panel" data-contact-panel aria-label="Contact Ethical Care at Home" hidden>
     <header class="chat-header">
       <div class="chat-identity">
         <span class="chat-symbol" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>
         </span>
-        <span><small>Ethical Care conversation</small><strong>Talk to a Nurse</strong></span>
+        <span><small>Ethical Care at Home</small><strong>Contact the team</strong></span>
       </div>
-      <button type="button" data-chat-close aria-label="Close guided conversation">×</button>
+      <button type="button" data-contact-close aria-label="Close contact options">×</button>
     </header>
-    <div class="chat-messages" data-chat-messages aria-live="polite">
-      <p class="chat-message">Hi. What would you like help with?</p>
-    </div>
-    <div class="chat-choices" aria-label="Suggested replies">
-      <button type="button" data-chat-choice="soon">Care is needed soon</button>
-      <button type="button" data-chat-choice="planning">We are planning ahead</button>
-      <button type="button" data-chat-choice="unsure">We are not sure where to begin</button>
+    <div class="contact-panel-copy">
+      <p>Call us to discuss care, or send an inquiry through our contact form. This is not live chat.</p>
     </div>
     <div class="chat-contact">
-      <a href="tel:+17789035683">Call 778-903-5683</a>
-      <a href="mailto:info@ethicalcarehome.ca">Email the team</a>
+      <a href="tel:+17789035683">Call the team</a>
+      <a href="contact/">Send an inquiry</a>
     </div>
-    <p class="chat-safety">This guided conversation does not provide medical advice or emergency help. For an emergency, call 911.</p>
+    <p class="chat-safety">This does not provide medical advice or emergency help. For an emergency, call 911.</p>
   </aside>
 </body>
 </html>

@@ -33,10 +33,9 @@ const servicesFlowPaths = servicesSection
   : [];
 const drawIconImages = [...document.querySelectorAll("[data-draw-icon]")];
 const serviceCards = [...document.querySelectorAll(".service-card")];
-const chatLauncher = document.querySelector("[data-chat-launcher]");
-const chat = document.querySelector("[data-nurse-chat]");
-const chatClose = document.querySelector("[data-chat-close]");
-const chatMessages = document.querySelector("[data-chat-messages]");
+const contactLauncher = document.querySelector("[data-contact-launcher]");
+const contactPanel = document.querySelector("[data-contact-panel]");
+const contactPanelClose = document.querySelector("[data-contact-close]");
 const finalCtaMedia = document.querySelector("[data-final-cta-media]");
 const careMomentGallery = document.querySelector(".care-moment-gallery");
 const careMoments = careMomentGallery ? [...careMomentGallery.querySelectorAll(".care-moment")] : [];
@@ -66,7 +65,8 @@ function updatePersistentUI() {
   const scrolled = window.scrollY > 16;
   header?.classList.toggle("is-scrolled", scrolled);
   backToTop?.classList.toggle("is-visible", window.scrollY > window.innerHeight * 0.9);
-  floatingActions?.classList.toggle("is-ready", window.scrollY > window.innerHeight * 0.55);
+  const contactPanelOpen = Boolean(contactPanel && !contactPanel.hidden);
+  floatingActions?.classList.toggle("is-ready", window.scrollY > window.innerHeight * 0.55 || contactPanelOpen);
 }
 
 updatePersistentUI();
@@ -895,59 +895,27 @@ document.querySelectorAll(".faq-list details").forEach((detail) => {
   });
 });
 
-function setChatOpen(open) {
-  if (!chat || !chatLauncher) return;
-  chat.hidden = !open;
-  chatLauncher.setAttribute("aria-expanded", String(open));
+function setContactPanelOpen(open) {
+  if (!contactPanel || !contactLauncher) return;
+  contactPanel.hidden = !open;
+  contactLauncher.setAttribute("aria-expanded", String(open));
   if (open) {
-    chat.classList.add("is-opening");
-    chat.querySelector("[data-chat-close]")?.focus();
+    contactPanel.classList.add("is-opening");
+    contactPanelClose?.focus();
   } else {
-    chat.classList.remove("is-opening");
-    chatLauncher.focus();
+    contactPanel.classList.remove("is-opening");
+    contactLauncher.focus();
   }
+  updatePersistentUI();
 }
 
-chatLauncher?.addEventListener("click", () => setChatOpen(chat?.hidden ?? true));
-chatClose?.addEventListener("click", () => setChatOpen(false));
-
-const chatReplies = {
-  soon: {
-    label: "Care is needed soon",
-    response: "Please call so the team can learn what support is needed, where care is required and confirm current availability."
-  },
-  planning: {
-    label: "We are planning ahead",
-    response: "A free in-home assessment can help your family understand the options, roles and practical next steps before care begins."
-  },
-  unsure: {
-    label: "We are not sure where to begin",
-    response: "That is a good reason to talk. Start with what is changing at home. You do not need to know which service to ask for."
-  }
-};
-
-document.querySelectorAll("[data-chat-choice]").forEach((choice) => {
-  choice.addEventListener("click", () => {
-    const reply = chatReplies[choice.dataset.chatChoice];
-    if (!reply || !chatMessages) return;
-
-    const selected = document.createElement("p");
-    selected.className = "chat-message is-response";
-    selected.textContent = reply.label;
-
-    const response = document.createElement("p");
-    response.className = "chat-message";
-    response.textContent = reply.response;
-
-    chatMessages.replaceChildren(selected, response);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  });
-});
+contactLauncher?.addEventListener("click", () => setContactPanelOpen(contactPanel?.hidden ?? true));
+contactPanelClose?.addEventListener("click", () => setContactPanelOpen(false));
 
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
-  if (chat && !chat.hidden) {
-    setChatOpen(false);
+  if (contactPanel && !contactPanel.hidden) {
+    setContactPanelOpen(false);
     return;
   }
   closeMenu();

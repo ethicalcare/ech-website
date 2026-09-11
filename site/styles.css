@@ -148,16 +148,10 @@ h3 {
 
 .eyebrow::before {
   flex: 0 0 auto;
-  width: 37px;
-  height: 14px;
-  background: linear-gradient(90deg, var(--eyebrow-primary) 0 35%, var(--eyebrow-accent) 35% 66%, var(--eyebrow-primary) 66% 100%);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  content: "◆◆◆";
-  font-size: 0.68rem;
-  letter-spacing: 1px;
-  line-height: 14px;
+  width: 30px;
+  height: 8px;
+  content: "";
+  background: radial-gradient(circle at 4px 4px, var(--eyebrow-primary) 0 3px, transparent 3.5px), radial-gradient(circle at 15px 4px, var(--eyebrow-accent) 0 3px, transparent 3.5px), radial-gradient(circle at 26px 4px, var(--eyebrow-primary) 0 3px, transparent 3.5px);
   transform: none;
 }
 
@@ -1337,14 +1331,14 @@ h3 {
 .js .situations .section-heading .eyebrow::before,
 .js .situations .section-heading .eyebrow::after {
   opacity: 0;
-  transform: translateY(-3px) rotate(45deg) scale(0);
+  transform: translateY(0) scale(0);
   transition: opacity 400ms ease 180ms, transform 760ms cubic-bezier(0.16, 1, 0.3, 1) 180ms;
 }
 
 .js .situations .section-heading.is-revealed .eyebrow::before,
 .js .situations .section-heading.is-revealed .eyebrow::after {
   opacity: 1;
-  transform: translateY(-3px) rotate(45deg) scale(1);
+  transform: translateY(0) scale(1);
 }
 
 .services {
@@ -3974,6 +3968,6 @@ h3 {
   .js .situations .section-heading .eyebrow::before,
   .js .situations .section-heading .eyebrow::after {
     opacity: 1;
-    transform: translateY(-3px) rotate(45deg);
+    transform: translateY(0);
   }
 }
