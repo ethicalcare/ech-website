@@ -82,7 +82,12 @@ for (const pagePath of pages) {
   for (const href of hrefs) {
     if (/^(?:https?:|mailto:|tel:|javascript:)/.test(href)) continue;
     const [pathPart, fragment] = href.split("#");
-    const targetPath = pathPart ? resolve(dirname(pagePath), pathPart.split("?")[0]) : pagePath;
+    const cleanPath = pathPart?.split("?")[0];
+    const targetPath = cleanPath
+      ? cleanPath.startsWith("/")
+        ? resolve(projectDir, `.${cleanPath}`)
+        : resolve(dirname(pagePath), cleanPath)
+      : pagePath;
     localLinkCount += 1;
     await assertExists(targetPath, `${route}: broken local link ${href}`);
     if (fragment) {
