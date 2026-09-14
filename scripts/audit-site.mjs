@@ -125,6 +125,7 @@ for (const pagePath of pages) {
     const alt = attr(image, "alt");
     const source = attr(image, "src");
     if (alt === null) add(findings, "error", "image-alt", `Image ${source || "(unknown)"} has no alt attribute.`);
+    else if (!alt.trim()) add(findings, "error", "image-alt-empty", `Image ${source || "(unknown)"} has an empty alt attribute.`);
     if (!attr(image, "width") || !attr(image, "height")) add(findings, "error", "image-dimensions", `Image ${source || "(unknown)"} lacks intrinsic dimensions.`);
     const info = await fileInfo(pagePath, source);
     if (info?.bytes === -1) add(findings, "error", "image-missing", `Image file does not exist: ${source}.`);

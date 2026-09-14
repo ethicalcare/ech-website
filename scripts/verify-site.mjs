@@ -74,7 +74,9 @@ for (const pagePath of pages) {
   const images = [...html.matchAll(/<img\b([^>]+)>/g)].map((match) => match[1]);
   imageCount += images.length;
   for (const attributes of images) {
-    assert(/\balt="[^"]*"/.test(attributes), `${route}: image is missing alt text`);
+    const alt = attributes.match(/\balt="([^"]*)"/)?.[1];
+    assert(alt !== undefined, `${route}: image is missing an alt attribute`);
+    assert(alt.trim().length > 0, `${route}: image has an empty alt attribute`);
     assert(/\bwidth="\d+"/.test(attributes) && /\bheight="\d+"/.test(attributes), `${route}: image is missing intrinsic dimensions`);
   }
 
