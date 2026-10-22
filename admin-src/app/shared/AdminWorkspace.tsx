@@ -45,7 +45,11 @@ export function AdminWorkspace({ fetcher = fetch }: { fetcher?: typeof fetch }) 
       const unchanged = old?.authenticated && current.authenticated && old.principal.id === current.principal.id && JSON.stringify(old.capabilities) === JSON.stringify(current.capabilities);
       if (!unchanged) clearProtected();
       if (current.authenticated && canOperate(current) && (full || !unchanged)) {
-        const [inq, par, people] = await Promise.all([inquiryRepository.list(), partnerRepository.list(), can(current, 'leads.assign') ? inquiryRepository.assignees() : Promise.resolve([])]);
+        const [inq, par, people] = await Promise.all([inquiryRepository.list(), (async()=>{
+          const result=await partnerRepository.list();const seen=new Set(result.items.map(row=>row.id));const cursors=new Set<string>();
+          while(result.nextCursor&&result.items.length<1000){if(cursors.has(result.nextCursor))throw new Error('Repeated partner cursor.');cursors.add(result.nextCursor);const page=await partnerRepository.list(result.nextCursor);for(const row of page.items){if(seen.has(row.id))throw new Error('Repeated partner page.');seen.add(row.id);}result.items.push(...page.items);result.nextCursor=page.nextCursor;}
+          return result;
+        })(), can(current, 'leads.assign') ? inquiryRepository.assignees() : Promise.resolve([])]);
         if (ticket !== epoch.current) return;
         if ([...inq.items,...par.items].some(row => !mayRead(current,row))) throw new Error('Unexpected row scope.');
         setInquiries(inq.items as SharedInquiry[]); setPartners(par.items as SharedPartner[]); setAssignees(people); setCursors({ inquiry: inq.nextCursor, partner: par.nextCursor });
