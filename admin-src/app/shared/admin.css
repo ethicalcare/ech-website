@@ -29,3 +29,7 @@
  .shared-admin .panel-heading { align-items: stretch; flex-direction: column; }
  .shared-admin .operations-launch-grid, .shared-admin .form-grid { grid-template-columns: minmax(0,1fr); }
 }
+
+.shared-admin .field-error, .shared-admin [role="alert"] { color:#a51d2d; background:#fff0f1; border:1px solid #e9a5ae; border-left:4px solid #b42336; border-radius:10px; padding:14px 16px; margin:16px 0 22px; font-size:16px; font-weight:650; line-height:1.5; scroll-margin-top:24px; }
+.shared-admin [role="alert"]:focus { outline:3px solid #b42336; outline-offset:3px; }
+.shared-admin[data-theme="dark"] .field-error, .shared-admin[data-theme="dark"] [role="alert"] { color:#ffb9c1; background:#3b1e25; border-color:#9c5562; border-left-color:#ff9eaa; }
