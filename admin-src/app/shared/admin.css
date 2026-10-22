@@ -1,0 +1,31 @@
+.shared-admin .main-content { min-width: 0; }
+.shared-admin .panel-heading { flex-wrap: wrap; gap: 12px; }
+.shared-admin .intake-form { box-shadow: var(--shadow); height: auto; max-height: none; width: 100%; margin-block: 24px; padding: var(--card-padding); }
+.shared-admin .intake-form fieldset { border: 0; margin: 0; min-width: 0; padding: 0; }
+.shared-admin label { display: grid; gap: 6px; margin: 12px 0; font-size: 14px; font-weight: 600; }
+.shared-admin input:not([type=checkbox]), .shared-admin select, .shared-admin textarea { background: var(--surface); border: 1px solid var(--field-line); border-radius: 10px; color: var(--text); font-size: 16px; max-width: 100%; min-height: 48px; min-width: 0; padding: 12px; width: 100%; }
+.shared-admin :where(main button) { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; color: var(--text); cursor: pointer; min-height: 44px; padding: 10px 14px; }
+.shared-admin button:disabled { cursor: not-allowed; opacity: .6; }
+.shared-admin :focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+.shared-admin p, .shared-admin code, .shared-admin small { overflow-wrap: anywhere; }
+.shared-admin small { display: block; }
+.shared-admin p { line-height: 1.6; }
+.shared-admin .dashboard-card { padding: var(--card-padding); margin-block: 24px; }
+.shared-admin .dashboard-card > h2, .shared-admin .dashboard-card > h3 { margin-top: 0; }
+.shared-admin .operations-launch-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; }
+.shared-admin .operations-launch-grid .dashboard-card { margin-block: 0; }
+.shared-admin .admin-tools { margin-block: 32px; }
+.shared-admin details > summary { cursor: pointer; font-size: 17px; font-weight: 700; padding-block: 8px; }
+.shared-admin .admin-user-list { display: grid; gap: 10px; margin-block: 20px; }
+.shared-admin .source-text { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.6; }
+.shared-admin .source-links { display: grid; gap: 10px; padding-left: 20px; }
+.shared-admin a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+.shared-admin .source-flags { background: var(--green-soft); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.shared-admin .primary-button { background: var(--green-deep); color: var(--on-primary); }
+@media (max-width: 850px) { .shared-admin .operations-launch-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 700px) {
+ .shared-admin .main-content { padding: 18px 14px calc(182px + env(safe-area-inset-bottom)); }
+ .shared-admin .intake-form { border-radius: 14px; height: auto; padding: 16px; width: 100%; }
+ .shared-admin .panel-heading { align-items: stretch; flex-direction: column; }
+ .shared-admin .operations-launch-grid, .shared-admin .form-grid { grid-template-columns: minmax(0,1fr); }
+}

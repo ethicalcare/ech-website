@@ -1,0 +1,30 @@
+export type Lead = {
+  id: string;
+  name: string;
+  relationship: string;
+  careRecipient: string;
+  careRecipientPhone: string;
+  careRecipientEmail: string;
+  need: string;
+  source: string;
+  status: string;
+  owner: string;
+  next: string;
+  received: string;
+  updated: string;
+  tone: string;
+  preferredContact: string;
+  phone: string;
+  email: string;
+  city: string;
+  details: string;
+  followUpAt?: string;
+  referralPartnerId?: string;
+  referralPartnerName?: string;
+  referralContext?: string;
+  referringPersonId?: string;
+  referringPersonName?: string;
+};
+
+export type FollowUpInput = { owner: string; outcome: string; note: string; nextAction: string; nextAt: string };
+export type InquiryReferral = { partnerId: string; partnerName: string; context: string; personId?: string; personName?: string };

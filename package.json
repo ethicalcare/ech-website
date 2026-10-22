@@ -4,13 +4,22 @@
   "private": true,
   "description": "Ethical Care at Home website",
   "type": "module",
-  "engines": { "node": "22.x" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build.mjs && npm run build:admin",
     "test": "node --test tests/*.test.js",
     "verify": "node scripts/verify-site.mjs && node scripts/check-release.mjs",
     "audit": "node scripts/audit-site.mjs",
     "check": "npm run verify && npm run audit",
-    "dev": "node scripts/serve.mjs"
+    "dev": "node scripts/serve.mjs",
+    "build:admin": "node scripts/build-admin.mjs admin-src node_modules",
+    "build:release": "npm run build && node scripts/check-release.mjs --output"
+  },
+  "devDependencies": {
+    "esbuild": "0.27.3",
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
   }
 }

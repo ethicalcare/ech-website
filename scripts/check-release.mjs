@@ -9,9 +9,9 @@ const site = resolve(root, output ? "dist" : "site");
 const config = JSON.parse(await readFile(resolve(root, "site.config.json"), "utf8"));
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
 if (!output) {
-  const rootFiles = new Set([".git", ".github", ".gitignore", ".vercel", ".vercelignore", "node_modules", "dist", "site", "scripts", "functions", "lib", "tests", "package.json", "package-lock.json", "site.config.json", "vercel.json", "README.md", "LAUNCH_CHECKLIST.md"]);
+  const rootFiles = new Set([".git", ".github", ".gitignore", ".vercel", ".vercelignore", "node_modules", "dist", "site", "admin-src", "scripts", "functions", "lib", "migrations", "tests", "package.json", "package-lock.json", "site.config.json", "vercel.json", "README.md", "LAUNCH_CHECKLIST.md"]);
   for (const entry of await readdir(root)) assert(rootFiles.has(entry), `Unexpected repository entry: ${entry}`);
-  const scripts = new Set(["build.mjs", "serve.mjs", "audit-site.mjs", "verify-site.mjs", "check-release.mjs"]);
+  const scripts = new Set(["build.mjs", "serve.mjs", "audit-site.mjs", "verify-site.mjs", "check-release.mjs", "build-admin.mjs"]);
   for (const entry of await readdir(resolve(root, "scripts"))) assert(scripts.has(entry), `Unexpected development script: ${entry}`);
 }
 const files = [];
@@ -88,6 +88,14 @@ for (const path of files) {
     const text = data.toString("utf8");
     assert(!text.includes("/Users/") && !text.includes("127.0.0.1"), `Local reference in release: ${name}`);
     if (ext === ".html") {
+      if (name === "admin/index.html") {
+        assert(output, "Admin is assembled only after the public website build.");
+        assert(text.includes('<meta name="robots" content="noindex,nofollow,noarchive">'), "Admin must remain out of search results.");
+        assert(text.includes('<div id="admin-root"></div>'), "Admin must include its non-landmark mount element.");
+        assert(text.includes('src="/admin/admin.js"') && text.includes('href="/admin/admin.css"'), "Admin bundle paths are missing.");
+        assert(!/<script(?![^>]*src=)[^>]*>[^<]+/i.test(text), "Admin must not contain inline script payloads.");
+        continue;
+      }
       if (name === "404.html") {
         assert(text.includes('<meta name="robots" content="noindex,nofollow,noarchive">'), "The 404 page must remain out of search results.");
         assert(text.includes('<main class="inner-main" id="main">'), "The 404 page must include the main landmark.");
