@@ -3,7 +3,7 @@ import { parseCommand,commandFingerprint,canonical } from '../lib/admin/shared-c
 import { capabilities,authorize } from '../lib/admin/permissions.js';
 import { handleAdmin } from '../lib/admin/handler.js';
 import { list,commit,rpc } from '../lib/admin/shared-repository.js';
-import { session } from '../lib/admin/session.js';
+import { session,provider,verifyChallenge } from '../lib/admin/session.js';
 const uid='10000000-0000-4000-8000-000000000001',other='10000000-0000-4000-8000-000000000002',id='20000000-0000-4000-8000-000000000001',op='30000000-0000-4000-8000-000000000001';
 const env={ADMIN_ORIGIN:'https://example.invalid',SUPABASE_URL:'https://abcdefghijklmnopqrst.supabase.co',SUPABASE_PUBLISHABLE_KEY:'fictional-public-key',TURNSTILE_SECRET_KEY:'fictional-fixture-value',TURNSTILE_SITE_KEY:'fictional-site-key',ECH_LOGIN_EMAILS:'sample@example.invalid'};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}});
@@ -31,7 +31,7 @@ test('call date/channel/contact result and contact job title are data, not roles
  assert.throws(()=>parseCommand('partner',envelope('record_activity',{date:'2026-02-30'})));assert.throws(()=>parseCommand('partner',envelope('update',{contacted:'true'})));assert.throws(()=>parseCommand('inquiry',envelope('update',{careRecipientEmail:'invalid'})));
 });
 test('canonical fingerprint binds payload not property insertion order',async()=>{const first=envelope();assert.equal(await commandFingerprint(first),await commandFingerprint(JSON.parse(canonical(first))));assert.notEqual(await commandFingerprint(first),await commandFingerprint(envelope('update',{name:'Another fictional caller'})));});
-test('session verifies user, current membership AND registered session on each call',async()=>{const server=sessionServer();await session(request(),env,server.fetcher);await session(request(),env,server.fetcher);assert.equal(server.calls.filter(x=>x.url.endsWith('/auth/v1/user')).length,2);assert.equal(server.calls.filter(x=>x.url.endsWith('/ech_session_active')).length,2);assert.ok(server.calls.every(x=>x.init.redirect==='error'));});
+test('session verifies user, current membership AND registered session on each call',async()=>{const server=sessionServer();await session(request(),env,server.fetcher);await session(request(),env,server.fetcher);assert.equal(server.calls.filter(x=>x.url.endsWith('/auth/v1/user')).length,2);assert.equal(server.calls.filter(x=>x.url.endsWith('/ech_session_active')).length,2);assert.ok(server.calls.every(x=>x.init.redirect==='manual'));});
 test('revoked session, disabled membership, missing identity and technical-only access fail closed',async()=>{
  for(const opts of [{active:false},{members:[]},{member:{active:false}},{user:{id:'bad',email:'sample@example.invalid'}}]){const server=sessionServer('staff',opts);await assert.rejects(session(request(),env,server.fetcher));}
  const server=sessionServer(null,{member:{technical_admin:true}});const response=await handleAdmin('inquiries',request('inquiries'),env,server.fetcher);assert.equal(response.status,403);assert.equal(server.calls.length,3);
@@ -62,3 +62,18 @@ test('logout revokes app session before provider logout and clears cookies; fail
 test('refresh checks revoked app session without silently registering it again',async()=>{const server=sessionServer('staff',{active:false});const req=request('refresh',{});req.headers.set('cookie','__Host-ech-refresh=fictional-refresh');const response=await handleAdmin('refresh',req,env,async(url,init)=>url.includes('/auth/v1/token?')?json({access_token:'fictional-access',refresh_token:'fictional-refresh'}):server.fetcher(url,init));assert.equal(response.status,401);assert.equal(server.calls.some(c=>c.url.endsWith('/ech_register_session')),false);assert.equal(server.calls.some(c=>c.url.endsWith('/ech_refresh_session')),true);});
 
 test('standalone inquiry note retains note-only payload and assigned update authorization',()=>{const input=envelope('record_note',{note:'Family asked for a call tomorrow.'});assert.deepEqual(parseCommand('inquiry',input).command.fields,{note:'Family asked for a call tomorrow.'});authorize({active:true,user_id:uid,operational_role:'staff'},'record_note',{owner_id:uid});assert.throws(()=>parseCommand('inquiry',envelope('record_note',{note:' ',next:'Injected'})));assert.throws(()=>parseCommand('inquiry',envelope('record_note',{note:'x'.repeat(3001)})));});
+
+
+test('server requests use manual redirects and reject every 3xx without a second request',async()=>{
+ for(let status=300;status<400;status++){
+  let calls=0;const fetcher=async(url,init)=>{calls++;assert.equal(init.redirect,'manual');return new Response(null,{status,headers:{Location:'https://untrusted.example/redirect'}});};
+  await assert.rejects(()=>provider(current().config,'/auth/v1/user','fictional-access',fetcher),{status:503});assert.equal(calls,1);
+  calls=0;await assert.rejects(()=>verifyChallenge({challengeToken:'fictional-challenge'},{origin:env.ADMIN_ORIGIN},env,fetcher),{status:503});assert.equal(calls,1);
+  calls=0;await assert.rejects(()=>rpc(current(),'ech_session_active',{},fetcher),{status:502});assert.equal(calls,1);
+  calls=0;await assert.rejects(()=>list(current('owner'),'partner',new URLSearchParams(),fetcher),{status:503});assert.equal(calls,1);
+ }
+});
+test('logout refuses provider redirects and clears cookies without forwarding tokens',async()=>{
+ let calls=0;const fetcher=async(url,init)=>{calls++;assert.equal(init.redirect,'manual');if(url.endsWith('/ech_logout_session'))return json(true);assert.equal(url,env.SUPABASE_URL+'/auth/v1/logout?scope=local');return new Response(null,{status:307,headers:{Location:'https://untrusted.example/redirect'}});};
+ const result=await handleAdmin('logout',request('logout',{}),env,fetcher);assert.equal(result.status,502);assert.equal(calls,2);assert.match(result.headers.get('Set-Cookie'),/Max-Age=0/);
+});
