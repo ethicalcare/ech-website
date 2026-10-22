@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import { parseCommand,commandFingerprint,canonical } from '../lib/admin/shared-commands.js';
 import { capabilities,authorize } from '../lib/admin/permissions.js';
 import { handleAdmin } from '../lib/admin/handler.js';
-import { list,commit,rpc } from '../lib/admin/shared-repository.js';
+import { list,commit,rpc,history } from '../lib/admin/shared-repository.js';
 import { session,provider,verifyChallenge } from '../lib/admin/session.js';
 const uid='10000000-0000-4000-8000-000000000001',other='10000000-0000-4000-8000-000000000002',id='20000000-0000-4000-8000-000000000001',op='30000000-0000-4000-8000-000000000001';
 const env={ADMIN_ORIGIN:'https://example.invalid',SUPABASE_URL:'https://abcdefghijklmnopqrst.supabase.co',SUPABASE_PUBLISHABLE_KEY:'fictional-public-key',TURNSTILE_SECRET_KEY:'fictional-fixture-value',TURNSTILE_SITE_KEY:'fictional-site-key',ECH_LOGIN_EMAILS:'sample@example.invalid'};
@@ -76,4 +76,18 @@ test('server requests use manual redirects and reject every 3xx without a second
 test('logout refuses provider redirects and clears cookies without forwarding tokens',async()=>{
  let calls=0;const fetcher=async(url,init)=>{calls++;assert.equal(init.redirect,'manual');if(url.endsWith('/ech_logout_session'))return json(true);assert.equal(url,env.SUPABASE_URL+'/auth/v1/logout?scope=local');return new Response(null,{status:307,headers:{Location:'https://untrusted.example/redirect'}});};
  const result=await handleAdmin('logout',request('logout',{}),env,fetcher);assert.equal(result.status,502);assert.equal(calls,2);assert.match(result.headers.get('Set-Cookie'),/Max-Age=0/);
+});
+
+
+test('import activity history stays readable while full provenance remains on the partner',async()=>{
+ const source={origin:'executive-handoff',sourceKey:'example-row',brief:{text:'Complete source brief'}};
+ const row={id,revision:1,owner_id:null,data:{organization:'Example partner',source},created_at:'2026-10-22T00:00:00Z',updated_at:'2026-10-22T00:00:00Z'};
+ const event={id:op,operation_id:op,record_type:'partner',record_id:id,actor_id:uid,actor_label:'Fictional operator',at:'2026-10-22T00:00:00Z',action:'create',revision:1,details:{changedFields:['organization','source'],source}};
+ const fetcher=async url=>json(url.includes('/ech_events?')?[event]:[row]);
+ const result=await history(current('owner'),new URLSearchParams({recordType:'partner',id}),fetcher);
+ assert.deepEqual(result.items[0].details,{changedFields:['organization','source']});
+ assert.equal(result.items[0].action,'create');assert.equal(result.items[0].revision,1);
+ assert.deepEqual(event.details.source,source);
+ const partners=await list(current('owner'),'partner',new URLSearchParams({id}),fetcher);
+ assert.deepEqual(partners.items[0].source,source);
 });
