@@ -15,6 +15,7 @@ import { FollowUpQueue } from './SharedFollowUpQueue';
 
 export function AdminWorkspace({ fetcher = fetch }: { fetcher?: typeof fetch }) {
   const [session, setSession] = useState<Session | null>(null); const verified = useRef<Session | null>(null); const epoch = useRef(0);
+  const refreshing = useRef(false); const lastChecked = useRef(0);
   const [checking, setChecking] = useState(true); const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const [pending, setPending] = useState(false);
   const [inquiries, setInquiries] = useState<SharedInquiry[]>([]); const [partners, setPartners] = useState<SharedPartner[]>([]); const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [cursors, setCursors] = useState<{ inquiry: string | null; partner: string | null }>({ inquiry: null, partner: null });
@@ -34,7 +35,10 @@ export function AdminWorkspace({ fetcher = fetch }: { fetcher?: typeof fetch }) 
   // eslint-disable-next-line react-hooks/refs
   const partnerRepository = useMemo(() => createSharedRepository('partner', fetcher, invalidate), [fetcher, invalidate]);
   const refresh = useCallback(async (full = true) => {
-    const ticket = ++epoch.current; setChecking(true); setError('');
+    if (refreshing.current) return;
+    refreshing.current = true;
+    const foreground = full || !verified.current;
+    const ticket = ++epoch.current; if (foreground) { setChecking(true); setError(''); }
     try {
       const current = await client.load(); if (ticket !== epoch.current) return;
       const old = verified.current;
@@ -46,11 +50,11 @@ export function AdminWorkspace({ fetcher = fetch }: { fetcher?: typeof fetch }) 
         if ([...inq.items,...par.items].some(row => !mayRead(current,row))) throw new Error('Unexpected row scope.');
         setInquiries(inq.items as SharedInquiry[]); setPartners(par.items as SharedPartner[]); setAssignees(people); setCursors({ inquiry: inq.nextCursor, partner: par.nextCursor });
       }
-      if (ticket !== epoch.current) return; verified.current = current; setSession(current);
+      if (ticket !== epoch.current) return; verified.current = current; lastChecked.current = Date.now(); if (full || !unchanged) setSession(current);
     } catch { if (ticket === epoch.current) invalidate(); }
-    finally { if (ticket === epoch.current || verified.current === null) setChecking(false); }
+    finally { refreshing.current = false; if (foreground && (ticket === epoch.current || verified.current === null)) setChecking(false); }
   }, [client, clearProtected, inquiryRepository, partnerRepository, invalidate]);
-  useEffect(() => { const initial=requestAnimationFrame(()=>void refresh()); const focus = () => { if (document.visibilityState === 'visible') void refresh(false); }; window.addEventListener('focus', focus); document.addEventListener('visibilitychange', focus); const timer = window.setInterval(focus, 60_000); return () => {cancelAnimationFrame(initial); epoch.current += 1; window.clearInterval(timer); window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', focus); }; }, [refresh]);
+  useEffect(() => { const initial=requestAnimationFrame(()=>void refresh()); const focus = () => { if (document.visibilityState === 'visible' && Date.now() - lastChecked.current >= 60_000) void refresh(false); }; window.addEventListener('focus', focus); document.addEventListener('visibilitychange', focus); const timer = window.setInterval(focus, 60_000); return () => {cancelAnimationFrame(initial); epoch.current += 1; window.clearInterval(timer); window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', focus); }; }, [refresh]);
   function saved(record: SharedRecord, kind: RecordKind, actor: string) {
     if (!verified.current?.authenticated || verified.current.principal.id !== actor) return;
     if (kind === 'inquiry') setInquiries(rows => [record as SharedInquiry, ...rows.filter(row => row.id !== record.id)]); else setPartners(rows => [record as SharedPartner, ...rows.filter(row => row.id !== record.id)]);
