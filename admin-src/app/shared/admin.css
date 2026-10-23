@@ -55,3 +55,5 @@
 .shared-admin input:not([type=checkbox]), .shared-admin select { height: 48px; }
 
 .shared-admin .contact-person-dialog label { margin: 0; }
+
+.shared-admin .contact-person-dialog .form-grid { margin-bottom: 12px; }
