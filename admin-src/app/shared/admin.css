@@ -57,3 +57,137 @@
 .shared-admin .contact-person-dialog label { margin: 0; }
 
 .shared-admin .contact-person-dialog .form-grid { margin-bottom: 12px; }
+
+.shared-admin { --bg:#f5f6f8; --surface-soft:#f1f3f6; --text:#273141; --muted:#5e6979; --line:#dce1e8; --field-line:#9aa6b5; --shadow:0 4px 18px rgb(22 33 50 / .04); --status-new-bg:#edf0f4; --status-new-text:#4a586b; --status-contacted-bg:#e8f1ff; --status-contacted-text:#245ca1; --status-due-bg:#fff2d9; --status-due-text:#805211; --status-overdue-bg:#fcebed; --status-overdue-text:#a13949; --status-priority-bg:#f1ebfc; --status-priority-text:#6d499d; --status-scheduled-bg:#e8f4f0; --status-scheduled-text:#2c6a55; }
+.shared-admin[data-theme="dark"] { --bg:#171b23; --sidebar:#121820; --sidebar-muted:#aeb9c8; --surface:#222935; --surface-soft:#29323f; --text:#edf0f5; --muted:#b0bac9; --line:#3b4657; --field-line:#657389; --green:#9bcac7; --green-deep:#b5d7d0; --green-soft:#293d40; --on-primary:#193b35; --status-new-bg:#333e4e; --status-new-text:#d0d8e5; --status-contacted-bg:#273f60; --status-contacted-text:#b8d6ff; --status-due-bg:#4a3b26; --status-due-text:#f4d18b; --status-overdue-bg:#4c2d38; --status-overdue-text:#ffbcc8; --status-priority-bg:#3d3253; --status-priority-text:#dcc8fc; --status-scheduled-bg:#263f3b; --status-scheduled-text:#b3ded0; }
+.shared-admin .sidebar { height:100dvh; min-height:0; }
+.shared-admin .sidebar > nav { overflow-y:auto; min-height:0; }
+.shared-admin .sidebar-footer { margin-top:auto; padding-top:24px; position:relative; }
+.shared-admin .workspace-safety { color:var(--sidebar-muted); font-size:11px; line-height:1.5; padding:12px 8px 0; }
+.shared-admin .account-menu { position:relative; }
+.shared-admin .account-menu > summary { display:flex; align-items:center; gap:10px; list-style:none; font-size:14px; font-weight:400; border:1px solid rgb(255 255 255 / .16); border-radius:12px; padding:12px 10px; min-height:60px; color:white; }
+.shared-admin .account-menu > summary::-webkit-details-marker { display:none; }
+.shared-admin .account-avatar { display:grid; place-items:center; background:#d5e8f1; color:#2e4a69; border-radius:50%; width:32px; height:32px; flex:none; font-weight:600; }
+.shared-admin .account-identity { flex:1; min-width:0; }
+.shared-admin .account-identity strong { font-weight:500; display:block; }
+.shared-admin .account-identity small { font-size:11px; overflow:hidden; text-overflow:ellipsis; color:var(--sidebar-muted); }
+.shared-admin .account-actions { position:absolute; bottom:calc(100% + 8px); left:0; z-index:65; width:280px; max-width:calc(100vw - 28px); background:var(--surface); color:var(--text); border:1px solid var(--line); border-radius:14px; box-shadow:0 12px 40px rgb(0 0 0 / .2); padding:16px; }
+.shared-admin .account-actions p { margin:0 0 12px; font-size:13px; }
+.shared-admin .account-actions p strong { display:block; font-weight:500; }
+.shared-admin .account-save-note { color:var(--muted); }
+.shared-admin .account-actions button { display:block; width:100%; text-align:left; border:1px solid var(--line); background:var(--surface-soft); color:var(--text); border-radius:8px; padding:10px; min-height:44px; margin-top:8px; cursor:pointer; }
+.shared-admin .topbar { margin-bottom:20px; }
+.shared-admin .prospect-breadcrumb { gap:14px; margin:0 0 16px; }
+.shared-admin .prospect-breadcrumb button { border:0; background:transparent; padding:6px 0; color:var(--green); font-weight:500; }
+.shared-admin .breadcrumb-context { border-left:1px solid var(--line); padding-left:14px; color:var(--muted); font-size:13px; }
+.shared-admin .prospect-list-head { margin:12px 0 20px; }
+.shared-admin .prospect-list-head h2 { font-size:20px; margin:0 0 6px; }
+.shared-admin .prospect-list-head p { color:var(--muted); font-size:14px; margin:0; }
+.shared-admin .partner-status-filters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:24px; }
+.shared-admin .contact-filter { display:flex; align-items:center; gap:14px; text-align:left; padding:16px 18px; border:1px solid var(--line); background:var(--surface); }
+.shared-admin .status-filter-icon { display:grid; place-items:center; width:40px; height:40px; border-radius:12px; flex:none; background:var(--badge-bg); color:var(--badge-text); font-size:24px; }
+.shared-admin .contact-filter strong { display:block; font-size:25px; line-height:1.2; font-weight:600; color:var(--text); }
+.shared-admin .contact-filter > span > span { display:block; color:var(--muted); font-size:13px; margin-top:3px; }
+.shared-admin .contact-filter[aria-pressed="true"] { border-color:var(--badge-text); box-shadow:inset 0 0 0 1px var(--badge-text); background:var(--badge-bg); }
+.shared-admin .tone-new { --badge-bg:var(--status-new-bg); --badge-text:var(--status-new-text); }
+.shared-admin .tone-contacted { --badge-bg:var(--status-contacted-bg); --badge-text:var(--status-contacted-text); }
+.shared-admin .tone-due { --badge-bg:var(--status-due-bg); --badge-text:var(--status-due-text); }
+.shared-admin .tone-overdue { --badge-bg:var(--status-overdue-bg); --badge-text:var(--status-overdue-text); }
+.shared-admin .tone-priority { --badge-bg:var(--status-priority-bg); --badge-text:var(--status-priority-text); }
+.shared-admin .tone-scheduled { --badge-bg:var(--status-scheduled-bg); --badge-text:var(--status-scheduled-text); }
+.shared-admin .status-badge { display:inline-flex; align-items:center; gap:5px; background:var(--badge-bg); color:var(--badge-text); border-radius:6px; padding:5px 8px; font-size:12px; font-weight:500; line-height:1.3; width:fit-content; }
+.shared-admin .status-badge > span { display:inline; }
+.shared-admin .prospect-toolbar { display:grid; grid-template-columns:minmax(210px,1.5fr) repeat(3,minmax(130px,1fr)) auto; gap:12px; align-items:end; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; }
+.shared-admin .prospect-toolbar label { margin:0; }
+.shared-admin .prospect-toolbar label > span { margin:0; font-size:12px; }
+.shared-admin .prospect-toolbar button { height:48px; min-height:48px; font-size:13px; background:var(--surface-soft); }
+.shared-admin .partner-result-count { color:var(--muted); font-size:13px; margin:18px 0 12px; }
+.shared-admin .partner-result-count strong { color:var(--text); font-weight:600; }
+.shared-admin .partner-row { border-left:4px solid var(--field-line); padding:18px 20px; border-radius:12px; gap:22px; align-items:center; grid-template-columns:minmax(0,2fr) minmax(150px,1fr) minmax(0,1.1fr) 12px; transition:border-color .15s,box-shadow .15s; }
+.shared-admin .partner-row.is-contacted { border-left-color:var(--status-contacted-text); }
+.shared-admin .partner-row.is-overdue { border-left-color:var(--status-overdue-text); }
+.shared-admin .partner-row:hover { box-shadow:0 3px 14px rgb(20 30 45 / .08); border-top-color:var(--field-line); border-right-color:var(--field-line); border-bottom-color:var(--field-line); }
+.shared-admin .partner-row strong { color:var(--text); font-size:16px; line-height:1.4; }
+.shared-admin .partner-row .partner-row-tags { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:10px; }
+.shared-admin .partner-row small { font-size:13px; line-height:1.5; }
+.shared-admin .partner-row .partner-owner { color:var(--muted); font-size:12px; }
+.shared-admin .partner-row .partner-contact-state { display:grid; justify-items:start; gap:2px; }
+.shared-admin .partner-row .partner-next { display:grid; gap:5px; justify-items:start; }
+.shared-admin .partner-row .partner-next small { margin:0; }
+.shared-admin .partner-open { color:var(--muted); font-size:24px; }
+.shared-admin .partner-empty { text-align:center; padding:30px; background:var(--surface); border-radius:14px; }
+.shared-admin .shared-record-editor { margin-top:0; }
+@media(max-width:1150px) { .shared-admin .prospect-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); } .shared-admin .prospect-toolbar label:first-child { grid-column:1/-1; } .shared-admin .prospect-toolbar button { justify-self:start; } }
+@media(max-width:850px) {
+ .shared-admin .sidebar { height:auto; display:flex; flex-direction:row; align-items:center; justify-content:space-between; padding:12px 14px; }
+ .shared-admin .sidebar-footer { margin:0; padding:0; }
+ .shared-admin .workspace-safety { display:none; }
+ .shared-admin .account-menu > summary { min-height:44px; border:0; padding:4px; gap:6px; }
+ .shared-admin .account-identity, .shared-admin .account-menu > summary > span:last-child { display:none; }
+ .shared-admin .account-actions { bottom:auto; top:calc(100% + 10px); left:auto; right:0; }
+ .shared-admin .sidebar > nav { overflow:visible; }
+ .shared-admin .partner-row { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 10px; gap:12px; }
+ .shared-admin .partner-next { grid-column:1/-1; border-top:1px solid var(--line); padding-top:12px; }
+ .shared-admin .partner-row .partner-open { display:block; grid-column:3; grid-row:1; }
+ .shared-admin .partner-status-filters { gap:8px; }
+ .shared-admin .contact-filter { padding:12px; gap:10px; }
+}
+@media(max-width:500px) {
+ .shared-admin .partner-status-filters { grid-template-columns:1fr; }
+ .shared-admin .contact-filter { padding:10px 14px; }
+ .shared-admin .contact-filter > span:last-child { display:flex; align-items:center; gap:12px; }
+ .shared-admin .contact-filter strong { min-width:26px; font-size:22px; }
+ .shared-admin .contact-filter > span > span { margin:0; font-size:14px; }
+ .shared-admin .partner-row { grid-template-columns:minmax(0,1fr) 10px; padding:16px; }
+ .shared-admin .partner-contact-state { grid-column:1; }
+ .shared-admin .partner-row .partner-open { grid-column:2; }
+ .shared-admin .partner-next { grid-column:1/-1; }
+ .shared-admin .prospect-toolbar { padding:12px; }
+ .shared-admin .prospect-list-head > button { display:none; }
+}
+.shared-admin .record-heading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px 20px; margin-bottom:10px; }
+.shared-admin .record-heading h2 { margin:0; font-size:26px; line-height:1.3; font-weight:600; }
+.shared-admin .record-updated { margin:0; font-size:12px; color:var(--muted); }
+.shared-admin .record-tools { margin:0 0 24px; }
+.shared-admin .record-tools > summary, .shared-admin .source-technical-details > summary, .shared-admin .original-import-notes > summary { font-size:13px; font-weight:500; color:var(--muted); }
+.shared-admin .record-tools-content { padding:14px; border:1px solid var(--line); background:var(--surface-soft); border-radius:10px; }
+.shared-admin .shared-record-editor > section, .shared-admin .record-details-form { border-top:1px solid var(--line); padding-top:24px; margin-top:28px; }
+.shared-admin .shared-record-editor h3 { margin:0 0 18px; font-size:19px; font-weight:600; }
+.shared-admin .shared-record-editor h4 { margin:0 0 10px; font-size:16px; font-weight:600; }
+.shared-admin .shared-record-editor h5 { margin:0 0 12px; font-size:14px; font-weight:600; }
+.shared-admin .source-review-warning { background:var(--status-due-bg); color:var(--status-due-text); border-left:3px solid var(--status-due-text); border-radius:8px; padding:16px 18px; margin-bottom:24px; }
+.shared-admin .source-review-warning ul { margin:0; padding-left:18px; display:grid; gap:10px; font-size:14px; line-height:1.7; }
+.shared-admin .source-context { font-size:14px; color:var(--muted); line-height:1.7; margin:0 0 20px; }
+.shared-admin .source-board-section { background:var(--surface-soft); border:1px solid var(--line); border-radius:12px; padding:20px; margin:16px 0; }
+.shared-admin .source-board-text, .shared-admin .source-brief-text { max-height:360px; overflow:auto; overscroll-behavior:contain; padding-right:12px; line-height:1.85; white-space:normal; font-size:15px; }
+.shared-admin .source-text p { margin:0 0 16px; line-height:1.85; white-space:pre-wrap; }
+.shared-admin .source-text p:last-child { margin-bottom:0; }
+.shared-admin .source-text h5 { margin:24px 0 10px; color:var(--text); }
+.shared-admin .source-text strong { font-weight:600; }
+.shared-admin .source-document-link { display:inline-block; font-size:13px; margin-top:16px; }
+.shared-admin .source-research { border:1px solid var(--line); border-radius:12px; margin-top:20px; padding:12px 20px; }
+.shared-admin .source-research > summary { font-size:16px; font-weight:500; }
+.shared-admin .source-research-content { padding-top:16px; }
+.shared-admin .source-brief-text { margin-top:20px; }
+.shared-admin .source-reference-links { margin-top:24px; }
+.shared-admin .source-reference-links ul { display:grid; gap:12px; padding-left:20px; font-size:14px; }
+.shared-admin .source-technical-details { margin-top:20px; }
+.shared-admin .source-technical-details pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:300px; overflow:auto; font-size:12px; padding:16px; background:var(--surface-soft); border-radius:10px; }
+.shared-admin .original-import-notes { margin:20px 0; border:1px dashed var(--line); border-radius:10px; padding:12px 16px; }
+.shared-admin .original-import-notes p { color:var(--muted); font-size:13px; }
+.shared-admin .shared-record-editor form button[type="submit"] { margin-top:20px; background:var(--green-deep); color:var(--on-primary); border-color:var(--green-deep); font-weight:600; }
+.shared-admin .shared-record-editor > section > p > small { padding-top:8px; color:var(--muted); font-size:14px; }
+.shared-admin .shared-record-editor textarea { line-height:1.8; }
+@media(max-width:700px) { .shared-admin .record-heading h2 { font-size:22px; } .shared-admin .source-board-section { padding:16px; } .shared-admin .source-research { padding:12px 16px; } }
+.shared-admin .imported-board-notes { border:1px solid var(--line); border-radius:12px; padding:12px 20px; margin-top:20px; }
+.shared-admin .imported-board-notes > summary { font-size:16px; font-weight:500; }
+.shared-admin .imported-board-content { padding-top:16px; }
+.shared-admin .record-contact-status { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+@media(max-width:500px) {
+ .shared-admin .partner-status-filters { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .shared-admin .contact-filter { display:block; padding:10px 8px; }
+ .shared-admin .status-filter-icon { width:24px; height:24px; border-radius:7px; font-size:18px; float:left; margin-right:6px; }
+ .shared-admin .contact-filter > span:last-child { display:block; }
+ .shared-admin .contact-filter strong { font-size:20px; min-width:0; line-height:24px; }
+ .shared-admin .contact-filter > span > span { clear:both; margin-top:7px; font-size:12px; }
+}
