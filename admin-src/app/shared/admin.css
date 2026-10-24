@@ -191,3 +191,16 @@
  .shared-admin .contact-filter strong { font-size:20px; min-width:0; line-height:24px; }
  .shared-admin .contact-filter > span > span { clear:both; margin-top:7px; font-size:12px; }
 }
+
+.shared-admin .google-signin { margin:24px 0; }
+.shared-admin .google-signin button { width:100%; background:var(--surface); border:1px solid var(--field-line); font-weight:600; }
+.shared-admin .google-signin p { font-size:13px; color:var(--muted); }
+.shared-admin .google-signin hr { border:0; border-top:1px solid var(--line); margin-top:24px; }
+.shared-admin .account-access-notice { background:var(--status-due-bg); color:var(--status-due-text); border-left:3px solid var(--status-due-text); padding:16px; border-radius:10px; }
+.shared-admin .access-request-list { display:grid; gap:16px; margin-top:20px; }
+.shared-admin .access-request-card { background:var(--surface-soft); border:1px solid var(--line); border-radius:12px; padding:20px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; }
+.shared-admin .access-request-card h3 { margin:0; font-size:18px; }
+.shared-admin .access-request-card p { margin:8px 0; }
+.shared-admin .access-request-card small { margin-top:10px; color:var(--muted); line-height:1.5; }
+.shared-admin .access-request-actions button { margin:8px 8px 0 0; }
+@media(max-width:700px) { .shared-admin .access-request-card { grid-template-columns:minmax(0,1fr); padding:16px; } }
