@@ -192,9 +192,10 @@
  .shared-admin .contact-filter > span > span { clear:both; margin-top:7px; font-size:12px; }
 }
 
+.shared-admin.signed-out { grid-template-columns:1fr; }
 .shared-admin .signin-panel { max-width:440px; margin:24px auto; }
 .shared-admin .google-signin { margin:24px 0; }
-.shared-admin .google-signin-button { display:inline-flex; align-items:center; justify-content:center; gap:10px; width:auto; max-width:100%; min-height:44px; padding:11px 12px; background:#fff; border:1px solid #747775; color:#1f1f1f; font-family:"Google Sans",Arial,sans-serif; font-size:14px; font-weight:500; line-height:20px; }
+.shared-admin .google-signin-button { display:flex; margin-inline:auto; align-items:center; justify-content:center; gap:10px; width:auto; max-width:100%; min-height:44px; padding:11px 12px; background:#fff; border:1px solid #747775; color:#1f1f1f; font-family:"Google Sans",Arial,sans-serif; font-size:14px; font-weight:500; line-height:20px; }
 .shared-admin .google-signin-mark { display:block; flex:0 0 20px; width:20px; height:20px; object-fit:contain; background:#fff; border-radius:50%; }
 .shared-admin .google-signin-label { flex:0 1 auto; text-align:center; }
 .shared-admin[data-theme="dark"] .google-signin-button { background:#131314; border-color:#8e918f; color:#e3e3e3; }
