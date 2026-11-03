@@ -808,3 +808,17 @@ button { color: inherit; }
 .inquiry-discard-actions button:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
 
 .prospect-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin-block: 1rem; }
+
+/* Follow-up filters share a padded, responsive workspace. */
+.task-panel[aria-label="Saved follow-up queue"],
+.task-panel[aria-label="Shared follow-up queue"] { padding: clamp(18px, 2vw, 28px); }
+.task-panel .operations-controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: end; }
+.task-panel .operations-controls label { display: grid; gap: 7px; min-width: 0; margin: 0; font-weight: 400; }
+.task-panel .operations-controls label > span { font-size: 13px; font-weight: 600; }
+.task-panel .operations-controls input, .task-panel .operations-controls select { width: 100%; min-width: 0; margin: 0; font-weight: 400; }
+.task-panel .operations-controls > button { justify-self: start; margin: 0; }
+.task-panel .operations-hint { margin: 18px 0 0; line-height: 1.65; color: var(--muted); font-size: 13px; max-width: 100ch; }
+.task-panel .operations-storage { margin: 18px 0 0; font-weight: 600; }
+.task-panel .empty-state { margin: 20px 0 0; padding: 18px; }
+@media (max-width: 1000px) { .task-panel .operations-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .task-panel .operations-controls { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
