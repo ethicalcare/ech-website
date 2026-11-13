@@ -7,7 +7,7 @@ const [source, dependencies, evidence] = process.argv.slice(2);
 if (!source || !dependencies) throw new Error('Provide reviewed admin source and dependency directories.');
 const { build } = await import(pathToFileURL(resolve(dependencies, 'esbuild/lib/main.js')));
 const output = resolve(root, 'dist/admin');
-await readFile(resolve(root, 'dist/index.html'));
+// Admin-only local candidate; no website output is replaced.
 await mkdir(output, { recursive: true });
 // Shared exports exclude the legacy local-data components from this deployment.
 const shared = {

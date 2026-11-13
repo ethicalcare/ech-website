@@ -1,0 +1,195 @@
+/* Shared workspace foundations and responsive layouts. */
+.shared-admin { --bg:#f6f7f5; --surface:#fff; --surface-soft:#f1f5f2; --text:#253733; --muted:#596b65; --line:#dce5df; --field-line:#7c9187; --green:#216465; --green-deep:#205653; --green-soft:#e9f3ee; --accent:#8d4148; --shadow:0 4px 20px rgb(24 51 41 / .035); font-size:14px; line-height:1.5; grid-template-columns:232px minmax(0,1fr); }
+.shared-admin[data-theme="dark"] { --bg:#171d21; --surface:#222a2f; --surface-soft:#293339; --text:#ecf1ef; --muted:#b5c1bc; --line:#3d4b4c; --field-line:#6e8380; --green:#a1d2c7; --green-deep:#a8d7cb; --green-soft:#2a3e3b; --accent:#e4a4ac; --shadow:none; }
+.shared-admin h1,.shared-admin h2,.shared-admin h3 { letter-spacing:-.025em; font-weight:650; line-height:1.25; }
+.shared-admin .crm-icon { display:inline-block; flex:none; width:20px; height:20px; vertical-align:middle; }
+.shared-admin .main-content { max-width:1280px; padding:26px 32px 48px; }
+.shared-admin .topbar { min-height:64px; padding-bottom:20px; margin-bottom:24px; border-bottom:1px solid var(--line); }
+.shared-admin .topbar h1 { font-size:27px; margin:4px 0 0; }
+.shared-admin .eyebrow,.shared-admin .section-kicker { color:var(--accent); font-size:10px; font-weight:750; letter-spacing:.12em; text-transform:uppercase; margin:0 0 7px; }
+.shared-admin .theme-toggle { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; }
+.shared-admin :where(main button) { font-weight:500; }
+.shared-admin input:not([type=checkbox]),.shared-admin select { min-height:44px; height:44px; padding:10px 12px; font-size:14px; border-radius:9px; }
+.shared-admin label { font-size:12px; gap:7px; }
+.shared-admin label > span { font-weight:600; color:var(--muted); }
+.shared-admin :focus-visible { outline:3px solid var(--green); outline-offset:3px; }
+.shared-admin .skip-link { position:fixed; top:8px; left:8px; transform:translateY(-180%); z-index:200; background:var(--surface); padding:12px; }
+.shared-admin .skip-link:focus { transform:none; }
+.shared-admin .sidebar { background:var(--surface); color:var(--text); border-right:1px solid var(--line); padding:22px 16px; gap:0; }
+.shared-admin .brand { display:flex; flex-direction:column; align-items:center; width:100%; gap:12px; padding:0 6px 24px; color:var(--muted); }
+.shared-admin .ech-brand-logo { display:block; width:178px; height:96px; object-fit:contain; background:white; border-radius:9px; padding:7px; }
+.shared-admin .brand-workspace { text-transform:uppercase; letter-spacing:.14em; font-size:9px; font-weight:650; color:var(--muted); }
+.shared-admin .sidebar nav { gap:5px; }
+.shared-admin .nav-item { min-height:46px; padding:11px 13px; gap:11px; color:var(--muted); border:1px solid transparent; border-radius:9px; font-size:14px; font-weight:500; }
+.shared-admin .nav-item:hover { background:var(--surface-soft); color:var(--text); }
+.shared-admin .nav-item.active { color:var(--green); background:var(--green-soft); border-color:var(--line); font-weight:650; }
+.shared-admin .nav-count { background:var(--surface); color:var(--green); border:1px solid var(--line); font-size:11px; }
+.shared-admin .quick-intake-button { font-size:12px; font-weight:600; padding:12px 9px; background:var(--green-deep); color:var(--on-primary); gap:7px; margin-top:22px; }
+.shared-admin .account-menu > summary { color:var(--text); background:var(--surface-soft); border-color:var(--line); padding:10px; min-height:56px; }
+.shared-admin .account-identity small,.shared-admin .workspace-safety { color:var(--muted); }
+.shared-admin .workspace-safety { font-size:10px; }
+.shared-admin .account-avatar { background:var(--green-soft); color:var(--green); }
+.shared-admin .day-brief { display:flex; align-items:center; justify-content:space-between; gap:24px; background:linear-gradient(110deg,var(--green-soft),var(--surface)); border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:14px; padding:24px 26px; margin-bottom:20px; }
+.shared-admin .day-brief h2 { margin:0 0 8px; font-size:30px; }
+.shared-admin .day-brief p:last-child { margin:0; color:var(--muted); font-size:14px; }
+.shared-admin .day-date { display:flex; align-items:center; gap:12px; flex:none; }
+.shared-admin .day-date > .crm-icon { width:38px; height:38px; padding:8px; border-radius:10px; color:var(--accent); background:var(--surface); }
+.shared-admin .day-date strong { display:block; font-size:13px; font-weight:600; }
+.shared-admin .day-date small { font-size:11px; color:var(--muted); margin-top:3px; }
+.shared-admin .metrics { gap:12px; margin:0 0 30px; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.shared-admin .metrics .metric-card { display:flex; align-items:center; gap:12px; min-height:88px; padding:16px; border-radius:12px; border:1px solid var(--line); box-shadow:none; }
+.shared-admin .metric-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:10px; flex:none; }
+.shared-admin .metric-icon.blue { color:#2b6598; background:#eaf2fb; }
+.shared-admin .metric-icon.green { color:#2b6960; background:#e9f3ed; }
+.shared-admin .metric-icon.coral { color:#974952; background:#faedef; }
+.shared-admin .metric-icon.violet { color:#725193; background:#f2edf8; }
+.shared-admin .metrics strong { font-size:25px; font-weight:650; }
+.shared-admin .metrics div span { font-size:11px; line-height:1.4; margin-top:5px; }
+.shared-admin .prospect-list-head { margin:0 0 17px; }
+.shared-admin .prospect-list-head h2 { font-size:21px; margin:0 0 6px; }
+.shared-admin .prospect-list-head p:not(.section-kicker) { font-size:13px; }
+.shared-admin .partner-status-filters { gap:10px; margin-bottom:18px; }
+.shared-admin .contact-filter { padding:14px 16px; gap:12px; border-radius:11px; box-shadow:none; }
+.shared-admin .contact-filter strong { font-size:23px; }
+.shared-admin .status-filter-icon { width:36px; height:36px; border-radius:9px; }
+.shared-admin .contact-filter > span > span { font-size:12px; }
+.shared-admin .today-partners .partner-status-filters { display:flex; flex-wrap:wrap; gap:8px; }
+.shared-admin .today-partners .contact-filter { padding:7px 12px; min-height:44px; gap:8px; }
+.shared-admin .today-partners .status-filter-icon { width:24px; height:24px; border-radius:6px; }
+.shared-admin .today-partners .status-filter-icon .crm-icon { width:16px; height:16px; }
+.shared-admin .today-partners .contact-filter > span:last-child { display:flex; gap:7px; align-items:center; }
+.shared-admin .today-partners .contact-filter strong { font-size:14px; }
+.shared-admin .today-partners .contact-filter > span > span { font-size:12px; margin:0; }
+.shared-admin .prospect-toolbar { gap:12px; padding:18px; border-radius:12px; grid-template-columns:minmax(210px,1.7fr) repeat(3,minmax(120px,1fr)) auto; margin:0; }
+.shared-admin .prospect-toolbar button { min-height:44px; height:44px; background:var(--surface-soft); }
+.shared-admin .prospect-toolbar label > span { font-size:11px; }
+.shared-admin .partner-result-count { font-size:12px; margin:16px 0 12px; }
+.shared-admin .partner-column-head,.shared-admin .partner-row { grid-template-columns:minmax(0,1.25fr) minmax(145px,.7fr) minmax(0,1fr) 28px; gap:18px; }
+.shared-admin .partner-column-head { display:grid; padding:0 20px 10px 22px; color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
+.shared-admin .partner-row { padding:15px 18px; border-left-width:3px; border-radius:10px; margin-bottom:8px; background:var(--surface); align-items:center; }
+.shared-admin .partner-row .partner-identity > strong { font-size:14px; line-height:1.45; font-weight:650; }
+.shared-admin .partner-row small { font-size:12px; line-height:1.5; margin:3px 0 0; }
+.shared-admin .partner-row .partner-row-tags { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:7px; }
+.shared-admin .partner-owner { font-size:10px; color:var(--muted); }
+.shared-admin .partner-contact-state { align-self:center; }
+.shared-admin .partner-next > strong { display:block; font-size:13px; line-height:1.5; font-weight:550; margin-bottom:6px; }
+.shared-admin .status-badge { padding:4px 7px; font-size:11px; gap:4px; border-radius:5px; }
+.shared-admin .status-badge .crm-icon { width:13px; height:13px; }
+.shared-admin .partner-open { color:var(--green); display:grid; place-items:center; width:28px; height:28px; background:var(--surface-soft); border-radius:7px; }
+.shared-admin .partner-open .crm-icon { width:16px; height:16px; }
+.shared-admin .standalone-intro { padding:0; margin:0 0 22px; background:none; border:0; box-shadow:none; }
+.shared-admin .standalone-intro h2 { font-size:26px; margin:0 0 8px; }
+.shared-admin .standalone-intro p:not(.section-kicker) { font-size:13px; max-width:650px; color:var(--muted); margin:0; }
+.shared-admin .followup-panel { padding:22px; border-radius:14px; }
+.shared-admin .operations-controls { display:grid; grid-template-columns:1.15fr 1fr 1fr 1fr auto; gap:12px; align-items:end; }
+.shared-admin .operations-controls label { margin:0; }
+.shared-admin .operations-controls button { height:44px; font-size:11px; white-space:nowrap; background:var(--surface-soft); }
+.shared-admin .queue-date-help { margin:14px 0 18px; color:var(--muted); }
+.shared-admin .queue-date-help > summary { font-size:11px; font-weight:500; padding:0; }
+.shared-admin .queue-date-help p { font-size:12px; max-width:720px; margin:8px 0 0; }
+.shared-admin .operations-storage { font-size:12px; color:var(--muted); padding-top:16px; margin:0 0 14px; border-top:1px solid var(--line); }
+.shared-admin .queue-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:26px; }
+.shared-admin .queue-summary-item { display:flex; align-items:center; gap:12px; text-align:left; background:var(--surface); border:1px solid var(--line); padding:13px; min-width:0; }
+.shared-admin .queue-summary-item > .crm-icon { color:var(--group-color); width:22px; height:22px; }
+.shared-admin .queue-summary-item strong { display:block; font-size:23px; line-height:1.2; font-weight:600; }
+.shared-admin .queue-summary-item span span { display:block; font-size:11px; color:var(--muted); margin-top:4px; }
+.shared-admin .queue-summary-item[aria-pressed="true"] { outline:2px solid var(--group-color); outline-offset:-2px; background:var(--surface-soft); }
+.shared-admin .queue-overdue { --group-color:var(--status-overdue-text); }
+.shared-admin .queue-due { --group-color:var(--status-due-text); }
+.shared-admin .queue-upcoming { --group-color:var(--status-scheduled-text); }
+.shared-admin .queue-undated { --group-color:var(--muted); }
+.shared-admin .queue-group { margin:22px 0 0; }
+.shared-admin .queue-group h3 { display:flex; align-items:center; gap:9px; font-size:13px; margin:0 0 10px; }
+.shared-admin .queue-group-dot { width:7px; height:7px; border-radius:50%; background:var(--group-color); }
+.shared-admin .queue-group-count { display:inline-grid; place-items:center; min-width:22px; min-height:22px; border-radius:6px; background:var(--surface-soft); color:var(--muted); font-size:10px; }
+.shared-admin .followup-panel .task-row { grid-template-columns:32px minmax(0,1fr) auto; padding:14px 12px; gap:12px; border:1px solid var(--line); border-left:3px solid var(--group-color); border-radius:9px; margin:8px 0; }
+.shared-admin .followup-panel .task-check { border:0; border-radius:8px; background:var(--surface-soft); color:var(--group-color); }
+.shared-admin .followup-panel .task-check .crm-icon { width:17px; height:17px; }
+.shared-admin .followup-panel .task-row strong { font-size:14px; font-weight:600; margin:3px 0 4px; }
+.shared-admin .followup-panel .task-row small { color:var(--group-color); font-size:11px; font-weight:600; }
+.shared-admin .followup-panel .task-row em { font-size:11px; }
+.shared-admin .followup-panel .task-row > b { display:flex; align-items:center; gap:5px; font-size:11px; font-weight:600; }
+.shared-admin .followup-panel .task-row > b .crm-icon { width:15px; height:15px; }
+.shared-admin .empty-state { padding:24px; border-radius:10px; background:var(--surface-soft); color:var(--muted); }
+@media(min-width:701px) and (max-width:1180px) {
+ .shared-admin .main-content { padding:24px; }
+ .shared-admin .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .shared-admin .prospect-toolbar,.shared-admin .operations-controls { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .shared-admin .prospect-toolbar label:first-child { grid-column:1/-1; }
+ .shared-admin .partner-column-head,.shared-admin .partner-row { grid-template-columns:minmax(0,1.15fr) minmax(115px,.7fr) minmax(0,1fr) 24px; gap:12px; }
+ .shared-admin .day-date { display:none; }
+}
+@media(max-width:700px) {
+ .shared-admin { grid-template-columns:minmax(0,1fr); }
+ .shared-admin .main-content { padding:18px 16px 116px; }
+ .shared-admin .sidebar { height:auto; min-height:0; display:flex; flex-direction:row; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); position:relative; }
+ .shared-admin .brand { width:auto; padding:0; gap:0; }
+ .shared-admin .ech-brand-logo { width:116px; height:63px; padding:3px; }
+ .shared-admin .brand-workspace,.shared-admin .workspace-safety { display:none; }
+ .shared-admin .sidebar-footer { padding:0; margin:0; }
+ .shared-admin .account-menu > summary { min-height:44px; padding:6px 9px; border-radius:9px; }
+ .shared-admin .account-identity { display:none; }
+ .shared-admin .account-actions { top:calc(100% + 10px); bottom:auto; right:0; left:auto; }
+ .shared-admin .sidebar > nav { position:fixed; bottom:0; left:0; right:0; top:auto; display:flex; overflow-x:auto; gap:3px; background:var(--surface); border-top:1px solid var(--line); padding:8px 8px calc(8px + env(safe-area-inset-bottom)); z-index:60; }
+ .shared-admin .sidebar .nav-item { flex:1 0 80px; min-width:80px; min-height:64px; display:flex; flex-direction:column; justify-content:center; padding:6px 4px; gap:5px; font-size:9px; line-height:1.3; border-radius:9px; }
+ .shared-admin .sidebar .nav-item .crm-icon { width:20px; height:20px; }
+ .shared-admin .nav-count { display:none; }
+ .shared-admin .topbar { padding-bottom:15px; margin-bottom:20px; min-height:0; }
+ .shared-admin .topbar h1 { font-size:24px; }
+ .shared-admin .theme-toggle { min-width:44px; }
+ .shared-admin .day-brief { padding:20px; flex-direction:column; align-items:flex-start; gap:17px; margin-bottom:14px; }
+ .shared-admin .day-brief h2 { font-size:27px; }
+ .shared-admin .day-brief p:last-child { font-size:13px; }
+ .shared-admin .day-date { gap:9px; }
+ .shared-admin .day-date > .crm-icon { width:32px; height:32px; padding:6px; }
+ .shared-admin .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-bottom:26px; }
+ .shared-admin .metrics .metric-card { gap:9px; padding:12px; min-height:92px; }
+ .shared-admin .metric-icon { width:30px; height:30px; border-radius:8px; }
+ .shared-admin .metric-icon .crm-icon { width:18px; height:18px; }
+ .shared-admin .metrics strong { font-size:22px; }
+ .shared-admin .metrics div span { font-size:10px; }
+ .shared-admin .partner-status-filters { grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+ .shared-admin .contact-filter { padding:12px 8px; flex-direction:column; align-items:flex-start; gap:7px; }
+ .shared-admin .contact-filter > span:last-child { display:block; }
+ .shared-admin .contact-filter > span > span { font-size:10px; margin-top:3px; }
+ .shared-admin .today-partners .partner-status-filters { display:flex; }
+ .shared-admin .today-partners .contact-filter { flex-direction:row; padding:7px 9px; }
+ .shared-admin .today-partners .contact-filter > span:last-child { display:flex; }
+ .shared-admin .today-partners .contact-filter > span > span { font-size:11px; }
+ .shared-admin .prospect-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:15px; }
+ .shared-admin .prospect-toolbar label:first-child { grid-column:1/-1; }
+ .shared-admin .prospect-toolbar button { justify-self:start; align-self:end; }
+ .shared-admin .partner-column-head { display:none; }
+ .shared-admin .partner-row { grid-template-columns:minmax(0,1fr) 28px; gap:10px; padding:15px; }
+ .shared-admin .partner-contact-state { grid-column:1; grid-row:2; }
+ .shared-admin .partner-next { grid-column:1/-1; grid-row:3; border-top:1px solid var(--line); padding-top:10px; }
+ .shared-admin .partner-row .partner-open { display:grid; grid-column:2; grid-row:1; }
+ .shared-admin .partner-row .partner-identity > strong { font-size:14px; }
+ .shared-admin .standalone-intro h2 { font-size:24px; }
+ .shared-admin .followup-panel { padding:16px; }
+ .shared-admin .operations-controls { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+ .shared-admin .operations-controls button { grid-column:1/-1; justify-self:start; }
+ .shared-admin .operations-controls label { font-size:11px; }
+ .shared-admin .queue-summary { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+ .shared-admin .queue-summary-item { padding:12px; gap:9px; }
+ .shared-admin .followup-panel .task-row { grid-template-columns:25px minmax(0,1fr); padding:12px 10px; gap:9px; }
+ .shared-admin .followup-panel .task-row > b { grid-column:2; }
+ .shared-admin.signed-out .main-content { padding-bottom:28px; }
+}
+@media(prefers-reduced-motion:reduce) { .shared-admin,.shared-admin * { scroll-behavior:auto; transition:none; animation:none; } }
+
+.shared-admin .account-identity small { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; }
+.shared-admin .prospect-list-head p.section-kicker { color:var(--accent); font-size:10px; margin-bottom:6px; }
+
+.shared-admin .mobile-nav-more { display:none; }
+@media(max-width:700px) {
+ .shared-admin .sidebar > nav { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); overflow:visible; }
+ .shared-admin .sidebar .nav-item { flex:none; min-width:0; width:100%; font-size:10px; }
+ .shared-admin .sidebar .nav-item[data-mobile-secondary] { display:none; }
+ .shared-admin .mobile-nav-more { display:block; position:relative; min-width:0; }
+ .shared-admin .mobile-nav-more > summary { list-style:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:6px 4px; min-height:64px; font-size:10px; font-weight:500; color:var(--muted); border-radius:9px; }
+ .shared-admin .mobile-nav-more > summary::-webkit-details-marker { display:none; }
+ .shared-admin .mobile-nav-more[open] > summary { background:var(--green-soft); color:var(--green); }
+ .shared-admin .mobile-nav-more > div { position:absolute; right:0; bottom:calc(100% + 16px); width:218px; background:var(--surface); border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 36px rgb(0 0 0 / .16); padding:8px; }
+ .shared-admin .mobile-nav-more .nav-item { display:flex; flex-direction:row; justify-content:flex-start; font-size:14px; min-height:48px; gap:12px; padding:12px; }
+}

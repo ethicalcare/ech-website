@@ -1,0 +1,37 @@
+.shared-admin.named-shell{--bg:#f6f7f5;--surface:#fff;--surface-soft:#edf3f0;--text:#263735;--muted:#60716f;--line:#dce4df;--green:#245e59;--green-deep:#245e59;--green-soft:#edf3f0;--sidebar:#fff;--sidebar-muted:#60716f;display:grid;grid-template-columns:246px minmax(0,1fr);font-family:Avenir,"Avenir Next","Helvetica Neue",Arial,sans-serif;}
+.shared-admin.named-shell .sidebar{position:sticky;top:0;height:100dvh;width:auto;min-height:0;display:flex;flex-direction:column;gap:14px;padding:18px 14px 24px;border-right:1px solid var(--line);background:var(--surface);color:var(--text);}
+.shared-admin.named-shell .brand{padding:0;margin:0;display:grid;justify-items:center;gap:8px;border:0;background:transparent;}
+.shared-admin.named-shell .ech-brand-logo{width:147px;height:76px;object-fit:contain;padding:0;background:transparent;border-radius:0;}
+.shared-admin.named-shell .brand-workspace{color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;}
+.shared-admin.named-shell .sidebar nav{display:grid;gap:1px;}
+.shared-admin.named-shell .sidebar .nav-item{display:flex;align-items:center;gap:11px;min-height:40px;padding:10px 12px;font-size:13px;font-weight:500;color:var(--text);background:transparent;border:0;border-radius:8px;text-align:left;}
+.shared-admin.named-shell .sidebar .nav-item.active{color:var(--green);background:var(--green-soft);font-weight:650;}
+.shared-admin.named-shell .sidebar .nav-item svg{color:inherit;width:20px;height:20px;}
+.shared-admin.named-shell .named-operations-nav{display:grid;gap:2px;margin:1px 0 8px 20px;padding-left:9px;border-left:2px solid var(--line);}
+.shared-admin.named-shell .named-operations-nav button{border:0;background:transparent;color:var(--text);text-align:left;min-height:37px;padding:7px 10px;border-radius:8px;font-size:12px;}
+.shared-admin.named-shell .named-operations-nav button[aria-current=page]{background:var(--green-soft);color:var(--green);font-weight:650;}
+.shared-admin.named-shell .main-content{margin:0;min-width:0;width:100%;max-width:1600px;padding:24px 26px 48px;}
+.shared-admin.named-shell .topbar{padding-bottom:22px;border-bottom:1px solid var(--line);margin-bottom:22px;}
+.shared-admin.named-shell .sidebar-footer{border-top:1px solid var(--line);padding-top:16px;}
+.shared-admin.named-shell .account-menu>summary{color:var(--text);border-color:var(--line);font-weight:500;}
+.shared-admin.named-shell .account-identity small{color:var(--muted);}
+.shared-admin.named-shell .quick-intake-button{color:var(--green);border-color:var(--line);background:var(--green-soft);}
+.named-demo-notice{display:flex;flex-wrap:wrap;gap:8px 14px;padding:12px 16px;margin-bottom:16px;border:1px solid #d9c294;border-radius:9px;color:#604318;background:#fff3dc;font-size:13px;}
+.named-live-notice{margin:0 0 16px;font-size:13px;color:var(--muted);}
+.shared-admin.named-shell.signed-out{display:block;}
+.shared-admin.named-shell[data-theme=dark]{--bg:#171b23;--surface:#222935;--surface-soft:#29323f;--text:#edf0f5;--muted:#b0bac9;--line:#3b4657;--green:#9bcac7;--green-deep:#b5d7d0;--green-soft:#293d40;--sidebar:#222935;--sidebar-muted:#b0bac9;}
+@media(max-width:1100px){.shared-admin.named-shell{grid-template-columns:210px minmax(0,1fr)}.shared-admin.named-shell .main-content{padding:20px;}}
+.shared-admin.named-shell .named-mobile-section{display:none;}
+
+@media(max-width:700px){
+ .shared-admin.named-shell{display:block;}
+ .shared-admin.named-shell .sidebar{position:relative;height:auto;padding:12px 16px;gap:12px;border-right:0;border-bottom:1px solid var(--line);}
+ .shared-admin.named-shell .brand{display:flex;align-items:center;justify-content:space-between;}
+ .shared-admin.named-shell .ech-brand-logo{width:108px;height:60px;}
+ .shared-admin.named-shell .sidebar nav{display:none;}
+ .shared-admin.named-shell .named-mobile-section{display:grid;gap:4px;margin:0;color:var(--muted);font-size:12px;}
+ .shared-admin.named-shell .named-mobile-section select{width:100%;min-width:0;min-height:44px;font-size:14px;}
+ .shared-admin.named-shell .sidebar-footer{padding-top:10px;}
+ .shared-admin.named-shell .main-content{padding:16px;}
+ .shared-admin.named-shell .account-actions{bottom:auto;top:calc(100% + 8px);}
+}

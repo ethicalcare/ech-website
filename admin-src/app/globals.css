@@ -822,3 +822,33 @@ button { color: inherit; }
 .task-panel .empty-state { margin: 20px 0 0; padding: 18px; }
 @media (max-width: 1000px) { .task-panel .operations-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .task-panel .operations-controls { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
+
+.shared-admin .accounts-toggle {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.shared-admin .account-count {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.shared-admin #accounts-workspace .admin-tools { margin-block: 0 24px; }
+.shared-admin #accounts-workspace .access-request-card small { display: block; }
+.shared-admin #accounts-workspace .intake-form { margin-top: 20px; }
+.shared-admin #accounts-workspace .intake-form input[type="checkbox"] {
+  width: auto;
+  margin-inline-end: 8px;
+}
+@media (max-width: 560px) {
+  .shared-admin .accounts-topbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .shared-admin .accounts-topbar .topbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
