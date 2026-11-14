@@ -65,3 +65,25 @@ test('all recorded but unfinished work still has a blank required explanation',(
   assert.doesNotMatch(observed.dialogs.at(-1).body,/No clean pillowcase/);
   assert.match(observed.dialogs.at(-1).body,/<textarea id="next-note"><\/textarea>/);
 });
+
+test('only the assigned worker can open the report for the active sample visit',()=>{
+  const guardStart=source.indexOf('function canFinishReport(visit){');
+  const guardEnd=source.indexOf('\nlet reportStorageChanged=',guardStart);
+  assert.ok(guardStart>=0 && guardEnd>guardStart);
+  const guardSource=source.slice(guardStart,guardEnd);
+  const state={role:'worker',case:{report:null}};
+  const context={state,ownWorker:()=> 'Jamie'};
+  runInNewContext(guardSource+'; this.canFinishReport=canFinishReport;',context);
+  const visit={id:'evelyn',date:'2026-11-02',worker:'Jamie',status:'In progress'};
+  assert.equal(context.canFinishReport(visit),true);
+  for(const role of ['manager','next','nurse']){
+    state.role=role;
+    assert.equal(context.canFinishReport(visit),false,role);
+  }
+  state.role='worker';
+  assert.equal(context.canFinishReport({...visit,worker:'Morgan'}),false);
+  assert.equal(context.canFinishReport({...visit,status:'Assigned'}),false);
+  assert.equal(context.canFinishReport({...visit,date:'2026-11-03'}),false);
+  state.case.report={summary:'Existing'};
+  assert.equal(context.canFinishReport(visit),false);
+});
