@@ -55,3 +55,17 @@ Only `/api/inquiry` invokes a Pages function. Existing static page requests rema
 Pull the latest changes before editing and use a branch for each change. Review the exact staged files, full history, comments, images and build output before committing or pushing. Use concise commit messages describing the change. Preserve the configured Git author identity. Keep working notes, credentials, reports and original asset archives outside this repository.
 
 Use pull requests for ongoing changes. Configure the Website checks workflow as a required status check on `main` when repository administration is available.
+
+### Local Operations schedule preview
+
+Edit the fictional scheduling behavior in `admin-src/app/shared/named-runtime.js`.
+The authenticated demo imports that runtime. Generate the standalone schedule
+script from the same source with:
+
+```sh
+node scripts/build-operations-preview.mjs /path/to/existing/standalone-preview
+```
+
+The command replaces only `schedule-review.js`. The standalone page continues
+to use its own shell and browser storage. Serve the existing preview directory
+at the same address to keep its saved examples available.
