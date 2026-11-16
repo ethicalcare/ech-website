@@ -36,8 +36,8 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
   const manageAccounts = can(session, 'users.manage');
   const accessScope = session?.authenticated && can(session, 'access.review')
     ? session.principal.id : '';
-  const accountRequests = useAccountRequests(fetcher, accessScope);
   const accountsOpen = manageAccounts && showAccounts;
+  const accountRequests = useAccountRequests(fetcher, accessScope, accountsOpen);
   const waiting = accountRequests.state.rows?.filter(row => row.state === 'pending').length;
   useEffect(() => {
     if (accountsOpen) accountsHeading.current?.focus();

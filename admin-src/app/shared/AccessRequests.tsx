@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { readJson, requestOptions, statusError } from './session';
 import { SharedError, uuid } from './live-model';
 import { companyTime } from './time';
+import { shouldRefreshVisibleAccounts } from './account-polling.js';
 
 export type AccessRequest = {
   userId: string; email: string; displayName: string; state: 'pending' | 'approved' | 'denied' | 'revoked';
@@ -32,9 +33,11 @@ export async function fingerprint(value: unknown) {
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical(value)));
   return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
 }
-export async function accountApi(fetcher: typeof fetch, path: string, body?: unknown, maximum?: number) {
+export async function accountApi(fetcher: typeof fetch, path: string, body?: unknown, maximum?: number, signal?: AbortSignal) {
+  const options = requestOptions();
   const response = await fetcher('/api/admin/' + path, {
-    ...requestOptions(),
+    ...options,
+    ...(signal ? { signal: options.signal ? AbortSignal.any([options.signal, signal]) : signal } : {}),
     ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}),
     headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
   });
@@ -55,42 +58,80 @@ function requestRow(value: unknown): AccessRequest {
   return row;
 }
 
-export function useAccountRequests(fetcher: typeof fetch, scope: string) {
+export function useAccountRequests(fetcher: typeof fetch, scope: string, panelOpen = false) {
   const [snapshot, setSnapshot] = useState<{ scope: string; state: RequestState }>();
   const sequence = useRef(0);
   const lastChecked = useRef(0);
-  const reload = useCallback(async () => {
-    if (!scope) return;
+  const inFlight = useRef<Promise<void> | null>(null);
+  const controller = useRef<AbortController | null>(null);
+  const panelIsOpen = useRef(panelOpen);
+  panelIsOpen.current = panelOpen;
+  const reload = useCallback((quiet = false): Promise<void> => {
+    if (!scope || document.visibilityState !== 'visible') return Promise.resolve();
+    if (inFlight.current && quiet) return inFlight.current;
+    // Explicit refreshes (including verified writes) must read newer state.
+    if (inFlight.current) controller.current?.abort();
     const ticket = ++sequence.current;
-    setSnapshot({ scope, state: { status: 'loading' } });
-    try {
-      const data = await accountApi(fetcher, 'access-requests') as { schema: number; items: unknown[] };
+    const request = new AbortController();
+    controller.current = request;
+    if (!quiet) setSnapshot({ scope, state: { status: 'loading' } });
+    const task = (async () => { try {
+      const data = await accountApi(fetcher, 'access-requests', undefined, undefined, request.signal) as { schema: number; items: unknown[] };
       if (data?.schema !== 1 || !Array.isArray(data.items)) throw new Error('Unverified list');
       const rows = data.items.map(requestRow);
       if (new Set(rows.map(row => row.userId)).size !== rows.length) throw new Error('Duplicate subjects');
-      if (ticket === sequence.current) setSnapshot({ scope, state: { status: 'ready', rows } });
+      if (ticket === sequence.current && !request.signal.aborted && document.visibilityState === 'visible') setSnapshot({ scope, state: { status: 'ready', rows } });
     } catch {
-      if (ticket === sequence.current) setSnapshot({ scope, state: { status: 'unavailable' } });
+      if (ticket === sequence.current && !request.signal.aborted && document.visibilityState === 'visible') setSnapshot({ scope, state: { status: 'unavailable' } });
     } finally {
-      if (ticket === sequence.current) lastChecked.current = Date.now();
-    }
+      if (ticket === sequence.current) {
+        lastChecked.current = Date.now();
+      }
+      if (controller.current === request) controller.current = null;
+    } })();
+    inFlight.current = task;
+    void task.finally(() => { if (inFlight.current === task) inFlight.current = null; });
+    return task;
   }, [fetcher, scope]);
   useEffect(() => {
     if (!scope) return;
-    lastChecked.current = Date.now();
-    void reload();
+    let active = true;
+    lastChecked.current = 0;
+    const previous = inFlight.current;
+    if (previous) void previous.finally(() => { if (active) void reload(); });
+    else void reload();
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && Date.now() - lastChecked.current >= 60_000) {
-        lastChecked.current = Date.now();
-        void reload();
+      if (!active) return;
+      if (document.visibilityState !== 'visible') {
+        sequence.current += 1;
+        controller.current?.abort();
+        lastChecked.current = 0;
+        setSnapshot({ scope, state: { status: 'loading' } });
+        return;
+      }
+      if (shouldRefreshVisibleAccounts(panelIsOpen.current, document.visibilityState, Date.now(), lastChecked.current)) {
+        const pending = inFlight.current;
+        if (pending) void pending.finally(() => { if (active && panelIsOpen.current && document.visibilityState === 'visible') void reload(true); });
+        else if (active) void reload(true);
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
+      active = false;
       sequence.current += 1;
+      controller.current?.abort();
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [reload, scope]);
+  useEffect(() => {
+    if (!scope || !panelOpen) return;
+    // Returning to Accounts must not leave an old signup list visible for another interval.
+    if (shouldRefreshVisibleAccounts(true, document.visibilityState, Date.now(), lastChecked.current)) void reload(true);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void reload(true);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [panelOpen, reload, scope]);
   const state: RequestState = scope && snapshot?.scope === scope ? snapshot.state : { status: 'loading' };
   return { state, reload };
 }
