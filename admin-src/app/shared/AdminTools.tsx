@@ -1,4 +1,5 @@
 'use client';
+import { MembershipChangeSummary } from './MembershipChangeSummary';
 import { membershipSaveFeedback } from './membership-save-feedback.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessRequests, AccountConfirmation, accountApi, canonical, fingerprint, type RequestState } from './AccessRequests';
@@ -173,6 +174,7 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
    {members && !requestsReady && <p role="status">Verify the Google account list before changing existing accounts.</p>}
    {operation && <aside className="panel dashboard-card">
     <p>Save retained for <strong>{operation.body.command.email}</strong>. Refresh and check access before retrying.</p>
+    <MembershipChangeSummary fields={operation.body.command.fields} />
     <button type="button" disabled={pending} onClick={() => void commitMembership(operation)}>Retry same save</button>
     {knownFailure && <button type="button" onClick={() => { setOperation(undefined); setError(''); }}>Clear rejected save</button>}
    </aside>}
@@ -214,10 +216,7 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
   </section>
   {confirming && draft && <AccountConfirmation title={draft.fields.active ? 'Save these account permissions?' : 'Deactivate this account?'}
    email={draft.email} onCancel={() => setConfirming(false)} onConfirm={confirmMembership}>
-   <p>{draft.fields.displayName}</p>
-   <p>{draft.fields.active ? `CRM role: ${draft.fields.operationalRole ?? 'none'}${draft.fields.delegatedUserAdmin ? ' · can manage staff accounts' : ''}.`
-    : 'This blocks ECH Admin access while the account is inactive.'}</p>
-   {draft.fields.technicalAdmin && <p>Includes technical status access.</p>}
+   <MembershipChangeSummary fields={buildMembershipOperation('', draft).command.fields} />
   </AccountConfirmation>}
   {owner && <>
  <details className="panel dashboard-card"><summary>Activity and backup</summary><p>Optional: download an encrypted copy of shared data and keep its passphrase separately. This is not required to import referral partners. Recovery verification never restores permission grants automatically.</p><label><span>Backup passphrase (enter privately)</span><input aria-label="Backup passphrase" type="password" autoComplete="off" value={passphrase} onChange={e=>setPassphrase(e.target.value)} /></label><button type="button" disabled={pending||passphrase.length<16} onClick={backup}>Download encrypted shared backup</button><label><span>Downloaded encrypted backup</span><input aria-label="Downloaded encrypted backup" type="file" accept="application/json,.json" onChange={e=>{setRecoveryFile(e.target.files?.[0]||null);setRecovered(false);}} /></label><button type="button" disabled={pending||!recoveryFile||passphrase.length<16} onClick={checkRecovery}>Verify downloaded backup recovery integrity</button><p>Backup file recovery integrity: {recovered?'verified':'not yet verified'}.</p></details>
