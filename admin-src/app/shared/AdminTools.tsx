@@ -1,4 +1,5 @@
 'use client';
+import { membershipSaveFeedback } from './membership-save-feedback.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessRequests, AccountConfirmation, accountApi, canonical, fingerprint, type RequestState } from './AccessRequests';
 import { can, parseRecord, SharedError, uuid, type Session } from './live-model';
@@ -74,7 +75,7 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
    if (result?.schema !== 1 || !Array.isArray(result.items)) throw new Error('Unverified list');
    const rows = result.items.map(memberRow);
    if (new Set(rows.map(row => row.userId)).size !== rows.length) throw new Error('Duplicate account identities');
-   if (check === memberCheck.current) setMembers(rows);
+   if (check === memberCheck.current) { setMembers(rows); return rows; }
   } catch {
    if (check === memberCheck.current) setMemberFailure(true);
   } finally {
@@ -128,8 +129,8 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
     }
     setOperation(undefined);
     setDraft(undefined);
-    await loadMembers();
-    setMessage(row.active ? 'Account permissions saved.' : 'Account deactivated. ECH Admin access is blocked while the account is inactive.');
+    const refreshedMembers = await loadMembers();
+    setMessage(membershipSaveFeedback(row, refreshedMembers));
    } catch (failure) {
     setKnownFailure(failure instanceof SharedError && ['conflict', 'invalid_request'].includes(failure.code));
     throw failure;
