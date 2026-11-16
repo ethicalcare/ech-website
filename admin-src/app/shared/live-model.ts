@@ -2,7 +2,8 @@ export const CAPABILITIES = ['access.review', 'users.manage', 'backup.export', '
 export type Capability = typeof CAPABILITIES[number];
 export type OperationalRole = 'owner' | 'manager' | 'staff' | null;
 export type Principal = { id: string; email: string; technicalAdmin: boolean; applicationAdmin: boolean; operationalRole: OperationalRole };
-export type Session = { authenticated: true; principal: Principal; capabilities: Capability[] } | { authenticated: false; principal: null; capabilities: []; login: { method: 'email_otp' | 'email_password'; siteKey: string | null; googleEnabled?: true } };
+export type OperationsFeatures = { reads:boolean; scheduleCommands:boolean; scheduleRecurrence:boolean; visitActions:boolean };
+export type Session = { authenticated: true; principal: Principal; capabilities: Capability[]; operationsFeatures?:OperationsFeatures } | { authenticated: false; principal: null; capabilities: []; login: { method: 'email_otp' | 'email_password'; siteKey: string | null; googleEnabled?: true } };
 export type SharedPerson = { id: string; name: string; role: string; methods: { id: string; kind: 'phone' | 'email'; value: string; label: string }[] };
 export type SharedInquiry = { id: string; revision: number; name: string; phone: string; email: string; city: string; relationship: string; careRecipient: string; careRecipientPhone: string; careRecipientEmail: string; preferredContact: string; need: string; source: string; status: string; ownerId: string | null; next: string; followUpAt: string | null; referralPartnerId: string | null; referringPersonId: string | null; referralContext: string; details: string; createdAt: string; updatedAt: string };
 export type SharedPartner = { id: string; revision: number; organization: string; category: string; geography: string; contactRoute: string; stage: string; ownerId: string | null; nextAction: string; nextDate: string; notes: string; openingAsk: string; materials: string; lastTouch: string; callScript: string; contacted: boolean; sprint: string; source: Record<string, unknown>; people: SharedPerson[]; createdAt: string; updatedAt: string };
@@ -26,13 +27,20 @@ export function canOperate(session: Session | null) { return can(session, 'leads
 export function parseSession(value: unknown): Session {
   const s = object(value);
   if (s.authenticated === false) { exact(s, ['authenticated', 'principal', 'capabilities', 'login']); assertWire(s.principal === null && Array.isArray(s.capabilities) && s.capabilities.length === 0); const loginValue=object(s.login); const login = exact(loginValue, ['method','siteKey',...(Object.hasOwn(loginValue,'googleEnabled')?['googleEnabled']:[])]); assertWire(!Object.hasOwn(login,'googleEnabled')||login.googleEnabled===true); assertWire(['email_otp','email_password'].includes(login.method as string) && (login.siteKey === null || typeof login.siteKey === 'string' && login.siteKey.length <= 200)); return s as Session; }
-  exact(s, ['authenticated', 'principal', 'capabilities']); assertWire(s.authenticated === true); const p = exact(s.principal, ['id', 'email', 'technicalAdmin', 'applicationAdmin', 'operationalRole']);
+  exact(s, ['authenticated', 'principal', 'capabilities', ...(Object.hasOwn(s,'operationsFeatures')?['operationsFeatures']:[])]); assertWire(s.authenticated === true); const p = exact(s.principal, ['id', 'email', 'technicalAdmin', 'applicationAdmin', 'operationalRole']);
   assertWire(uuid(p.id) && typeof p.email === 'string' && p.email.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email) && typeof p.technicalAdmin === 'boolean' && typeof p.applicationAdmin === 'boolean' && [null, 'owner', 'manager', 'staff'].includes(p.operationalRole as OperationalRole));
   const allowed = p.operationalRole === 'owner' || p.operationalRole === 'manager' ? ['leads.read_all', 'leads.create', 'leads.update_all', 'leads.assign'] : p.operationalRole === 'staff' ? ['leads.read_assigned', 'leads.update_assigned'] : [];
   if (p.technicalAdmin) allowed.push('admin.status');
   if (p.applicationAdmin) allowed.push('users.manage','backup.export');
   if(p.applicationAdmin&&p.operationalRole==='owner'&&p.id==='1fbc76c6-8521-4f9e-b0c9-f174ada676aa'&&String(p.email).toLowerCase()==='erick@bloxlabs.tech')allowed.push('access.review');
   assertWire(Array.isArray(s.capabilities) && new Set(s.capabilities).size === s.capabilities.length && s.capabilities.every(c => typeof c === 'string' && allowed.includes(c)));
+  if(Object.hasOwn(s,'operationsFeatures')){
+    const f=exact(s.operationsFeatures,['reads','scheduleCommands','scheduleRecurrence','visitActions']);
+    assertWire(Object.values(f).every(value=>typeof value==='boolean'));
+    assertWire(p.operationalRole!==null || Object.values(f).every(value=>value===false));
+    assertWire(f.reads===true || (!f.scheduleCommands && !f.scheduleRecurrence && !f.visitActions));
+    assertWire(!f.scheduleRecurrence || (f.scheduleCommands && ['owner','manager'].includes(p.operationalRole as string)));
+  }
   return s as Session;
 }
 export function validateSharedPerson(value: unknown) { const p = exact(value, ['id', 'name', 'role', 'methods']); assertWire(uuid(p.id) && typeof p.name === 'string' && p.name.trim() && p.name.length <= 160 && typeof p.role === 'string' && p.role.length <= 160 && Array.isArray(p.methods) && p.methods.length <= 20); const methods = p.methods as unknown[]; for (const value of methods) { const m = exact(value, ['id', 'kind', 'value', 'label']); assertWire(uuid(m.id) && ['phone', 'email'].includes(m.kind as string) && typeof m.value === 'string' && m.value.trim() && m.value.length <= 300 && (m.kind !== 'email' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.value)) && typeof m.label === 'string' && m.label.length <= 160); } assertWire(new Set(methods.map(m => object(m).id)).size === methods.length); }

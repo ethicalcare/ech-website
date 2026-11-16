@@ -8,6 +8,7 @@ import { echLogo } from './brand-logo';
 import { companyDate } from './time';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { can, canOperate, type Assignee, type Session, type SharedInquiry, type SharedPartner, type SharedRecord, type RecordKind, type Command } from './live-model';
+import { operationsFeatureScope } from './operations-features';
 import { createSessionClient } from './session';
 import { createSharedRepository } from './inquiry-repository';
 import { RecordEditor, inquiryForQueue } from './RecordEditor';
@@ -73,8 +74,8 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
     try {
       const current = await client.load(); if (ticket !== epoch.current) return;
       const old = verified.current;
-      const unchanged = old?.authenticated && current.authenticated && old.principal.id === current.principal.id && JSON.stringify(old.capabilities) === JSON.stringify(current.capabilities);
-      if (!unchanged) clearProtected();
+      const unchanged = old?.authenticated && current.authenticated && old.principal.id === current.principal.id && operationsFeatureScope(old) === operationsFeatureScope(current) && JSON.stringify(old.capabilities) === JSON.stringify(current.capabilities);
+      if (!unchanged) { clearProtected(); setSession(null); }
       if (current.authenticated && canOperate(current) && (full || !unchanged)) {
         const [inq, par, people] = await Promise.all([inquiryRepository.list(), (async()=>{
           const result=await partnerRepository.list();const seen=new Set(result.items.map(row=>row.id));const cursors=new Set<string>();
