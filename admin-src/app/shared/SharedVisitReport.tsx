@@ -114,6 +114,9 @@ export function SharedVisitReport({ visitId, visitRevision, load, onVerification
             <dl className="shared-visit-detail__fields">
               <dt>Outcome reported</dt><dd>{outcomeLabel[content.outcome]}</dd>
               <dt>Recorded by</dt><dd>{content.actorRole} · <span className="shared-visit-report__actor">{content.actorId}</span></dd>
+              <dt>Note event time · Vancouver</dt><dd>{content.noteEventAt
+                ? <time dateTime={content.noteEventAt}>{formatVancouverInstant(content.noteEventAt)}</time>
+                : 'Not recorded · unknown'}</dd>
               <dt>Recorded at · Vancouver</dt><dd>{formatVancouverInstant(content.recordedAt)}</dd>
               <dt>Content event revision</dt><dd>{content.revision}</dd>
               <dt>Reported actual visit · Vancouver</dt><dd>{formatVancouverInstant(content.actualStart)} – {formatVancouverInstant(content.actualEnd)}</dd>
