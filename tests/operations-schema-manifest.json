@@ -117,6 +117,10 @@
     {
       "file": "migrations/20261116002500_review_confirmed_client_source.sql",
       "sha256": "eb3986604e18d7e7529f7139bc7b1b893890e6e3eea0ee47ff26d9053cbdb525"
+    },
+    {
+      "file": "migrations/20261117145120_completed_task_history.sql",
+      "sha256": "09dc8de17f5b19f276f49097da1a5a3a1984569830cc5ca26c3dc63112aac960"
     }
   ]
 }

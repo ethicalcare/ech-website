@@ -12,7 +12,7 @@ const args=process.argv.slice(2);
 assert.ok(args.length===0 || (args.length===1 && args[0]==='--run-fictional'),'Only --run-fictional supported; no connection/URL arguments');
 const owner=randomUUID();
 const sources=fictionalSources(owner);
-console.log('PREPARATION: 29 source hashes verified. Applying migrations grants some authenticated reads; this harness uses only a private disposable cluster.');
+console.log('PREPARATION: 30 source hashes verified. Applying migrations grants some authenticated reads; this harness uses only a private disposable cluster.');
 if(!args.length){console.log(sources.map(s=>s.file).join('\n'));console.log('NOT EXECUTED. Use --run-fictional with preinstalled native PostgreSQL for schema/ACL verification. This is not hosted-provider or behavioral verification.');process.exit(0);}
 const bin=n=>process.env.PG_BIN?join(resolve(process.env.PG_BIN),n):n;
 // Do not inherit a default server, database, service file or credentials.
