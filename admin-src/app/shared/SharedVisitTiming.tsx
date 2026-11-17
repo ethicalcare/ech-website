@@ -1,6 +1,5 @@
 import {useLayoutEffect,useState} from 'react';
 import type {VisitTiming,TimingBoundary} from './visit-timing-client';
-import {companyTime} from './time';
 // This immutable operational snapshot is not a clinical order or a task result.
 export function SharedVisitTiming({visitId,revision,load,onFailure}:{visitId:string;revision:number;load:(id:string,revision:number,signal:AbortSignal)=>Promise<VisitTiming>;onFailure:()=>void}) {
  const [data,setData]=useState<VisitTiming|null>(null),[error,setError]=useState(false);
@@ -15,7 +14,7 @@ export function SharedVisitTiming({visitId,revision,load,onFailure}:{visitId:str
   const timer=window.setInterval(check,60000);
   return()=>{controller?.abort();document.removeEventListener('visibilitychange',check);window.removeEventListener('blur',clear);window.removeEventListener('focus',check);window.clearInterval(timer);};
  },[visitId,revision,load,onFailure]);
- const time=(at:TimingBoundary)=><time dateTime={at.instant}>{companyTime(at.instant)}</time>;
+ const time=(at:TimingBoundary)=><time dateTime={at.instant}>{at.local.replace('T',' ')}</time>;
  return <section aria-label="Operational task timing"><h3>Operational task timing</h3>
   <p>Suggested timing is guidance, not a strict deadline. This does not establish completion, missed care or clinical authority.</p>
   {paused?<p role="status">Task timing is hidden. Access will be checked when you return.</p>:error?<p role="alert">Task timing could not be verified.</p>:!data?<p role="status">Checking task timing…</p>:data.state==='unknown'?<p>No timing snapshot was recorded. Timing is unknown, not flexible by default.</p>:<>
