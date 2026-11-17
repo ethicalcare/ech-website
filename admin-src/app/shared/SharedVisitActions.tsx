@@ -85,6 +85,8 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
     });
     return ()=>{request.abort();controller.current?.abort();};
   },[client,active,visit.id,visit.revision,visit.status,supported,loadReport,reload]);
+  // Authenticated capability is presentation only; each write still rechecks authority.
+  const noteTimeEnabled=noteEventTimeEnabled===true || context?.access.noteEventTime===true;
   const latest=context?.report?.versions.at(-1);
   const completedTasks=draft.tasks.split('\n').filter(task=>task.trim().length>0);
   const reviewEligibility=client.reviewEligibility(context?.report??null);
@@ -143,7 +145,7 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
       }
       catch (failure) { setError(true); setMessage(failure instanceof Error ? failure.message : 'Check the Vancouver visit times.'); return; }
       const fields={summary:draft.summary,issue:draft.issue,actualStart,actualEnd,
-        completedTasks,observations:draft.observations,...(noteEventTimeEnabled || draft.noteEventOriginal ? {noteEventAt} : {})};
+        completedTasks,observations:draft.observations,...(noteTimeEnabled || draft.noteEventOriginal ? {noteEventAt} : {})};
       command=visit.status==='In progress'?{...fields,type:'submit',outcome:draft.outcome as 'completed'|'follow-up'|'not-completed'}
         :{...fields,type:'correct',reason:draft.reason};
     }
@@ -277,7 +279,7 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
               {visit.status==='In progress' && completedTasks.length===0 && <p>For a report with no completed tasks, choose Follow-up needed or Not completed. Record the actual visit times and factual reason; this does not approve worked time.</p>}
               <label htmlFor={`${id}-issue`}>Issue text</label><textarea id={`${id}-issue`} maxLength={1000} value={draft.issue} onChange={event=>change('issue',event.target.value)} />
               <label htmlFor={`${id}-observations`}>Factual observations</label><textarea id={`${id}-observations`} maxLength={3000} value={draft.observations} onChange={event=>change('observations',event.target.value)} />
-              {noteEventTimeEnabled && <><label htmlFor={`${id}-note-event`}>Note event time · Vancouver (optional)</label>
+              {noteTimeEnabled && <><label htmlFor={`${id}-note-event`}>Note event time · Vancouver (optional)</label>
               <input id={`${id}-note-event`} type="datetime-local" step="0.001" aria-describedby={`${id}-note-event-help`} value={draft.noteEventAt} onChange={event=>change('noteEventAt',event.target.value)} />
               <p id={`${id}-note-event-help`}>Enter when the event described in this note actually occurred, if known. Leave blank when unknown. This is separate from the visit interval and the automatically recorded save time; it is never filled automatically.</p></>}
               {visit.status==='Completed' && <><p>Corrections append a version and preserve the original outcome and history.</p><label htmlFor={`${id}-reason`}>Correction reason</label><textarea id={`${id}-reason`} required minLength={3} maxLength={500} value={draft.reason} onChange={event=>change('reason',event.target.value)} /></>}

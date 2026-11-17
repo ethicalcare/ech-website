@@ -10,11 +10,11 @@ export type VisitCommand = {type:'start'} | (ReportFields & {type:'submit';outco
   | (ReportFields & {type:'correct';reason:string}) | {type:'review';version:number;decision:'accepted'|'returned';note:string};
 export type VisitAction = {schema:1;operationId:string;visitId:string;visitRevision:number;reportRevision:number|null;membershipRevision:number;command:VisitCommand};
 export type VisitActionReceipt = {schema:1;operationId:string;visitId:string;visitRevision:number;reportRevision:number|null;reportVersion:number|null;action:VisitCommand['type'];recordedAt:string|null};
-export type VisitActionAccess = {schema:1;enabled:boolean;membershipRevision:number};
+export type VisitActionAccess = {schema:1;enabled:boolean;membershipRevision:number;noteEventTime?:boolean};
 export type VisitActionsClient = ReturnType<typeof createVisitActionsClient>;
 const unknown = () => new SharedError('write_unconfirmed', 'The result is unknown. Your draft and exact request are retained. Retry the exact request to check its receipt.');
 export function createVisitActionsClient(fetcher: typeof fetch, actor: string, role: Exclude<OperationalRole, null>) {
-  const headers = {Accept:'application/json','X-ECH-Schedule-Actor':actor,'X-ECH-Schedule-Role':role};
+  const headers = {Accept:'application/json','X-ECH-Schedule-Actor':actor,'X-ECH-Schedule-Role':role,'X-ECH-Visit-Features':'1'};
   async function send(path: string, signal: AbortSignal, action?: VisitAction) {
     signal.throwIfAborted();
     assertWire(uuid(actor) && actor.length === 36 && ['owner','manager','staff'].includes(role));
@@ -59,7 +59,8 @@ export function createVisitActionsClient(fetcher: typeof fetch, actor: string, r
     },
     async availability(signal: AbortSignal): Promise<VisitActionAccess> {
       const result = await send('?commands=1',signal);
-      assertWire(result && Object.keys(result).sort().join(',') === 'enabled,membershipRevision,schema' && result.schema===1
+      assertWire(result && ['enabled,membershipRevision,schema','enabled,membershipRevision,noteEventTime,schema'].includes(Object.keys(result).sort().join(',')) && result.schema===1
+        && (!Object.hasOwn(result,'noteEventTime') || typeof result.noteEventTime==='boolean' && (!result.noteEventTime || result.enabled===true))
         && typeof result.enabled==='boolean' && Number.isSafeInteger(result.membershipRevision) && result.membershipRevision>0);
       return result;
     },
