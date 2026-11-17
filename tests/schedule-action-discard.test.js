@@ -57,3 +57,16 @@ test('switching action alone does not mark a draft dirty; real edits still do',a
  await act(async()=>{const select=f.root.root.findAllByType('select')[0];select.props.onChange({target:{value:'reschedule'}});form.props.onChange({target:{id:select.props.id}});});
  assert.equal(f.leave.dirty,true,'selector navigation must not clear a sibling draft');assert.equal(f.requests.length,0);
 }));
+
+test('invalid local schedule fields remain editable and do not create a retained request',async()=>fixture(async f=>{
+ await f.edit(f.root.root.findAllByType('input')[0],'2026-11-20T13:00:00.000');
+ await f.edit(f.root.root.findByType('textarea'),'Adjust fictional time');
+ await f.submitHold();
+ assert.equal(f.requests.length,0,'end before start must not reach the command client');
+ assert.equal(f.leave.pending,false);assert.equal(!!f.leave.retained,false);assert.equal(f.leave.dirty,true);
+ assert.equal(f.root.root.findByType('fieldset').props.disabled,false);
+ assert.equal(f.root.root.findByType('textarea').props.value,'Adjust fictional time');
+ assert.equal(f.root.root.findAllByType('button').some(b=>b.props.children==='Retry exact schedule request'),false);
+ await f.edit(f.root.root.findAllByType('input')[1],'2026-11-20T14:00:00.000');
+ await f.submitHold();assert.equal(f.requests.length,1);assert.equal(f.leave.pending,true);
+}));

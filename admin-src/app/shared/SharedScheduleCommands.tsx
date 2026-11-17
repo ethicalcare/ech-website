@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactNode, useId, useLayoutEffect, useRef, useState } from 'react';
+import {isScheduleCommand} from '../../../lib/operations/schedule-command-wire.js';
 import {ScheduleCommandRejected} from './schedule-command-client';
 import { SharedError, type OperationalRole } from './live-model';
 import type { ScheduleIdentity, ScheduleVisit } from './schedule-client';
@@ -117,6 +118,11 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
     } catch(failure) {setError(true);setMessage(failure instanceof Error?failure.message:'Check the Vancouver visit times.');return;}
     const request=Object.freeze({schema:1 as const,operationId:crypto.randomUUID(),visitId:visit.id,visitRevision:visit.revision,
       membershipRevision:access.membershipRevision,command:Object.freeze(command)});
+    // Local validation has not sent a request. Keep the form editable rather
+    // than treating invalid input as an unresolved or rejected server action.
+    if(!isScheduleCommand(request)){
+      setError(true);setMessage('Check the proposed times, staff selection and operational reason. The end must be after the start; choose a staff member for assignment and enter a reason of 3–500 characters without line breaks or control characters. No request was sent. Your draft is still editable.');return;
+    }
     outcomeUncertain.current=false;leaveChange.current({dirty,pending:true});setPending(request);void execute(request);
   }
   const retained=pending && <div><p>Your draft and exact request are retained while this visit stays open.</p>
