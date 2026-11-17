@@ -21,7 +21,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
   const [dirty,setDirty]=useState(false);
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState(false),[rejected,setRejected]=useState(false),[retry,setRetry]=useState(0);
   const controller=useRef<AbortController|null>(null),generation=useRef(0),id=useId();
-  const outcomeUncertain=useRef(false);
+  const outcomeUncertain=useRef(false),mutationOwner=useRef<AbortController|null>(null);
   const confirmed=useRef(onConfirmed);confirmed.current=onConfirmed;
   const scopeFailure=useRef(onScopeFailure);scopeFailure.current=onScopeFailure;
   const leaveChange=useRef(onLeaveStateChange);leaveChange.current=onLeaveStateChange;
@@ -29,7 +29,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
   const membership=useRef<number|null>(null);
   useLayoutEffect(()=>{leaveChange.current({dirty,pending:!!pending&&!rejected,retained:!!pending});},[pending,dirty,rejected]);
   useLayoutEffect(()=>{
-    const current=++generation.current;controller.current?.abort();setBusy(false);setAccess(null);
+    const current=++generation.current;controller.current?.abort();mutationOwner.current=null;setBusy(false);setAccess(null);
     if(!active)return;
     const request=new AbortController();controller.current=request;
     client.availability(request.signal).then(value=>{
@@ -45,8 +45,8 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
     return ()=>{request.abort();controller.current?.abort();};
   },[client,active,visit.id,visit.revision,retry]);
   async function execute(command:ScheduleCommand) {
-    if(!active)return;
-    controller.current?.abort();const request=new AbortController();controller.current=request;const current=generation.current;
+    if(!active||mutationOwner.current)return;
+    controller.current?.abort();const request=new AbortController();mutationOwner.current=request;controller.current=request;const current=generation.current;
     const previouslyUncertain=outcomeUncertain.current;outcomeUncertain.current=true;
     setBusy(true);setError(false);setRejected(false);setMessage('Checking the command receipt and reloading the current shared schedule…');
     try {
@@ -76,7 +76,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
       outcomeUncertain.current=!neverSent;setRejected(neverSent);
       if(failure instanceof SharedError && ['schedule_conflict','stale_visit','write_unconfirmed'].includes(failure.code))stale.current();
       if(failure instanceof SharedError && ['unauthenticated','scope_changed'].includes(failure.code))scopeFailure.current(failure.code);
-    } finally {if(!request.signal.aborted && current===generation.current)setBusy(false);}
+    } finally {if(mutationOwner.current===request)mutationOwner.current=null;if(!request.signal.aborted && current===generation.current)setBusy(false);}
   }
   async function reconcile() {
     if(outcomeUncertain.current || pending && !rejected)return;
@@ -96,7 +96,8 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
     } finally {if(!request.signal.aborted && current===generation.current)setBusy(false);}
   }
   function submit(event:FormEvent) {
-    event.preventDefault();if(!access || pending || busy)return;
+    // Synchronous ownership fences repeat events before disabled state renders.
+    event.preventDefault();if(!active || mutationOwner.current || !access || pending || busy)return;
     if(mode==='confirm' && role!=='staff'){setMode('reschedule');setError(true);setMessage('This manager view waits for the assigned worker to confirm. No confirmation request was sent.');return;}
     let command:SchedulingCommand;
     try {

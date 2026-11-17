@@ -46,6 +46,8 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
   const requestVisit = useRef<ScheduleVisit|null>(null);
   const controller = useRef<AbortController|null>(null);
   const current = useRef(0);
+  // State updates do not serialize multiple events before the next render.
+  const writeFlight = useRef<AbortController|null>(null);
   const confirmed = useRef(onConfirmed); confirmed.current=onConfirmed;
   const reconciled = useRef(onReconciled); reconciled.current=onReconciled;
   const reconciliationFailure = useRef(onReconciliationFailure); reconciliationFailure.current=onReconciliationFailure;
@@ -91,9 +93,10 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
   const completedTasks=draft.tasks.split('\n').filter(task=>task.trim().length>0);
   const reviewEligibility=client.reviewEligibility(context?.report??null);
   async function execute(action:VisitAction) {
-    if(!active || !supported || !verifiedAccess?.enabled || verifiedAccess.membershipRevision!==action.membershipRevision || busy)return;
+    if(!active || !supported || !verifiedAccess?.enabled || verifiedAccess.membershipRevision!==action.membershipRevision || busy || writeFlight.current && !writeFlight.current.signal.aborted)return;
     controller.current?.abort();
     const request=new AbortController();controller.current=request;const generation=current.current;
+    writeFlight.current=request;
     const previouslyUnresolved=unresolved.current;
     // Cancellation cannot prove that a sent command was rejected.
     unresolved.current=true;setComparison(null);
@@ -112,10 +115,10 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
       unresolved.current=!definitive;setRejected(definitive);
       if(previouslyUnresolved)setMessage('The result is unknown. Keep the draft and retry the exact request to check its receipt. A later rejection does not establish whether an earlier attempt was recorded.');
       if(error instanceof SharedError && ['unauthenticated','scope_changed'].includes(error.code)){setVerifiedAccess(null);scopeFailure.current(error.code);}
-    } finally {if(!request.signal.aborted && generation===current.current)setBusy(false);}
+    } finally {if(writeFlight.current===request)writeFlight.current=null;if(!request.signal.aborted && generation===current.current)setBusy(false);}
   }
   function submit(event:FormEvent) {
-    event.preventDefault();if(!active || !supported || !context?.access.enabled || pending || busy || comparison || activeDirty && (!sameVisit(draftVisit.current,visit) || draftReportRevision.current!==(context.report?.reportRevision??null)))return;
+    event.preventDefault();if(!active || !supported || !context?.access.enabled || pending || busy || writeFlight.current && !writeFlight.current.signal.aborted || comparison || activeDirty && (!sameVisit(draftVisit.current,visit) || draftReportRevision.current!==(context.report?.reportRevision??null)))return;
     let command:VisitCommand;
     if(visit.status==='Confirmed')command={type:'start'};
     else if(mode==='review' && latest){
