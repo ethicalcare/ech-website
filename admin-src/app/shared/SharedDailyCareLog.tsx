@@ -19,7 +19,7 @@ export function SharedDailyCareLog({report,load,onFailure}:{report:VisitReport;l
   return()=>{controller?.abort();document.removeEventListener('visibilitychange',check);window.removeEventListener('blur',clear);window.removeEventListener('focus',check);window.clearInterval(timer);};
  },[report,load]);
  const entries=history?joinedCareLog(report,history):null;
- const event=(e:CareLogEvent)=><li key={e.key}><h5>{e.title} · {e.kind==='task'?'Task result':'Report note'} · {e.original?'Original':`Correction · version ${e.version}`}</h5><dl>
+ const event=(e:CareLogEvent)=><li key={e.key}><h5>{e.title} · {e.kind==='task'?'Task result':'Report note'} · {e.original?'Original':`Correction · version ${e.version}`}</h5><p>{e.latestVisible?'Latest visible version':'Earlier visible version'}</p><dl>
   <dt>Event time · Vancouver</dt><dd>{e.eventAt?<time dateTime={e.eventAt}>{taskEventLocalTime(e.eventAt)}</time>:'Not recorded · unknown'}</dd>
   <dt>Recorded at · Vancouver</dt><dd><time dateTime={e.recordedAt}>{taskEventLocalTime(e.recordedAt)}</time></dd>
   <dt>Author</dt><dd><ReportActor report={report} actorId={e.actorId} role={e.role}/></dd>

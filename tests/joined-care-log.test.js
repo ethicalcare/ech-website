@@ -19,7 +19,7 @@ const {SharedDailyCareLog}=await component('SharedDailyCareLog');const {SharedVi
 test('mounted joined log clears on blur, rejects late response and mismatched report pins',async()=>{
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;const old={window:globalThis.window,document:globalThis.document};let focused=true;globalThis.window=Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>focused});let root;const reads=[];let failures=0;const load=(id,rev,stream,signal)=>new Promise(resolve=>reads.push({id,rev,stream,signal,resolve}));
  try{
-  await act(async()=>{root=create(React.createElement(SharedDailyCareLog,{report,load,onFailure:()=>failures++}));});assert.deepEqual([reads[0].id,reads[0].rev,reads[0].stream],[report.visitId,3,5]);await act(async()=>reads[0].resolve(history));assert.match(JSON.stringify(root.toJSON()),/Fictional walk/);assert.match(JSON.stringify(root.toJSON()),/Unknown event time/);assert.match(JSON.stringify(root.toJSON()),/not a complete/);
+  await act(async()=>{root=create(React.createElement(SharedDailyCareLog,{report,load,onFailure:()=>failures++}));});assert.deepEqual([reads[0].id,reads[0].rev,reads[0].stream],[report.visitId,3,5]);await act(async()=>reads[0].resolve(history));assert.match(JSON.stringify(root.toJSON()),/Fictional walk/);assert.match(JSON.stringify(root.toJSON()),/Unknown event time/);assert.match(JSON.stringify(root.toJSON()),/not a complete/);assert.match(JSON.stringify(root.toJSON()),/Latest visible version/);assert.match(JSON.stringify(root.toJSON()),/Earlier visible version/);
   focused=false;await act(async()=>window.dispatchEvent(new Event('blur')));assert.doesNotMatch(JSON.stringify(root.toJSON()),/Fictional walk|Original factual note/);
   focused=true;await act(async()=>window.dispatchEvent(new Event('focus')));focused=false;document.visibilityState='hidden';await act(async()=>document.dispatchEvent(new Event('visibilitychange')));await act(async()=>reads[1].resolve(history));assert(reads[1].signal.aborted);assert.doesNotMatch(JSON.stringify(root.toJSON()),/Fictional walk/);
   focused=true;document.visibilityState='visible';await act(async()=>document.dispatchEvent(new Event('visibilitychange')));await act(async()=>reads[2].resolve({...history,reportRevision:6}));assert.equal(failures,1);assert.doesNotMatch(JSON.stringify(root.toJSON()),/Fictional walk/);
@@ -29,4 +29,16 @@ test('actual report mount fetches joined history only with explicit capability a
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;const old={window:globalThis.window,document:globalThis.document};globalThis.window=Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true});let root;
  try{for(const enabled of [undefined,false,true]){let calls=0;await act(async()=>{root=create(React.createElement(SharedVisitReport,{visitId:report.visitId,visitRevision:3,load:async()=>({...report,...(enabled===undefined?{}:{completedTaskHistoryEnabled:enabled})}),loadCompletedHistory:async()=>{calls++;return history;},onVerificationFailure:()=>assert.fail('Unexpected failure'),selectedVersion:0,onSelectedVersionChange(){}}));});assert.equal(calls,enabled===true?1:0);assert.equal(JSON.stringify(root.toJSON()).includes('Fictional walk'),enabled===true);await act(async()=>root.unmount());}}
  finally{globalThis.window=old.window;globalThis.document=old.document;}
+});
+
+test('care log identifies latest visible versions per task and report without dropping history',()=>{
+ const other={...task,taskId:'30000000-0000-4000-8000-000000000002',version:3};
+ const log=joinedCareLog(report,{...history,results:[history.results[1],other,task]});
+ const entries=[...log.known,...log.unknown];
+ assert.equal(entries.find(e=>e.key===`task:${task.taskId}:1`).latestVisible,false);
+ assert.equal(entries.find(e=>e.key===`task:${task.taskId}:2`).latestVisible,true);
+ assert.equal(entries.find(e=>e.key===`task:${other.taskId}:3`).latestVisible,true,'latest is only among returned versions');
+ assert.equal(entries.find(e=>e.key==='note:1').latestVisible,false);
+ assert.equal(entries.find(e=>e.key==='note:3').latestVisible,true);
+ assert.equal(entries.length,5);
 });
