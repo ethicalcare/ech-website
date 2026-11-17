@@ -141,7 +141,9 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
     setReceiptState(old=>old==='committed'?old:'unknown');setMessage('Check stopped. The exact request is retained; its outcome still needs review.');
   }
   function submit(event:FormEvent) {
-    event.preventDefault();if(!active||busy||pending||!access?.enabled||!sources)return;
+    // The same submit handler can run again before React commits disabled state.
+    // Keep the first exact request instead of replacing it with another operation.
+    event.preventDefault();if(!active||inFlight.current||busy||pending||!access?.enabled||!sources)return;
     const source=sources.find(s=>s.clientId===draft.sourceId);if(!source){fail(new SharedError('invalid_request','Select a current reviewed scheduling source.'));return;}
     if(selectedTaskPlan && (source.clientId!==selectedTaskPlan.clientId || source.instructionsVersion!==selectedTaskPlan.instructionsVersion || access.membershipRevision!==selectedTaskPlan.membershipRevision || source.service!=='Home support')){fail(new SharedError('invalid_request','The selected task plan belongs to a different client or instruction version. Review the current plan before scheduling.'));return;}
     let start:string,end:string;
