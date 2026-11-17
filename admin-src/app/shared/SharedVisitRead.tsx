@@ -5,7 +5,7 @@ import {useCallback} from 'react';
 import type {VisitLeaveState} from './SharedVisitActions';
 import {SharedVisitReport} from './SharedVisitReport';
 import {createVisitReportClient} from './visit-report-client';
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useState,useRef} from 'react';
 import {createVisitDetailClient,type VisitDetail} from './visit-detail-client';
 import type {ScheduleIdentity,ScheduleVisit} from './schedule-client';
 
@@ -24,12 +24,16 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
  const [retry,setRetry]=useState(0);
  const key=JSON.stringify([actor,role,visit.id,visit.revision,retry]);
  const [state,setState]=useState<{key:string;detail?:VisitDetail;error?:string}>({key:''});
+ const detailGeneration=useRef(0);
+ const detailController=useRef<AbortController|null>(null);
  const load=useMemo(()=>createVisitDetailClient(fetcher,actor,role),[fetcher,actor,role]);
  useEffect(()=>{
-  let current=true;const controller=new AbortController();setState({key});
-  void load(visit.id,visit.revision,controller.signal).then(detail=>{if(current&&!controller.signal.aborted)setState({key,detail});}).catch(()=>{if(current&&!controller.signal.aborted)setState({key,error:'Visit details could not be verified. Reload the schedule if this visit has changed.'});});
-  return()=>{current=false;controller.abort();};
+  const generation=++detailGeneration.current;const controller=new AbortController();detailController.current?.abort();detailController.current=controller;setState({key});
+  void load(visit.id,visit.revision,controller.signal).then(detail=>{if(generation===detailGeneration.current&&!controller.signal.aborted)setState({key,detail});}).catch(()=>{if(generation===detailGeneration.current&&!controller.signal.aborted)setState({key,error:'Visit details could not be verified. Reload the schedule if this visit has changed.'});});
+  return()=>{detailGeneration.current++;controller.abort();};
  },[load,visit.id,visit.revision,key]);
+ const reconciled=useCallback((current:ScheduleVisit)=>{setRetry(value=>value+1);onConfirmed?.(current);},[onConfirmed]);
+ const reconciliationFailed=useCallback(()=>{detailGeneration.current++;detailController.current?.abort();setState({key,error:'Current visit details could not be verified. Your report draft is retained.'});setReportOpen(false);setReportVersion(null);},[key]);
  const visible=state.key===key?state:undefined,detail=visible?.detail;
  const showDetails=detail&&!leave.pending&&!leave.retained;
  const labels={address:'Address',unit:'Unit',entry:'Entry instructions',preferences:'Visit preferences'} as const;
@@ -44,7 +48,7 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
    <button type="button" aria-expanded={reportOpen} onClick={()=>setReportOpen(value=>!value)}>{reportOpen?'Hide report history':'View report history'}</button>
    {reportOpen&&<SharedVisitReport key={key} visitId={visit.id} visitRevision={visit.revision} load={loadReport} onVerificationFailure={()=>{setState({key,error:"Visit access could not be verified. Reload the schedule."});setReportOpen(false);setReportVersion(null);onVerificationFailure?.();}} selectedVersion={reportVersion} onSelectedVersionChange={setReportVersion}/>}
   </>}
-  {(detail||leave.dirty||leave.pending||leave.retained)&&<StaffVisitWorkflow visit={visit} actor={actor} role={role} staff={staff} fetcher={fetcher} active={active&&!taskLeave.dirty&&!taskLeave.pending} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={saved} onScopeFailure={scopeFailed} onLeaveStateChange={leaveChanged}/>}
-  {(detail||leave.dirty||leave.pending||leave.retained)&&tasksEnabled&&<VisitTaskWorkflow enabled scope={scope} actor={actor} role={role} visit={visit} fetcher={fetcher} active={active} blocked={!!(workflowLeave.dirty||workflowLeave.pending||workflowLeave.retained)} onLeave={setTaskLeave} onFailure={scopeFailed}/>}
+  {(detail||leave.dirty||leave.pending||leave.retained)&&<StaffVisitWorkflow visit={visit} actor={actor} role={role} staff={staff} fetcher={fetcher} active={active&&!taskLeave.dirty&&!taskLeave.pending} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={saved} onReconciled={reconciled} onReconciliationFailure={reconciliationFailed} onScopeFailure={scopeFailed} onLeaveStateChange={leaveChanged}/>}
+  {(detail||leave.dirty||leave.pending||leave.retained)&&tasksEnabled&&<VisitTaskWorkflow enabled scope={scope} actor={actor} role={role} visit={visit} fetcher={fetcher} active={active&&!!detail} blocked={!!(workflowLeave.dirty||workflowLeave.pending||workflowLeave.retained)} onLeave={setTaskLeave} onFailure={scopeFailed}/>}
  </section>;
 }

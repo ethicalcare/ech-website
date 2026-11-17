@@ -55,7 +55,7 @@ test('staff accepts assigned visit, starts it and submits report with exact retr
   await act(async()=>root.update(React.createElement(StaffVisitWorkflow,{...props,active:false})));assert.equal(posts.length,3);
   await act(async()=>root.update(React.createElement(StaffVisitWorkflow,props)));await settle();
   const retry=root.root.findAllByType('button').find(button=>JSON.stringify(button.props.children).includes('Retry exact'));
-  assert.ok(retry);assert.equal(staleReportReads,1,'reopening after committed lost response rejects old report revision but retains request');await act(async()=>retry.props.onClick());await settle();
+  assert.ok(retry);assert.equal(root.root.findAllByType('button').some(b=>JSON.stringify(b.props.children).includes('Keep draft and reload for editing')),false,'uncertain write cannot be converted into a replacement request');assert.equal(staleReportReads,1,'reopening after committed lost response rejects old report revision but retains request');await act(async()=>retry.props.onClick());await settle();
   assert.deepEqual(posts[3],posts[2],'same operation identity and immutable payload after hidden/reopened view');
   assert.equal(confirmed.at(-1).status,'Completed');assert.equal(confirmed.length,3);
  }finally{if(root)await act(async()=>root.unmount());}
