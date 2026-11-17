@@ -57,6 +57,7 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const selectedVisit=data?.visits.find(visit=>visit.id===selected?.id&&visit.revision===selected.revision);
  const filteredVisits=data?.visits.filter(visit=>visit.workerId===null?staffFilter.unassigned:staffFilter.ids===null||staffFilter.ids.includes(visit.workerId))??[];
  const days=useMemo(()=>{try{return calendarDays(day,view);}catch{return [];}},[day,view]);
+ const visitsInView=data?.visits.filter(visit=>days.some(date=>visitsOnDay([visit],date).length>0))??[];
  const shownVisits=filteredVisits.filter(visit=>days.some(date=>visitsOnDay([visit],date).length>0));
  const clients=new Map(data?.clients.map(row=>[row.id,row.name]));
  const staff=new Map(data?.staff.map(row=>[row.id,row.name]));
@@ -73,7 +74,8 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
   {coverage!=='full'&&<aside aria-label="Focused calendar coverage"><p>Only the selected {coverage} is loaded. This is not a complete month calendar. Wider views remain unavailable until the full calendar is verified.</p><button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCoverage('full');}}}>Retry full calendar</button></aside>}
   <ScheduleStaffFilter staff={data?.staff??[]} value={staffFilter} onChange={setStaffFilter} disabled={!data||createOpen}/>
   {data&&!createOpen&&!leave.pending&&!leave.retained&&<><p>{shownVisits.length} visits shown in the selected {view} view. Dates and original visit times are Vancouver local time.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
-  {data.visits.length>0&&!shownVisits.length&&<p>No visits match the staff selection. Change the filter to show other permitted visits.</p>}
+  {data.visits.length>0&&!visitsInView.length&&<p>No visits returned for the selected {view} view.</p>}
+  {visitsInView.length>0&&!shownVisits.length&&<p>No visits in the selected {view} view match the staff selection. Change the filter to show other permitted visits.</p>}
   <div className="shared-schedule-calendar" data-view={view} role="region" aria-label="Visit calendar" tabIndex={0}>
    <div className="shared-schedule-calendar__days" style={{'--calendar-columns':view==='day'?1:7} as import('react').CSSProperties}>
    {view==='month'&&calendarWeekdays.map(name=><div key={name} className="shared-schedule-calendar__weekday" aria-hidden="true">{name}</div>)}
