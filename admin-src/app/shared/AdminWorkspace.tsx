@@ -3,6 +3,7 @@ import {clearVisitTaskResultEntries} from './SharedVisitTaskResults';
 import './admin.css';
 import './crm.css';
 import './named-shell.css';
+import { MobileNavigation } from './MobileNavigation';
 import {NamedOperations} from './NamedOperations';
 import { Icon, type IconName } from './Icon';
 import { echLogo } from './brand-logo';
@@ -127,29 +128,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
    {session?.authenticated && <aside className="sidebar">
     <button className="brand" type="button" onClick={() => changeView('overview')}><img className="ech-brand-logo" src={echLogo} alt="Ethical Care at Home" /><span className="brand-workspace">Team workspace</span></button>
     <nav aria-label="Care Intake Hub navigation">{([['daily','calendar-days','Today'],['leads','inbox','Care Inquiries'],['partners','handshake','Referral Partners'],['followups','list-checks','Follow-ups'],['operations','settings-2','Operations'],['overview','layout-dashboard','Overview'],['assessments','clipboard-list','Assessments']] as [DashboardView,IconName,string][]).map(([next,icon,label]) => <div className="named-nav-group" key={next}><button aria-current={!accountsOpen && navigation.view === next ? 'page' : undefined} className={`nav-item ${!accountsOpen && navigation.view === next ? 'active' : ''}`} type="button" onClick={() => changeView(next)} key={next}><Icon name={icon} />{label}{next === 'leads' && operating && <span className="nav-count">{inquiries.length}{cursors.inquiry ? '+' : ''}</span>}</button>{next === 'operations' && navigation.view === 'operations' && !accountsOpen && !sharedSchedule && <div className="named-operations-nav" aria-label="Fictional Operations sections">{namedSections.map(([id,label])=><button key={id} type="button" aria-current={operationsSection === id ? 'page' : undefined} onClick={()=>changeView('operations', id)}>{label}</button>)}</div>}</div>)}{manageAccounts && <button type="button" className={`nav-item ${accountsOpen ? 'active' : ''}`} aria-current={accountsOpen ? 'page' : undefined} onClick={toggleAccounts}><Icon name="users"/>Accounts</button>}</nav>
-    <label className="named-mobile-section">
-     Dashboard / Operations
-     <select value={accountsOpen ? 'accounts' : navigation.view === 'operations' ? `section:${sharedSchedule ? 'visits' : operationsSection}` : navigation.view}
-      onChange={event => {
-       const value = event.currentTarget.value;
-       const section = namedSections.find(([id]) => value === `section:${id}`);
-       if (section) {
-        changeView('operations', section[0]);
-       } else if (value === 'accounts' && manageAccounts) {
-        toggleAccounts();
-       } else if (Object.prototype.hasOwnProperty.call(titles, value)) {
-        changeView(value as DashboardView);
-       }
-      }}>
-      <optgroup label="Dashboard">
-       {Object.entries(titles).filter(([id]) => id !== 'operations').map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-       {manageAccounts && <option value="accounts">Accounts</option>}
-      </optgroup>
-      <optgroup label="Operations">
-       {(sharedSchedule ? namedSections.slice(0,1) : namedSections).map(([id, label]) => <option key={id} value={`section:${id}`}>{label}</option>)}
-      </optgroup>
-     </select>
-    </label>
+    <MobileNavigation view={navigation.view} section={operationsSection} accountsOpen={accountsOpen} sharedSchedule={sharedSchedule} manageAccounts={manageAccounts} titles={titles} onNavigate={changeView} onAccounts={toggleAccounts} />
     <button className="quick-intake-button" type="button" disabled={!can(session,'leads.create')} onClick={() => { changeView('leads'); setCreating(crypto.randomUUID()); }}><Icon name="plus" />Record new inquiry</button>
     <div className="sidebar-footer">{session?.authenticated && <details className="account-menu"><summary aria-label="My account"><span className="account-avatar" aria-hidden="true">{session.principal.email.slice(0,1).toUpperCase()}</span><span className="account-identity"><strong>My account</strong><small>{session.principal.email}</small></span><span aria-hidden="true">⌃</span></summary><div className="account-actions"><p>Signed in as <strong>{session.principal.email}</strong></p><p className="account-save-note">{navigation.view === 'operations' && !accountsOpen ? sharedSchedule ? 'Shared schedule is read-only. No changes are saved from this view.' : 'Fictional Operations changes save on this device for this account only.' : 'Inquiries, referral partners and account changes save to the shared ECH system.'}</p><button type="button" disabled={checking} onClick={() => refresh()}>Refresh account and records</button><button type="button" disabled={checking} onClick={logout}>Sign out</button>{!operating && <p>This account has no operational record access.</p>}</div></details>}<small className="workspace-safety">Contact details only. No clinical notes.</small></div>
    </aside>}
