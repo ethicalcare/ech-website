@@ -14,7 +14,7 @@ type Comparison = {visit:ScheduleVisit;reportRevision:number|null};
 const sameVisit = (left:ScheduleVisit,right:ScheduleVisit) => (['id','clientId','workerId','service','status','start','end','revision'] as const).every(key=>left[key]===right[key]);
 const samePurpose = (left:ScheduleVisit,right:ScheduleVisit) => (['id','clientId','workerId','service','status'] as const).every(key=>left[key]===right[key]);
 type Mode = 'submit'|'correct'|'review';
-const empty = {summary:'',issue:'',actualStart:'',actualEnd:'',tasks:'',observations:'',reason:'',note:'',outcome:'',decision:'accepted',noteEventAt:'',noteEventOriginal:''};
+const empty = {summary:'',issue:'',actualStart:'',actualEnd:'',actualStartOriginal:'',actualEndOriginal:'',tasks:'',observations:'',reason:'',note:'',outcome:'',decision:'accepted',noteEventAt:'',noteEventOriginal:''};
 const hasDraft = (draft:typeof empty) => Object.keys(empty).some(field=>draft[field as keyof typeof empty]!==empty[field as keyof typeof empty]);
 type SavedDraft = {draft:typeof empty;visit:ScheduleVisit;reportRevision:number|null;reviewVersion:number|null};
 export function SharedVisitActions({visit,active,client,loadDetail,loadReport,loadCurrentVisit,onConfirmed,onReconciled,onReconciliationFailure,onScopeFailure,onLeaveStateChange,noteEventTimeEnabled=false,reconciliationEnabled=true}: {
@@ -139,7 +139,12 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
       }
       let actualStart:string, actualEnd:string, noteEventAt:string|null;
       try {
-        actualStart=reportUtcTime(draft.actualStart); actualEnd=reportUtcTime(draft.actualEnd);
+        // An untouched saved instant is unambiguous even when its local clock
+        // reading occurred twice. Edited values still use strict civil-time validation.
+        actualStart=draft.actualStartOriginal && draft.actualStart===reportLocalTime(draft.actualStartOriginal)
+          ? draft.actualStartOriginal : reportUtcTime(draft.actualStart);
+        actualEnd=draft.actualEndOriginal && draft.actualEnd===reportLocalTime(draft.actualEndOriginal)
+          ? draft.actualEndOriginal : reportUtcTime(draft.actualEnd);
         // Preserve an unchanged explicitly recorded instant, including historical offsets.
         // A blank field is unknown, never the visit interval or the save time.
         noteEventAt=!draft.noteEventAt ? null
@@ -175,7 +180,7 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
       draftVisit.current={...visit};draftReportRevision.current=context?.report?.reportRevision??null;
       draftReviewVersion.current=next==='review'?latest.version:null;
       setDraft(next==='correct'?{...empty,summary:latest.summary,issue:latest.issue,actualStart:reportLocalTime(latest.actualStart),
-        actualEnd:reportLocalTime(latest.actualEnd),tasks:latest.completedTasks.join('\n'),observations:latest.observations,
+        actualEnd:reportLocalTime(latest.actualEnd),actualStartOriginal:latest.actualStart,actualEndOriginal:latest.actualEnd,tasks:latest.completedTasks.join('\n'),observations:latest.observations,
         noteEventAt:latest.noteEventAt ? reportLocalTime(latest.noteEventAt) : '',noteEventOriginal:latest.noteEventAt ?? ''}:empty);
     }
     setMode(next);
