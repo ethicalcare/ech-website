@@ -5,12 +5,15 @@ import {useCallback} from 'react';
 import type {VisitLeaveState} from './SharedVisitActions';
 import {SharedVisitReport} from './SharedVisitReport';
 import {createVisitReportClient} from './visit-report-client';
-import {useEffect,useMemo,useState,useRef} from 'react';
+import {useEffect,useMemo,useState,useRef,useLayoutEffect} from 'react';
 import {createVisitDetailClient,type VisitDetail} from './visit-detail-client';
 import type {ScheduleIdentity,ScheduleVisit} from './schedule-client';
 
 // Parent keys this view by account/role/feature scope and visit revision.
 export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerificationFailure,active=true,staff=[],schedulingEnabled=false,actionsEnabled=false,onConfirmed,onLeaveStateChange,tasksEnabled=false,scope=""}:{tasksEnabled?:boolean;scope?:string;actor:string;role:'owner'|'manager'|'staff';visit:ScheduleVisit;fetcher:typeof fetch;onClose:()=>void;onVerificationFailure?:()=>void;active?:boolean;staff?:ScheduleIdentity[];schedulingEnabled?:boolean;actionsEnabled?:boolean;onConfirmed?:(visit:ScheduleVisit)=>void;onLeaveStateChange?:(state:VisitLeaveState)=>void}){
+ const heading=useRef<HTMLHeadingElement|null>(null);
+ const focused=useRef(false);
+ useLayoutEffect(()=>{if(active&&!focused.current&&heading.current){heading.current.focus();focused.current=true;}},[active]);
  const [leave,setLeave]=useState<VisitLeaveState>({dirty:false,pending:false});
  const [workflowLeave,setWorkflowLeave]=useState<VisitLeaveState>({dirty:false,pending:false});
  const [taskLeave,setTaskLeave]=useState<VisitLeaveState>({dirty:false,pending:false});
@@ -38,7 +41,7 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
  const showDetails=detail&&!leave.pending&&!leave.retained;
  const labels={address:'Address',unit:'Unit',entry:'Entry instructions',preferences:'Visit preferences'} as const;
  return <section className="panel dashboard-card" aria-label="Selected visit details">
-  <h3>Selected visit details</h3><p>Read-only details for the selected visit revision.</p>
+  <h3 ref={heading} tabIndex={-1}>Selected visit details</h3><p>Read-only details for the selected visit revision.</p>
   <button type="button" disabled={leave.pending} onClick={onClose}>Close visit details</button><button type="button" disabled={leave.dirty||leave.pending||leave.retained} onClick={()=>setRetry(value=>value+1)}>Reload visit details</button>
   {!detail&&!visible?.error&&<p role="status">Loading visit details…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}

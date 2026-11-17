@@ -1,6 +1,6 @@
 'use client';
 import {scheduleWeek,scheduleDay,scheduleLabel} from './schedule-window';
-import {useCallback,useEffect,useMemo,useState} from 'react';
+import {useCallback,useEffect,useMemo,useState,useRef,useLayoutEffect} from 'react';
 import {SharedScheduleCreate} from './SharedScheduleCreate';
 import {createScheduleCreateClient} from './schedule-create-client';
 import {SharedVisitRead} from './SharedVisitRead';
@@ -16,6 +16,9 @@ export function SharedScheduleRead({session,fetcher=fetch,active=true}:{session:
  return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
 }
 function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled}:{scope:string;tasksEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
+ const visitButtons=useRef(new Map<string,HTMLButtonElement>());
+ const returnFocus=useRef<string|null>(null);
+ const scheduleHeading=useRef<HTMLHeadingElement|null>(null);
  const [day,setDay]=useState(()=>scheduleDay(new Date().toISOString()));
  const [createOpen,setCreateOpen]=useState(false),[creationHeld,setCreationHeld]=useState(false);
  const [creationStaff,setCreationStaff]=useState<import('./schedule-client').ScheduleIdentity[]>([]);
@@ -23,11 +26,12 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const creationConfirmed=useCallback(()=>setReload(value=>value+1),[]);
  const [leave,setLeave]=useState<VisitLeaveState>({dirty:false,pending:false});
  const canLeave=()=>!leave.pending&&(!(leave.dirty||leave.retained)||window.confirm('Discard the unsaved visit draft and retained request?'));
- const close=()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});}};
+ const close=()=>{if(canLeave()){returnFocus.current=selected?.id??null;setSelected(null);setLeave({dirty:false,pending:false});}};
  const invalidate=useCallback(()=>{setCreateOpen(false);setCreationHeld(false);setSelected(null);setLeave({dirty:false,pending:false});setReload(value=>value+1);},[]);
  const confirmed=useCallback((visit:import('./schedule-client').ScheduleVisit)=>{setState(current=>current.snapshot?{...current,snapshot:{...current.snapshot,visits:current.snapshot.visits.map(row=>row.id===visit.id?visit:row)}}:current);setSelected({id:visit.id,revision:visit.revision});},[]);
  useEffect(()=>{if(typeof window==='undefined')return;const warn=(event:BeforeUnloadEvent)=>{if(creationHeld||leave.dirty||leave.pending||leave.retained){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[leave,creationHeld]);
  const [selected,setSelected]=useState<{id:string;revision:number}|null>(null);
+ useLayoutEffect(()=>{if(selected===null&&active&&returnFocus.current){const button=visitButtons.current.get(returnFocus.current);returnFocus.current=null;if(button&&!button.disabled)button.focus();else scheduleHeading.current?.focus();}},[selected,active]);
  const [reload,setReload]=useState(0);
  const [state,setState]=useState<{request:string;snapshot?:ScheduleSnapshot;error?:string}>({request:''});
  const client=useMemo(()=>createScheduleClient(fetcher,role,actor),[fetcher,role,actor]);
@@ -47,7 +51,7 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const clients=new Map(data?.clients.map(row=>[row.id,row.name]));
  const staff=new Map(data?.staff.map(row=>[row.id,row.name]));
  return <section className="panel dashboard-card" aria-label="Shared schedule">
-  <h2>Shared visit schedule</h2><p>Read-only shared records. Times shown in Vancouver time. No changes are saved from this view.</p>
+  <h2 ref={scheduleHeading} tabIndex={-1}>Shared visit schedule</h2><p>Read-only shared records. Times shown in Vancouver time. No changes are saved from this view.</p>
   <label>Week starting (Vancouver)<input type="date" value={day} disabled={leave.pending||createOpen} onChange={event=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(event.currentTarget.value);}}}/></label>
   <button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setReload(value=>value+1);}}}>Reload schedule</button>
   {createClient&&schedulingEnabled&&!createOpen&&<button type="button" disabled={!data||leave.pending} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCreationStaff(data?.staff??[]);setCreateOpen(true);}}}>New shared visit</button>}
@@ -55,7 +59,7 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
   {!visible?.error&&!data&&<p role="status">Loading schedule…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
   {data&&!createOpen&&!leave.pending&&!leave.retained&&<><p>{data.visits.length} visits in this seven-day Vancouver window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
-  <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{scheduleLabel(visit.start)} to {scheduleLabel(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(selected?.id===visit.id&&selected.revision===visit.revision)return;if(canLeave()){setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
+  <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{scheduleLabel(visit.start)} to {scheduleLabel(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button ref={element=>{if(element)visitButtons.current.set(visit.id,element);else visitButtons.current.delete(visit.id);}} type="button" disabled={leave.pending||createOpen} onClick={()=>{if(selected?.id===visit.id&&selected.revision===visit.revision)return;if(canLeave()){setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
   {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior schedule rows and visit details are hidden until its result is verified.</p>}
   {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
  </section>;
