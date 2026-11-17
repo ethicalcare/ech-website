@@ -26,3 +26,10 @@ test('task activity renders separate Vancouver day sections while retaining limi
  const html=renderToStaticMarkup(React.createElement(SharedVisitTaskTimeline,{snapshot}));
  assert(html.includes('Task activity on 2026-11-16 Vancouver'));assert(html.includes('Task activity on 2026-11-17 Vancouver'));assert(html.indexOf('Original observation')<html.indexOf('Corrected observation'));assert(html.includes('not a complete visit history'));assert(html.includes('Factual correction'));
 });
+
+test('group day always matches the explicit task event display at winter midnight boundaries',async()=>{
+ const {reportLocalTime}=await import('../admin-src/app/shared/visit-time.ts');
+ for(const instant of ['2026-11-17T06:59:59.999999Z','2026-11-17T07:00:00Z','2027-01-01T06:30:00Z','2025-01-16T07:59:00Z','2025-01-16T08:00:00Z']){
+  const [{day}]=activityDayGroups([instant],x=>x);assert.equal(day,reportLocalTime(instant).slice(0,10),instant);
+ }
+});

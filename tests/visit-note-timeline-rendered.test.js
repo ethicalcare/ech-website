@@ -33,7 +33,7 @@ test('visit notes use explicit microsecond event ordering, preserve versions and
  const tied=orderedVisitNotes([{...versions[0],noteEventAt:'2026-11-01T11:00:00-07:00'},{...versions[1],noteEventAt:'2026-11-01T18:00:00Z'}]);assert.deepEqual(tied.known.map(v=>v.revision),[1,2]);
 });
 test('visit note activity retains correction attribution and limits completeness claims',async()=>{
- globalThis.IS_REACT_ACT_ENVIRONMENT=true;const report=fictionalReport();report.versions[0].noteEventAt='2026-11-01T19:00:00Z';report.versions[1].noteEventAt=null;
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;const report=fictionalReport();report.versions[0].noteEventAt='2026-11-17T07:00:00.123456Z';report.versions[1].noteEventAt=null;
  let root;try{
   await act(async()=>{root=create(React.createElement(SharedVisitNoteTimeline,{report}));});
   assert.equal(root.root.findByType('details').props.open,undefined,'collapsed by default');
@@ -41,7 +41,7 @@ test('visit note activity retains correction attribution and limits completeness
   await act(async()=>root.root.findByType('details').props.onToggle({currentTarget:{open:true}}));
   const known=root.root.findByProps({'aria-label':'Visit notes with known event times'});assert.equal(known.findAllByType('li').length,1);assert.equal(known.findByType('time').props.dateTime,report.versions[0].noteEventAt);
   const unknown=root.root.findByProps({'aria-label':'Visit notes with unknown event time'});assert.equal(unknown.findAllByType('li').length,1);assert.equal(unknown.findAllByType('time').length,0);
-  const text=JSON.stringify(root.toJSON());for(const expected of ['Original wording','Corrected wording','Clarify actual end','Historical version','Latest saved version','not a complete daily care log','Recorded time does not establish']){assert(text.includes(expected),expected);}
+  const text=JSON.stringify(root.toJSON());assert(text.includes('2026-11-17 00:00:00.123456'),'uses same Vancouver conversion as task timeline and preserves precision');for(const expected of ['Original wording','Corrected wording','Clarify actual end','Historical version','Latest saved version','not a complete daily care log','Recorded time does not establish']){assert(text.includes(expected),expected);}
   assert(text.includes(actor));assert(!text.includes('Exact correction reviewed'),'review notes are not care events');
   await act(async()=>root.root.findByType('details').props.onToggle({currentTarget:{open:false}}));assert.equal(root.root.findAllByType('li').length,0);
  }finally{if(root)await act(async()=>root.unmount());}

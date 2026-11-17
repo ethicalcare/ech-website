@@ -25,7 +25,8 @@ const fictionalReport = () => ({
 });
 
 const {SharedVisitReport}=await component('SharedVisitReport');
-import {companyTime} from '../admin-src/app/shared/time.ts';
+import {reportLocalTime} from '../admin-src/app/shared/visit-time.ts';
+const expectedDisplay=instant=>reportLocalTime(instant).replace('T',' ')+(instant.match(/\.\d{3}(\d{1,3})(?:Z|[+-]\d\d:\d\d)$/)?.[1]??'');
 import {createVisitReportClient} from '../admin-src/app/shared/visit-report-client.ts';
 test('saved report history shows each version’s explicit note event time, separately from recorded time',async()=>{
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;
@@ -42,10 +43,10 @@ test('saved report history shows each version’s explicit note event time, sepa
   await act(async()=>{root=create(React.createElement(Harness));});
   assert.match(JSON.stringify(root.toJSON()),/Fictional current worker/);assert.match(JSON.stringify(root.toJSON()),/Fictional current reviewer/);assert.match(JSON.stringify(root.toJSON()),/current name/);
   assert.equal(root.root.findAllByType('time')[0].props.dateTime,report.versions[1].noteEventAt);
-  assert(values().includes(companyTime(report.versions[1].noteEventAt)));assert(values().includes(companyTime(report.versions[1].recordedAt)));
+  assert(values().includes(expectedDisplay(report.versions[1].noteEventAt)));assert(values().includes(expectedDisplay(report.versions[1].recordedAt)));
   await act(async()=>root.root.findAllByType('input')[0].props.onChange());
   assert.equal(root.root.findAllByType('time')[0].props.dateTime,report.versions[0].noteEventAt);
-  assert(values().includes(companyTime(report.versions[0].recordedAt)));assert(!values().includes(companyTime(report.versions[1].noteEventAt)));
+  assert(values().includes(expectedDisplay(report.versions[0].recordedAt)));assert(!values().includes(expectedDisplay(report.versions[1].noteEventAt)));
   await act(async()=>window.dispatchEvent(new Event('blur')));assert.equal(root.root.findAllByType('time').length,0,'event time clears with protected report');assert.doesNotMatch(JSON.stringify(root.toJSON()),/Fictional current/);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=old.window;globalThis.document=old.document;}
 });

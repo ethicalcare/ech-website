@@ -25,7 +25,8 @@ const fictionalReport = () => ({
 });
 
 const {SharedVisitReport}=await component('SharedVisitReport');
-import {companyTime} from '../admin-src/app/shared/time.ts';
+import {reportLocalTime} from '../admin-src/app/shared/visit-time.ts';
+const expectedDisplay=instant=>reportLocalTime(instant).replace('T',' ')+(instant.match(/\.\d{3}(\d{1,3})(?:Z|[+-]\d\d:\d\d)$/)?.[1]??'');
 import {createVisitReportClient} from '../admin-src/app/shared/visit-report-client.ts';
 test('version choices identify latest/history and each recorded timestamp without retargeting reviews',async()=>{
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;
@@ -40,7 +41,7 @@ test('version choices identify latest/history and each recorded timestamp withou
   const radios=root.root.findAllByType('input');assert.equal(radios.length,2);
   for(const [i,radio] of radios.entries()){
    const summary=root.root.findAll(n=>n.type==='small'&&n.props.id===radio.props['aria-describedby']);assert.equal(summary.length,1);
-   const copy=summary[0].children.filter(child=>typeof child==='string').join('');assert(copy.includes(companyTime(report.versions[i].recordedAt)));
+   const copy=summary[0].children.filter(child=>typeof child==='string').join('');assert(copy.includes(expectedDisplay(report.versions[i].recordedAt)));
    assert(copy.includes(i===1?'Latest saved version':'Historical version'));
    assert(copy.includes('Accepted'),'review status belongs to exact version');
    assert.equal(radio.props.checked,i===1);

@@ -1,7 +1,7 @@
 import {ReportActor} from './ReportActor';
 import { activityDayGroups } from './activity-day-groups';
 import { useState } from 'react';
-import { companyTime } from './time';
+import { taskEventLocalTime } from './visit-task-timeline';
 import type { VisitReport, ReportVersion } from './visit-report-client';
 
 // A missing event time must not be replaced by a visit interval or save time.
@@ -20,8 +20,8 @@ export function SharedVisitNoteTimeline({report}:{report:VisitReport}) {
   const entry=(v:ReportVersion)=><li key={v.revision}>
     <h5>{v.version===0?'Original report':`Correction ${v.version}`} · {v.version===report.versions.at(-1)?.version?'Latest saved version':'Historical version'}</h5>
     <dl>
-      <dt>Note event time · Vancouver</dt><dd>{v.noteEventAt?<time dateTime={v.noteEventAt}>{companyTime(v.noteEventAt)}</time>:'Not recorded · unknown'}</dd>
-      <dt>Recorded at · Vancouver</dt><dd>{companyTime(v.recordedAt)}</dd>
+      <dt>Note event time · Vancouver</dt><dd>{v.noteEventAt?<time dateTime={v.noteEventAt}>{taskEventLocalTime(v.noteEventAt)}</time>:'Not recorded · unknown'}</dd>
+      <dt>Recorded at · Vancouver</dt><dd>{taskEventLocalTime(v.recordedAt)}</dd>
       <dt>Author</dt><dd><ReportActor report={report} actorId={v.actorId} role={v.actorRole}/></dd>
       <dt>Factual summary</dt><dd>{v.summary}</dd>
       <dt>Observations</dt><dd>{v.observations||'No observations recorded.'}</dd>
