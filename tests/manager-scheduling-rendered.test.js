@@ -49,6 +49,7 @@ test('manager assigns returned staff with verified readback and retains another 
   assert.equal(posts[1].command.type,'cancel');assert.equal(posts[1].visitRevision,2);assert.equal(visit.status,'Cancelled');
   assert.match(JSON.stringify(root.toJSON()),/cancelled/i);
   assert.equal(posts.some(p=>p.command.type==='confirm'),false);
+  assert.equal(button('Close visit details').props.disabled,false);assert.equal(button('Reload schedule').props.disabled,false);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=saved;}
 });
 const {StaffVisitWorkflow}=await component('StaffVisitWorkflow');

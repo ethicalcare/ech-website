@@ -78,7 +78,10 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
     }).catch(error=>{
       if (request.signal.aborted || current.current!==generation) return;
       setError(true);setMessage('Visit command access could not be verified. The draft is retained in this open visit.');
-      if(error instanceof SharedError && ['unauthenticated','scope_changed','conflict','forbidden'].includes(error.code)){setVerifiedAccess(null);scopeFailure.current(error.code);}
+      // A retained write may itself have advanced the visit revision. A 412
+      // from the old report snapshot must not destroy its exact receipt retry.
+      // Fresh membership availability above still gates that retry.
+      if(error instanceof SharedError && (['unauthenticated','scope_changed','conflict','forbidden'].includes(error.code) || error.code==='stale_visit'&&!pending)){setVerifiedAccess(null);scopeFailure.current(error.code);}
     });
     return ()=>{request.abort();controller.current?.abort();};
   },[client,active,visit.id,visit.revision,visit.status,supported,loadReport,reload]);

@@ -16,7 +16,7 @@ test('staff accepts assigned visit, starts it and submits report with exact retr
  const actor='10000000-0000-4000-8000-000000000001',id='20000000-0000-4000-8000-000000000001',client='30000000-0000-4000-8000-000000000001';
  let visit={id,clientId:client,workerId:actor,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T18:00:00.000Z',status:'Assigned',revision:1};
  let report={schema:1,visitId:id,visitRevision:1,reportRevision:0,versions:[],reviews:[]};
- const posts=[],confirmed=[];let lost=true,leave;
+ const posts=[],confirmed=[];let lost=true,leave,staleReportReads=0;
  const receipts=new Map();
  const fetcher=async(url,options)=>{
   assert.equal(options.headers['X-ECH-Schedule-Actor'],actor);assert.equal(options.headers['X-ECH-Schedule-Role'],'staff');
@@ -35,7 +35,7 @@ test('staff accepts assigned visit, starts it and submits report with exact retr
   if(url.endsWith('?commands=1')||url.endsWith('?scheduling=1'))return Response.json({schema:1,enabled:true,membershipRevision:7});
   if(url.includes('scheduleVisit='))return Response.json({schema:1,visit});
   if(url.includes('?visit='))return Response.json({visitId:id,revision:visit.revision,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'});
-  if(url.includes('?report='))return Response.json({...report,visitRevision:visit.revision});
+  if(url.includes('?report=')){if(Number(new URL(url,'https://fixture.invalid').searchParams.get('revision'))!==visit.revision){staleReportReads++;return Response.json({error:{code:'stale_visit'}},{status:412});}return Response.json({...report,visitRevision:visit.revision});}
   throw new Error('Unexpected URL '+url);
  };
  const props={visit,actor,role:'staff',fetcher,active:true,schedulingEnabled:true,actionsEnabled:true,onConfirmed:value=>confirmed.push(value),onScopeFailure:()=>assert.fail('No scope failure expected'),onLeaveStateChange:value=>{leave=value;}};
@@ -55,7 +55,7 @@ test('staff accepts assigned visit, starts it and submits report with exact retr
   await act(async()=>root.update(React.createElement(StaffVisitWorkflow,{...props,active:false})));assert.equal(posts.length,3);
   await act(async()=>root.update(React.createElement(StaffVisitWorkflow,props)));await settle();
   const retry=root.root.findAllByType('button').find(button=>JSON.stringify(button.props.children).includes('Retry exact'));
-  assert.ok(retry);await act(async()=>retry.props.onClick());await settle();
+  assert.ok(retry);assert.equal(staleReportReads,1,'reopening after committed lost response rejects old report revision but retains request');await act(async()=>retry.props.onClick());await settle();
   assert.deepEqual(posts[3],posts[2],'same operation identity and immutable payload after hidden/reopened view');
   assert.equal(confirmed.at(-1).status,'Completed');assert.equal(confirmed.length,3);
  }finally{if(root)await act(async()=>root.unmount());}

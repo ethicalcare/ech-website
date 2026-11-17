@@ -20,13 +20,13 @@ export function StaffVisitWorkflow({visit:initialVisit,actor,role,fetcher,active
  const confirmed=useCallback((current:ScheduleVisit)=>{
   // Completed staff actions unmount their form before its leave-state effect
   // can run. Clear only that acknowledged terminal journey, not manager drafts.
-  if(role==='staff'&&current.status==='Completed')onLeaveStateChange({dirty:false,pending:false,retained:false});
+  if(role==='staff'&&visit.status!=='Completed'&&current.status==='Completed')onLeaveStateChange({dirty:false,pending:false,retained:false});
   setVisit(current);onConfirmed(current);
- },[onConfirmed,onLeaveStateChange,role]);
+ },[onConfirmed,onLeaveStateChange,role,visit.status]);
  const reconcile=useCallback((current:ScheduleVisit)=>setVisit(current),[]);
  const manager=role==='owner'||role==='manager';
  return <section aria-label={manager?"Manager scheduling workflow":"Staff visit workflow"}>
-  {(manager||visit.status==='Assigned')&&schedulingEnabled&&<SharedScheduleCommands visit={visit} active={active} role={role} staff={staff} client={clients.schedule} onConfirmed={confirmed} onScopeFailure={scopeFailure} onLeaveStateChange={onLeaveStateChange} onStale={()=>onLeaveStateChange({dirty:false,pending:true,retained:true})}/>}
-  {role==='staff'&&['Confirmed','In progress'].includes(visit.status)&&actionsEnabled&&<SharedVisitActions visit={visit} active={active} client={clients.actions} loadDetail={clients.detail} loadReport={clients.report} loadCurrentVisit={clients.read.loadVisit} onConfirmed={confirmed} onReconciled={reconcile} onReconciliationFailure={scopeFailure} onScopeFailure={scopeFailure} onLeaveStateChange={onLeaveStateChange} reconciliationEnabled={false}/>}
+  {(manager?visit.status!=='Completed':visit.status==='Assigned')&&schedulingEnabled&&<SharedScheduleCommands visit={visit} active={active} role={role} staff={staff} client={clients.schedule} onConfirmed={confirmed} onScopeFailure={scopeFailure} onLeaveStateChange={onLeaveStateChange} onStale={()=>onLeaveStateChange({dirty:false,pending:true,retained:true})}/>}
+  {(visit.status==='Completed'||role==='staff'&&['Confirmed','In progress'].includes(visit.status))&&actionsEnabled&&<SharedVisitActions visit={visit} active={active} client={clients.actions} loadDetail={clients.detail} loadReport={clients.report} loadCurrentVisit={clients.read.loadVisit} onConfirmed={confirmed} onReconciled={reconcile} onReconciliationFailure={scopeFailure} onScopeFailure={scopeFailure} onLeaveStateChange={onLeaveStateChange} reconciliationEnabled={false}/>}
  </section>;
 }
