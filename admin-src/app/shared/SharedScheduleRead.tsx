@@ -18,7 +18,7 @@ function ScheduleRows({actor,role,fetcher,active,schedulingEnabled,actionsEnable
  const canLeave=()=>!leave.pending&&(!(leave.dirty||leave.retained)||window.confirm('Discard the unsaved visit draft and retained request?'));
  const close=()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});}};
  const invalidate=useCallback(()=>{setSelected(null);setLeave({dirty:false,pending:false});setReload(value=>value+1);},[]);
- const confirmed=useCallback((visit:import('./schedule-client').ScheduleVisit)=>{setLeave({dirty:false,pending:false});setState(current=>current.snapshot?{...current,snapshot:{...current.snapshot,visits:current.snapshot.visits.map(row=>row.id===visit.id?visit:row)}}:current);setSelected({id:visit.id,revision:visit.revision});},[]);
+ const confirmed=useCallback((visit:import('./schedule-client').ScheduleVisit)=>{setState(current=>current.snapshot?{...current,snapshot:{...current.snapshot,visits:current.snapshot.visits.map(row=>row.id===visit.id?visit:row)}}:current);setSelected({id:visit.id,revision:visit.revision});},[]);
  useEffect(()=>{if(typeof window==='undefined')return;const warn=(event:BeforeUnloadEvent)=>{if(leave.dirty||leave.pending||leave.retained){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[leave]);
  const [selected,setSelected]=useState<{id:string;revision:number}|null>(null);
  const [reload,setReload]=useState(0);
@@ -54,6 +54,6 @@ function ScheduleRows({actor,role,fetcher,active,schedulingEnabled,actionsEnable
   {data&&!leave.pending&&!leave.retained&&<><p>{data.visits.length} visits in this seven-day UTC window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
   <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{label(visit.start)} to {label(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button type="button" disabled={leave.pending} onClick={()=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
   {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior schedule rows and visit details are hidden until its result is verified.</p>}
-  {selectedVisit&&<SharedVisitRead key={selectedVisit.id+':'+selectedVisit.revision} actor={actor} role={role} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
+  {selectedVisit&&<SharedVisitRead key={selectedVisit.id} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
  </section>;
 }

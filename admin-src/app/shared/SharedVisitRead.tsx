@@ -6,10 +6,10 @@ import {SharedVisitReport} from './SharedVisitReport';
 import {createVisitReportClient} from './visit-report-client';
 import {useEffect,useMemo,useState} from 'react';
 import {createVisitDetailClient,type VisitDetail} from './visit-detail-client';
-import type {ScheduleVisit} from './schedule-client';
+import type {ScheduleIdentity,ScheduleVisit} from './schedule-client';
 
 // Parent keys this view by account/role/feature scope and visit revision.
-export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerificationFailure,active=true,schedulingEnabled=false,actionsEnabled=false,onConfirmed,onLeaveStateChange}:{actor:string;role:'owner'|'manager'|'staff';visit:ScheduleVisit;fetcher:typeof fetch;onClose:()=>void;onVerificationFailure?:()=>void;active?:boolean;schedulingEnabled?:boolean;actionsEnabled?:boolean;onConfirmed?:(visit:ScheduleVisit)=>void;onLeaveStateChange?:(state:VisitLeaveState)=>void}){
+export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerificationFailure,active=true,staff=[],schedulingEnabled=false,actionsEnabled=false,onConfirmed,onLeaveStateChange}:{actor:string;role:'owner'|'manager'|'staff';visit:ScheduleVisit;fetcher:typeof fetch;onClose:()=>void;onVerificationFailure?:()=>void;active?:boolean;staff?:ScheduleIdentity[];schedulingEnabled?:boolean;actionsEnabled?:boolean;onConfirmed?:(visit:ScheduleVisit)=>void;onLeaveStateChange?:(state:VisitLeaveState)=>void}){
  const [leave,setLeave]=useState<VisitLeaveState>({dirty:false,pending:false});
  const leaveChanged=useCallback((value:VisitLeaveState)=>{setLeave(value);onLeaveStateChange?.(value);},[onLeaveStateChange]);
  const scopeFailed=useCallback(()=>onVerificationFailure?.(),[onVerificationFailure]);
@@ -40,6 +40,6 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
    <button type="button" aria-expanded={reportOpen} onClick={()=>setReportOpen(value=>!value)}>{reportOpen?'Hide report history':'View report history'}</button>
    {reportOpen&&<SharedVisitReport key={key} visitId={visit.id} visitRevision={visit.revision} load={loadReport} onVerificationFailure={()=>{setState({key,error:"Visit access could not be verified. Reload the schedule."});setReportOpen(false);setReportVersion(null);onVerificationFailure?.();}} selectedVersion={reportVersion} onSelectedVersionChange={setReportVersion}/>}
   </>}
-  {(detail||leave.pending||leave.retained)&&<StaffVisitWorkflow visit={visit} actor={actor} role={role} fetcher={fetcher} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={saved} onScopeFailure={scopeFailed} onLeaveStateChange={leaveChanged}/>}
+  {(detail||leave.dirty||leave.pending||leave.retained)&&<StaffVisitWorkflow visit={visit} actor={actor} role={role} staff={staff} fetcher={fetcher} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={saved} onScopeFailure={scopeFailed} onLeaveStateChange={leaveChanged}/>}
  </section>;
 }
