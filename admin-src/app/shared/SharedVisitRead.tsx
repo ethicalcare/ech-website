@@ -1,4 +1,5 @@
 'use client';
+import './shared-visit-details.css';
 import {VisitTaskWorkflow} from './VisitTaskWorkflow';
 import {StaffVisitWorkflow} from './StaffVisitWorkflow';
 import {useCallback} from 'react';
@@ -41,9 +42,10 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
  const visible=state.key===key?state:undefined,detail=visible?.detail;
  const showDetails=detail&&!leave.pending&&!leave.retained;
  const labels={address:'Address',unit:'Unit',entry:'Entry instructions',preferences:'Visit preferences'} as const;
- return <section className="panel dashboard-card" aria-label="Selected visit details">
-  <h3 ref={heading} tabIndex={-1}>Selected visit details</h3><p>Read-only details for the selected visit revision.</p>
-  <button type="button" disabled={leave.pending} onClick={onClose}>Close visit details</button><button type="button" disabled={leave.dirty||leave.pending||leave.retained} onClick={()=>setRetry(value=>value+1)}>Reload visit details</button>
+ return <section className="panel dashboard-card shared-visit-details" aria-label="Selected visit details">
+  <header className="shared-visit-details__heading"><h3 ref={heading} tabIndex={-1}>Selected visit details</h3>
+  <button type="button" disabled={leave.pending} onClick={onClose}>Close visit details</button></header>
+  <p>Read-only details for the selected visit revision.</p><button type="button" disabled={leave.dirty||leave.pending||leave.retained} onClick={()=>setRetry(value=>value+1)}>Reload visit details</button>
   {!detail&&!visible?.error&&<p role="status">Loading visit details…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
   {showDetails&&<>

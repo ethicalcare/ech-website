@@ -1,0 +1,9 @@
+.shared-visit-details{min-width:0;max-width:100%;overflow-wrap:anywhere;}
+.shared-visit-details__heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.shared-visit-details__heading h3{margin:0;}
+.shared-visit-details__heading button{min-height:44px;flex:none;}
+@media(max-width:700px){
+ .shared-admin .shared-visit-details{max-height:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior-y:auto;scroll-padding-block-start:124px;}
+ .shared-visit-details__heading{position:sticky;top:0;z-index:1;background:var(--surface);padding-block:12px;border-bottom:1px solid var(--line);}
+ .shared-visit-details :where(input,select,textarea,button){max-width:100%;}
+}
