@@ -33,18 +33,20 @@ test('saved report history shows each version’s explicit note event time, sepa
  globalThis.window=Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});
  globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true});
  const report=fictionalReport();report.versions[0].noteEventAt='2026-11-01T18:14:00.000Z';report.versions[1].noteEventAt='2026-11-01T19:23:00.000Z';
+ report.authorLabels=[{actorId:actor,currentLabel:'Fictional current worker'},{actorId:reviewer,currentLabel:'Fictional current reviewer'}];
  let root;
  const fetcher=async(url,options)=>{assert.equal(options.method,'GET');return Response.json(report);};
  function Harness(){const [selected,setSelected]=React.useState(null);return React.createElement(SharedVisitReport,{visitId:visit,visitRevision:3,load:React.useMemo(()=>createVisitReportClient(fetcher,actor,'staff'),[]),onVerificationFailure:()=>assert.fail('Unexpected verification failure'),selectedVersion:selected,onSelectedVersionChange:setSelected});}
  const values=()=>root.root.findAllByType('dd').map(n=>n.children.map(c=>typeof c==='string'?c:c.children?.join('')).join(''));
  try{
   await act(async()=>{root=create(React.createElement(Harness));});
+  assert.match(JSON.stringify(root.toJSON()),/Fictional current worker/);assert.match(JSON.stringify(root.toJSON()),/Fictional current reviewer/);assert.match(JSON.stringify(root.toJSON()),/current name/);
   assert.equal(root.root.findAllByType('time')[0].props.dateTime,report.versions[1].noteEventAt);
   assert(values().includes(companyTime(report.versions[1].noteEventAt)));assert(values().includes(companyTime(report.versions[1].recordedAt)));
   await act(async()=>root.root.findAllByType('input')[0].props.onChange());
   assert.equal(root.root.findAllByType('time')[0].props.dateTime,report.versions[0].noteEventAt);
   assert(values().includes(companyTime(report.versions[0].recordedAt)));assert(!values().includes(companyTime(report.versions[1].noteEventAt)));
-  await act(async()=>window.dispatchEvent(new Event('blur')));assert.equal(root.root.findAllByType('time').length,0,'event time clears with protected report');
+  await act(async()=>window.dispatchEvent(new Event('blur')));assert.equal(root.root.findAllByType('time').length,0,'event time clears with protected report');assert.doesNotMatch(JSON.stringify(root.toJSON()),/Fictional current/);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=old.window;globalThis.document=old.document;}
 });
 for(const missing of ['omitted','null'])test(`legacy ${missing} note time is unknown, never inferred from visit or recording time`,async()=>{

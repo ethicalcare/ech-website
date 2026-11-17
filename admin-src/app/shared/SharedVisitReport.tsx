@@ -1,3 +1,4 @@
+import {ReportActor} from './ReportActor';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { SharedError } from './live-model';
 import { companyTime as formatVancouverInstant } from './time';
@@ -115,7 +116,7 @@ export function SharedVisitReport({ visitId, visitRevision, load, onVerification
               : 'No independent review recorded for this version'}</p>
             <dl className="shared-visit-detail__fields">
               <dt>Outcome reported</dt><dd>{outcomeLabel[content.outcome]}</dd>
-              <dt>Recorded by</dt><dd>{content.actorRole} · <span className="shared-visit-report__actor">{content.actorId}</span></dd>
+              <dt>Recorded by</dt><dd><ReportActor report={report} actorId={content.actorId} role={content.actorRole}/></dd>
               <dt>Note event time · Vancouver</dt><dd>{content.noteEventAt
                 ? <time dateTime={content.noteEventAt}>{formatVancouverInstant(content.noteEventAt)}</time>
                 : 'Not recorded · unknown'}</dd>
@@ -139,7 +140,7 @@ export function SharedVisitReport({ visitId, visitRevision, load, onVerification
             {reviews.length === 0 ? <p>No review recorded.</p> : <ol>
               {reviews.map(review => <li key={review.revision}>
                 <p><strong>{review.decision === 'accepted' ? 'Accepted' : 'Returned'} · {versionLabel(review.version)}</strong></p>
-                <p>{review.actorRole} · <span className="shared-visit-report__actor">{review.actorId}</span></p>
+                <p><ReportActor report={report} actorId={review.actorId} role={review.actorRole}/></p>
                 <p>{formatVancouverInstant(review.recordedAt)} · review revision {review.revision} · source content revision {review.sourceRevision}</p>
                 <p className="shared-visit-report__wording">{review.note}</p>
               </li>)}

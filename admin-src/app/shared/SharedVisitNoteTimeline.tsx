@@ -1,3 +1,4 @@
+import {ReportActor} from './ReportActor';
 import { activityDayGroups } from './activity-day-groups';
 import { useState } from 'react';
 import { companyTime } from './time';
@@ -21,7 +22,7 @@ export function SharedVisitNoteTimeline({report}:{report:VisitReport}) {
     <dl>
       <dt>Note event time · Vancouver</dt><dd>{v.noteEventAt?<time dateTime={v.noteEventAt}>{companyTime(v.noteEventAt)}</time>:'Not recorded · unknown'}</dd>
       <dt>Recorded at · Vancouver</dt><dd>{companyTime(v.recordedAt)}</dd>
-      <dt>Author</dt><dd>{v.actorRole} · <span className="shared-visit-report__actor">{v.actorId}</span></dd>
+      <dt>Author</dt><dd><ReportActor report={report} actorId={v.actorId} role={v.actorRole}/></dd>
       <dt>Factual summary</dt><dd>{v.summary}</dd>
       <dt>Observations</dt><dd>{v.observations||'No observations recorded.'}</dd>
       <dt>Issue text</dt><dd>{v.issue||'No issue text recorded.'}</dd>
