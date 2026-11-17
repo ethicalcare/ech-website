@@ -1,6 +1,6 @@
 'use client';
 import {ScheduleStaffFilter,type ScheduleStaffSelection} from './ScheduleStaffFilter';
-import {calendarDays,calendarReadWindow,visitsOnDay,calendarWeekday,calendarWeekdays,type CalendarView} from './schedule-calendar';
+import {calendarDays,focusedCalendarWindow,type CalendarCoverage,visitsOnDay,calendarWeekday,calendarWeekdays,type CalendarView} from './schedule-calendar';
 import './shared-schedule-calendar.css';
 import {scheduleDay,scheduleLabel} from './schedule-window';
 import {useCallback,useEffect,useMemo,useState,useRef,useLayoutEffect} from 'react';
@@ -24,6 +24,7 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const returnFocus=useRef<string|null>(null);
  const scheduleHeading=useRef<HTMLHeadingElement|null>(null);
  const [staffFilter,setStaffFilter]=useState<ScheduleStaffSelection>({ids:null,unassigned:true,query:''});
+ const [coverage,setCoverage]=useState<CalendarCoverage>('full');
  const [view,setView]=useState<CalendarView>('week');
  const [day,setDay]=useState(()=>scheduleDay(new Date().toISOString()));
  const [createOpen,setCreateOpen]=useState(false),[creationHeld,setCreationHeld]=useState(false);
@@ -41,16 +42,16 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const [reload,setReload]=useState(0);
  const [state,setState]=useState<{request:string;snapshot?:ScheduleSnapshot;error?:string}>({request:''});
  const client=useMemo(()=>createScheduleClient(fetcher,role,actor),[fetcher,role,actor]);
- const request=day+':'+reload;
+ const request=day+':'+coverage+':'+reload;
  useEffect(()=>{
   const controller=new AbortController();let current=true;
   setState({request});
-  let window;try{window=calendarReadWindow(day);}catch{setState({request,error:'Choose a valid date.'});return()=>{current=false;controller.abort();};}
+  let window;try{window=focusedCalendarWindow(day,coverage);}catch{setState({request,error:'Choose a valid date.'});return()=>{current=false;controller.abort();};}
   void client.loadSchedule(window,controller.signal).then(snapshot=>{
    if(current&&!controller.signal.aborted)setState({request,snapshot});
   }).catch(()=>{if(current&&!controller.signal.aborted)setState({request,error:'Schedule could not be verified. Reload to try again.'});});
   return()=>{current=false;controller.abort();};
- },[client,day,reload,request]);
+ },[client,day,coverage,reload,request]);
  const visible=state.request===request?state:undefined;
  const data=visible?.snapshot;
  const selectedVisit=data?.visits.find(visit=>visit.id===selected?.id&&visit.revision===selected.revision);
@@ -62,12 +63,14 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  return <section className="panel dashboard-card" aria-label="Shared schedule">
   <h2 ref={scheduleHeading} tabIndex={-1}>Shared visit schedule</h2><p>Read-only shared records. Times shown in Vancouver time. No changes are saved from this view.</p>
   <label>Calendar date (Vancouver)<input type="date" value={day} disabled={leave.pending||createOpen} onChange={event=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(event.currentTarget.value);}}}/></label>
-  <div role="group" aria-label="Calendar view">{(['day','week','month'] as const).map(mode=><button key={mode} type="button" aria-pressed={view===mode} onClick={()=>setView(mode)}>{mode[0].toUpperCase()+mode.slice(1)}</button>)}<button type="button" disabled={leave.pending||createOpen} onClick={()=>{const today=scheduleDay(new Date().toISOString());if(today!==day&&canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(today);}}}>Today</button></div>
+  <div role="group" aria-label="Calendar view">{(['day','week','month'] as const).map(mode=><button key={mode} type="button" aria-pressed={view===mode} disabled={coverage==='day'&&mode!=='day'||coverage==='week'&&mode==='month'} onClick={()=>setView(mode)}>{mode[0].toUpperCase()+mode.slice(1)}</button>)}<button type="button" disabled={leave.pending||createOpen} onClick={()=>{const today=scheduleDay(new Date().toISOString());if(today!==day&&canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(today);}}}>Today</button></div>
   <button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setReload(value=>value+1);}}}>Reload schedule</button>
   {createClient&&schedulingEnabled&&!createOpen&&<button type="button" disabled={!data||leave.pending} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCreationStaff(data?.staff??[]);setCreateOpen(true);}}}>New shared visit</button>}
   {createOpen&&createClient&&<><button type="button" onClick={()=>{if(!creationHeld||window.confirm('Close this creation form? Unsubmitted edits will be lost. Reserved requests must be recovered when you reopen.')){setCreateOpen(false);setCreationHeld(false);}}}>Close creation form</button><SharedScheduleCreate client={createClient} allowRecurrence={recurrenceEnabled} staff={creationStaff} active={active} onConfirmed={creationConfirmed} onScopeFailure={invalidate} onPendingChange={setCreationHeld}/></>}
   {!visible?.error&&!data&&<p role="status">Loading schedule…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
+  {visible?.error&&<div role="group" aria-label="Try a smaller calendar range"><p>A smaller date range may be easier to verify. No partial results are shown.</p>{coverage!=='day'&&<button type="button" onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCoverage('day');setView('day');}}}>Load selected day only</button>}{coverage==='full'&&<button type="button" onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCoverage('week');setView('week');}}}>Load selected week only</button>}</div>}
+  {coverage!=='full'&&<aside aria-label="Focused calendar coverage"><p>Only the selected {coverage} is loaded. This is not a complete month calendar. Wider views remain unavailable until the full calendar is verified.</p><button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCoverage('full');}}}>Retry full calendar</button></aside>}
   <ScheduleStaffFilter staff={data?.staff??[]} value={staffFilter} onChange={setStaffFilter} disabled={!data||createOpen}/>
   {data&&!createOpen&&!leave.pending&&!leave.retained&&<><p>{shownVisits.length} visits shown in the selected {view} view. Dates and original visit times are Vancouver local time.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
   {data.visits.length>0&&!shownVisits.length&&<p>No visits match the staff selection. Change the filter to show other permitted visits.</p>}

@@ -21,3 +21,6 @@ export function visitsOnDay(visits:readonly ScheduleVisit[],day:string):Schedule
 
 export const calendarWeekdays=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] as const;
 export function calendarWeekday(day:string):number{addCalendarDays(day,0);return new Date(day+'T00:00:00.000Z').getUTCDay();}
+
+export type CalendarCoverage='full'|'day'|'week';
+export function focusedCalendarWindow(day:string,coverage:CalendarCoverage){if(coverage==='full')return calendarReadWindow(day);return {from:reportUtcTime(addCalendarDays(day,0)+'T00:00'),to:reportUtcTime(addCalendarDays(day,coverage==='day'?1:7)+'T00:00')};}
