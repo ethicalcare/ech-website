@@ -3,6 +3,7 @@ import { SharedError } from './live-model';
 import { companyTime as formatVancouverInstant } from './time';
 import type { LoadVisitReport, VisitReport } from './visit-report-client';
 import './shared-visit-report.css';
+import { SharedVisitNoteTimeline } from './SharedVisitNoteTimeline';
 
 type State = { status: 'loading' | 'paused' } | { status: 'ready'; report: VisitReport } | { status: 'error' };
 const versionLabel = (version: number) => version === 0 ? 'Original report · version 0' : `Correction ${version} · version ${version}`;
@@ -145,6 +146,7 @@ export function SharedVisitReport({ visitId, visitRevision, load, onVerification
             </ol>}
           </article>
         </>}
+        {report.versions.length > 0 && <SharedVisitNoteTimeline report={report} />}
         <p>A report review does not verify attendance, approve work time, resolve an issue or grant clinical authority.</p>
       </>}
     </div>
