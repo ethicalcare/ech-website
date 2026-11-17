@@ -48,3 +48,12 @@ test('an in-flight exact request cannot be discarded by the action draft control
  assert.equal(f.root.root.findByType('textarea').props.value,'Keep exact request');assert.equal(f.leave.pending,true);
  assert.equal(f.root.root.findByType('fieldset').props.disabled,true);
 }));
+
+test('switching action alone does not mark a draft dirty; real edits still do',async()=>fixture(async f=>{
+ const form=f.root.root.findByType('form'),selector=f.root.root.findAllByType('select')[0];
+ await act(async()=>{selector.props.onChange({target:{value:'cancel'}});form.props.onChange({target:{id:selector.props.id}});});
+ assert.equal(f.leave.dirty,false);assert.equal(f.requests.length,0);
+ await f.edit(f.root.root.findByType('textarea'),'Fictional reason');assert.equal(f.leave.dirty,true);
+ await act(async()=>{const select=f.root.root.findAllByType('select')[0];select.props.onChange({target:{value:'reschedule'}});form.props.onChange({target:{id:select.props.id}});});
+ assert.equal(f.leave.dirty,true,'selector navigation must not clear a sibling draft');assert.equal(f.requests.length,0);
+}));

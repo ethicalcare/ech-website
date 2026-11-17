@@ -138,7 +138,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
     {access?.enabled && <>
       {retained}
       {manager && visit.status==='Assigned' && <p role="status">Waiting for the assigned worker to confirm this visit. Managers can review or change the assignment; this view does not confirm on the worker’s behalf.</p>}
-      {editable && (manager || visit.status==='Assigned') && <form onSubmit={submit} onChange={()=>{leaveChange.current({dirty:true,pending:!!pending});setDirty(true);}}><fieldset disabled={busy||!!pending}>
+      {editable && (manager || visit.status==='Assigned') && <form onSubmit={submit} onChange={event=>{if(event?.target && (event.target as HTMLElement).id===`${id}-action`)return;leaveChange.current({dirty:true,pending:!!pending});setDirty(true);}}><fieldset disabled={busy||!!pending}>
         <legend>{manager?'Change this visit':'Confirm your assigned visit'}</legend>
         {manager && <><label htmlFor={`${id}-action`}>Action</label><select id={`${id}-action`} value={mode} onChange={event=>setMode(event.target.value as SchedulingCommand['type'])}>
           <option value="reschedule">Reschedule</option><option value="assign">Assign or reassign staff</option>
