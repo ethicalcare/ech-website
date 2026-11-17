@@ -3,6 +3,8 @@ import { MembershipChangeSummary } from './MembershipChangeSummary';
 import { membershipSaveFeedback } from './membership-save-feedback.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessRequests, AccountConfirmation, accountApi, canonical, fingerprint, type RequestState } from './AccessRequests';
+import { SharedAccountHistory } from './SharedAccountHistory';
+
 import { can, parseRecord, SharedError, uuid, type Session } from './live-model';
 type Member={userId:string;email:string;displayName:string;technicalAdmin:boolean;operationalRole:'owner'|'manager'|'staff'|null;applicationAdmin:boolean;delegatedUserAdmin?:true;active:boolean;revision:number};
 type Snapshot={format:'ech-application-snapshot';version:1;records:unknown[];personKeys:unknown[];events:unknown[];commandReceipts:unknown[];memberships:unknown[];membershipReceipts:unknown[];[key:string]:unknown};
@@ -22,12 +24,12 @@ function download(name:string,value:unknown){const url=URL.createObjectURL(new B
 type Fields = Omit<Member, 'userId' | 'email' | 'revision' | 'delegatedUserAdmin'> & { delegatedUserAdmin: boolean };
 type MembershipOperation = {
  schema: 1; operationId: string; expectedRevision: number;
- command: { type: 'upsert'; email: string; fields: Omit<Fields,'delegatedUserAdmin'> };
+ command: { type: 'upsert'; email: string; userId?: string; fields: Omit<Fields,'delegatedUserAdmin'> & {delegatedUserAdmin?: boolean} };
 };
 type Draft = { email: string; userId?: string; revision: number; fields: Fields };
-export function buildMembershipOperation(operationId: string, draft: Draft): MembershipOperation {
- return {schema:1,operationId,expectedRevision:draft.revision,command:{type:'upsert',email:draft.email.trim().toLowerCase(),
- fields:{displayName:draft.fields.displayName.trim(),technicalAdmin:draft.fields.technicalAdmin,operationalRole:draft.fields.operationalRole,applicationAdmin:draft.fields.applicationAdmin,active:draft.fields.active}}};
+export function buildMembershipOperation(operationId: string, draft: Draft, setDelegation = false): MembershipOperation {
+ return {schema:1,operationId,expectedRevision:draft.revision,command:{type:'upsert',email:draft.email.trim().toLowerCase(),...(draft.userId ? {userId:draft.userId} : {}),
+ fields:{displayName:draft.fields.displayName.trim(),technicalAdmin:draft.fields.technicalAdmin,operationalRole:draft.fields.operationalRole,applicationAdmin:draft.fields.applicationAdmin,active:draft.fields.active,...(setDelegation && draft.fields.operationalRole==='manager' ? {delegatedUserAdmin:draft.fields.delegatedUserAdmin} : {})}}};
 }
 const newDraft = (): Draft => ({ email: '', revision: 0, fields: {
  displayName: '', operationalRole: 'staff', active: true, technicalAdmin: false,
@@ -47,9 +49,9 @@ function memberRow(value: unknown): Member {
  return member;
 }
 
-export function AdminTools({ session, onChanged, requests, reloadRequests, fetcher, visible }: {
+export function AdminTools({ session, onChanged, requests, reloadRequests, fetcher, visible, accountDecisionHistoryEnabled=false }: {
  session: Session; onChanged: () => Promise<void>; requests: RequestState;
- reloadRequests: () => Promise<void>; fetcher: typeof fetch; visible: boolean;
+ reloadRequests: () => Promise<void>; fetcher: typeof fetch; visible: boolean; accountDecisionHistoryEnabled?:boolean;
 }) {
  const [members, setMembers] = useState<Member[]>();
  const [memberLoading, setMemberLoading] = useState(false);
@@ -61,6 +63,7 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
  const [pending,setPending] = useState(false);const busy=useRef(false);const [message,setMessage]=useState('');const [error,setError]=useState('');const [passphrase,setPassphrase]=useState('');const [recoveryFile,setRecoveryFile]=useState<File|null>(null);const [recovered,setRecovered]=useState(false);const [backupHash,setBackupHash]=useState('');const [batch,setBatch]=useState<Record<string,unknown>[]|null>(null);const [progress,setProgress]=useState(0);const [pastedBatch,setPastedBatch]=useState('');
  const owner = can(session, 'backup.export');
  const reviewer = can(session, 'access.review');
+ const mainOwner = owner && reviewer;
  const canManage = can(session, 'users.manage');
  const actor = session.authenticated ? session.principal.id : '';
  const memberCheck = useRef(0);
@@ -107,7 +110,7 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
    setError('The selected account changed. Refresh accounts and choose it again.');
    return;
   }
-  const body = buildMembershipOperation(crypto.randomUUID(), draft);
+  const body = buildMembershipOperation(crypto.randomUUID(), draft, mainOwner);
   void commitMembership({ body, userId: draft.userId });
  }
  async function commitMembership(retained: NonNullable<typeof operation>) {
@@ -162,7 +165,8 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
  });}
  async function importBatch(){await run(async()=>{if(!batch)throw new Error('Choose the verified referral-partner import first.');let count=0;for(const r of batch){const body={...(r.envelope as object),source:{origin:'executive-handoff',sourceKey:r.sourceKey,rank:r.rank,sourceVariants:r.sourceVariants,brief:r.brief,reviewFlags:r.reviewFlags,assignment:r.assignment}};const result=await api('imports',body) as {record:unknown;receipt:{commandFingerprint:string}};const record=parseRecord('partner',result.record);if(result.receipt?.commandFingerprint!==await fingerprint(body)||record.source.sourceKey!==r.sourceKey||record.ownerId!==null)throw new Error('Import receipt or source identity mismatch. Import stopped; retain this batch and reload before retrying.');count++;setProgress(count);}await onChanged();setMessage(`Server confirmed ${count} referral partners and 15 briefs. Reload and independently read back the count and source links.`);});}
  return <section className="admin-tools" aria-label="Account management">
-  {reviewer && <AccessRequests requests={requests} reload={reloadRequests} owner={owner} fetcher={fetcher} />}
+  {reviewer && <AccessRequests requests={requests} reload={reloadRequests} owner={mainOwner} fetcher={fetcher}
+    renderHistory={accountDecisionHistoryEnabled && visible ? props => <SharedAccountHistory {...props} /> : undefined} />}
   {error && <p ref={errorRef} tabIndex={-1} role="alert" className="field-error">{error}</p>}
   <section className="panel dashboard-card" aria-labelledby="legacy-accounts-heading">
    <div className="prospect-list-head"><div><h2 id="legacy-accounts-heading">Existing ECH accounts</h2>
@@ -185,7 +189,7 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
       <div><h3>{member.displayName}</h3><small>Display name set in ECH</small>
        <p style={{ overflowWrap: 'anywhere' }}>{member.email}</p>
        <small>Account email on file · {member.active ? 'Active' : 'Inactive'} · {member.operationalRole ?? 'No CRM access'}
-        {member.delegatedUserAdmin && ' · can manage staff accounts'}</small></div>
+        {member.delegatedUserAdmin && ' · can manage staff and managers'}</small></div>
       <div className="access-request-actions">{protectedAccount ? <p>Protected account</p> :
        <button type="button" disabled={pending || Boolean(operation)} onClick={() => choose(member)}>Review account</button>}</div>
      </article>;
@@ -198,10 +202,10 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
        onChange={event => setDraft({ ...draft, email: event.target.value })} /></label>
       <label><span>Display name</span><input required value={draft.fields.displayName} maxLength={160}
        onChange={event => changeFields({ displayName: event.target.value })} /></label>
-      {owner && <label><span>CRM role</span><select value={draft.fields.operationalRole || ''} onChange={event => {
+      {<label><span>CRM role</span><select value={draft.fields.operationalRole || ''} onChange={event => {
        const role = (event.target.value || null) as Member['operationalRole'];
        changeFields({ operationalRole: role, ...(role !== 'manager' ? { delegatedUserAdmin: false } : {}) });
-      }}><option value="">No CRM access</option><option value="staff">Staff · assigned records</option>
+      }}>{owner && <option value="">No CRM access</option>}<option value="staff">Staff · assigned records</option>
        <option value="manager">Manager · all inquiries and referral partners</option></select></label>}
      </div>
      <label><input type="checkbox" checked={draft.fields.active} onChange={event => changeFields({ active: event.target.checked })} />Allow this account to sign in</label>
@@ -209,6 +213,8 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
       <label><input type="checkbox" checked={draft.fields.technicalAdmin} onChange={event => changeFields({ technicalAdmin: event.target.checked, ...(event.target.checked ? { delegatedUserAdmin: false } : {}) })} />Technical status access</label>
       {draft.fields.applicationAdmin && <label><input type="checkbox" checked={draft.fields.applicationAdmin} onChange={event => changeFields({ applicationAdmin: event.target.checked })} />Retain existing application administrator flag</label>}
      </>}
+     {mainOwner && draft.fields.operationalRole === 'manager' && !draft.fields.technicalAdmin && !draft.fields.applicationAdmin &&
+      <label><input type="checkbox" checked={draft.fields.delegatedUserAdmin} onChange={event => changeFields({ delegatedUserAdmin: event.target.checked })} />Allow management of staff and managers</label>}
      <div className="access-request-actions"><button type="button" onClick={() => setDraft(undefined)}>Cancel edit</button>
       <button type="submit" className="primary-button" disabled={pending}>Review change</button></div>
     </form>}
@@ -216,7 +222,7 @@ export function AdminTools({ session, onChanged, requests, reloadRequests, fetch
   </section>
   {confirming && draft && <AccountConfirmation title={draft.fields.active ? 'Save these account permissions?' : 'Deactivate this account?'}
    email={draft.email} onCancel={() => setConfirming(false)} onConfirm={confirmMembership}>
-   <MembershipChangeSummary fields={buildMembershipOperation('', draft).command.fields} />
+   <MembershipChangeSummary fields={buildMembershipOperation('', draft, mainOwner).command.fields} />
   </AccountConfirmation>}
   {owner && <>
  <details className="panel dashboard-card"><summary>Activity and backup</summary><p>Optional: download an encrypted copy of shared data and keep its passphrase separately. This is not required to import referral partners. Recovery verification never restores permission grants automatically.</p><label><span>Backup passphrase (enter privately)</span><input aria-label="Backup passphrase" type="password" autoComplete="off" value={passphrase} onChange={e=>setPassphrase(e.target.value)} /></label><button type="button" disabled={pending||passphrase.length<16} onClick={backup}>Download encrypted shared backup</button><label><span>Downloaded encrypted backup</span><input aria-label="Downloaded encrypted backup" type="file" accept="application/json,.json" onChange={e=>{setRecoveryFile(e.target.files?.[0]||null);setRecovered(false);}} /></label><button type="button" disabled={pending||!recoveryFile||passphrase.length<16} onClick={checkRecovery}>Verify downloaded backup recovery integrity</button><p>Backup file recovery integrity: {recovered?'verified':'not yet verified'}.</p></details>

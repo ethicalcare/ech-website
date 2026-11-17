@@ -1,7 +1,7 @@
-export const CAPABILITIES = ['access.review', 'users.manage', 'backup.export', 'admin.status', 'leads.read_all', 'leads.create', 'leads.update_all', 'leads.assign', 'leads.read_assigned', 'leads.update_assigned'] as const;
+export const CAPABILITIES = ['account.history', 'access.review', 'users.manage', 'backup.export', 'admin.status', 'leads.read_all', 'leads.create', 'leads.update_all', 'leads.assign', 'leads.read_assigned', 'leads.update_assigned'] as const;
 export type Capability = typeof CAPABILITIES[number];
 export type OperationalRole = 'owner' | 'manager' | 'staff' | null;
-export type Principal = { id: string; email: string; technicalAdmin: boolean; applicationAdmin: boolean; operationalRole: OperationalRole };
+export type Principal = { id: string; email: string; technicalAdmin: boolean; applicationAdmin: boolean; delegatedUserAdmin?: true; operationalRole: OperationalRole };
 export type OperationsFeatures = { reads:boolean; scheduleCommands:boolean; scheduleRecurrence:boolean; visitActions:boolean };
 export type Session = { authenticated: true; principal: Principal; capabilities: Capability[]; operationsFeatures?:OperationsFeatures } | { authenticated: false; principal: null; capabilities: []; login: { method: 'email_otp' | 'email_password'; siteKey: string | null; googleEnabled?: true } };
 export type SharedPerson = { id: string; name: string; role: string; methods: { id: string; kind: 'phone' | 'email'; value: string; label: string }[] };
@@ -27,12 +27,16 @@ export function canOperate(session: Session | null) { return can(session, 'leads
 export function parseSession(value: unknown): Session {
   const s = object(value);
   if (s.authenticated === false) { exact(s, ['authenticated', 'principal', 'capabilities', 'login']); assertWire(s.principal === null && Array.isArray(s.capabilities) && s.capabilities.length === 0); const loginValue=object(s.login); const login = exact(loginValue, ['method','siteKey',...(Object.hasOwn(loginValue,'googleEnabled')?['googleEnabled']:[])]); assertWire(!Object.hasOwn(login,'googleEnabled')||login.googleEnabled===true); assertWire(['email_otp','email_password'].includes(login.method as string) && (login.siteKey === null || typeof login.siteKey === 'string' && login.siteKey.length <= 200)); return s as Session; }
-  exact(s, ['authenticated', 'principal', 'capabilities', ...(Object.hasOwn(s,'operationsFeatures')?['operationsFeatures']:[])]); assertWire(s.authenticated === true); const p = exact(s.principal, ['id', 'email', 'technicalAdmin', 'applicationAdmin', 'operationalRole']);
+  exact(s, ['authenticated', 'principal', 'capabilities', ...(Object.hasOwn(s,'operationsFeatures')?['operationsFeatures']:[])]); assertWire(s.authenticated === true); const principal = object(s.principal); const p = exact(principal, ['id', 'email', 'technicalAdmin', 'applicationAdmin', 'operationalRole', ...(Object.hasOwn(principal,'delegatedUserAdmin') ? ['delegatedUserAdmin'] : [])]);
   assertWire(uuid(p.id) && typeof p.email === 'string' && p.email.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email) && typeof p.technicalAdmin === 'boolean' && typeof p.applicationAdmin === 'boolean' && [null, 'owner', 'manager', 'staff'].includes(p.operationalRole as OperationalRole));
   const allowed = p.operationalRole === 'owner' || p.operationalRole === 'manager' ? ['leads.read_all', 'leads.create', 'leads.update_all', 'leads.assign'] : p.operationalRole === 'staff' ? ['leads.read_assigned', 'leads.update_assigned'] : [];
   if (p.technicalAdmin) allowed.push('admin.status');
+  if (Object.hasOwn(p, 'delegatedUserAdmin')) {
+    assertWire(p.delegatedUserAdmin === true && p.operationalRole === 'manager' && !p.technicalAdmin && !p.applicationAdmin);
+    allowed.push('users.manage','access.review');
+  }
   if (p.applicationAdmin) allowed.push('users.manage','backup.export');
-  if(p.applicationAdmin&&p.operationalRole==='owner'&&p.id==='1fbc76c6-8521-4f9e-b0c9-f174ada676aa'&&String(p.email).toLowerCase()==='erick@bloxlabs.tech')allowed.push('access.review');
+  if(p.applicationAdmin&&p.operationalRole==='owner'&&p.id==='1fbc76c6-8521-4f9e-b0c9-f174ada676aa'&&String(p.email).toLowerCase()==='erick@bloxlabs.tech')allowed.push('access.review','account.history');
   assertWire(Array.isArray(s.capabilities) && new Set(s.capabilities).size === s.capabilities.length && s.capabilities.every(c => typeof c === 'string' && allowed.includes(c)));
   if(Object.hasOwn(s,'operationsFeatures')){
     const f=exact(s.operationsFeatures,['reads','scheduleCommands','scheduleRecurrence','visitActions']);

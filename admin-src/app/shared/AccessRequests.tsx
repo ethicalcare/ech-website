@@ -4,6 +4,7 @@ import { readJson, requestOptions, statusError } from './session';
 import { SharedError, uuid } from './live-model';
 import { companyTime } from './time';
 import { shouldRefreshVisibleAccounts } from './account-polling.js';
+import type { AccountHistoryProps } from './account-decision-history-client';
 
 export type AccessRequest = {
   userId: string; email: string; displayName: string; state: 'pending' | 'approved' | 'denied' | 'revoked';
@@ -14,8 +15,8 @@ type Review = {
   schema: 1; operationId: string; expectedRevision: number;
   command: { type: 'approve' | 'deny' | 'revoke'; userId: string; role: AccessRequest['role']; delegatedUserAdmin?: boolean };
 };
-export function buildAccessReview(operationId: string, row: {userId:string;revision:number}, type: Review['command']['type'], role: AccessRequest['role']): Review {
- return {schema:1,operationId,expectedRevision:row.revision,command:{type,userId:row.userId,role}};
+export function buildAccessReview(operationId: string, row: {userId:string;revision:number}, type: Review['command']['type'], role: AccessRequest['role'], delegated?: boolean): Review {
+ return {schema:1,operationId,expectedRevision:row.revision,command:{type,userId:row.userId,role,...(delegated === undefined ? {} : {delegatedUserAdmin:delegated})}};
 }
 export type RequestState =
   | { status: 'loading' | 'unavailable'; rows?: never }
@@ -54,6 +55,23 @@ function requestRow(value: unknown): AccessRequest {
       (row.state === 'approved' ? !['staff', 'manager'].includes(row.role || '') : row.role !== null) ||
       (Object.hasOwn(row, 'delegatedUserAdmin') && (row.delegatedUserAdmin !== true || row.role !== 'manager'))) {
     throw new Error('Account request data could not be verified.');
+  }
+  return row;
+}
+
+export async function verifyAccessDecisionReceipt(value: unknown, body: Review, email: string): Promise<AccessRequest> {
+  const result = value as {
+    schema: number; request: unknown;
+    receipt: { operationId: string; expectedRevision: number; revision: number; commandFingerprint: string };
+  };
+  const row = requestRow(result?.request);
+  const state = { approve: 'approved', deny: 'denied', revoke: 'revoked' }[body.command.type];
+  if (result.schema !== 1 || row.userId !== body.command.userId || row.email !== email ||
+      row.state !== state || row.role !== body.command.role || row.revision !== body.expectedRevision + 1 ||
+      (body.command.type === 'approve' && Object.hasOwn(body.command,'delegatedUserAdmin') && Boolean(row.delegatedUserAdmin) !== body.command.delegatedUserAdmin) ||
+      result.receipt?.operationId !== body.operationId || result.receipt.expectedRevision !== body.expectedRevision ||
+      result.receipt.revision !== row.revision || result.receipt.commandFingerprint !== await fingerprint(body)) {
+    throw new Error('Decision receipt could not be verified. Refresh the list before retrying the same decision.');
   }
   return row;
 }
@@ -163,11 +181,16 @@ export function AccountConfirmation({ title, email, children, onCancel, onConfir
 }
 
 const roleLabels = { staff: 'Staff · assigned records', manager: 'Manager · all inquiries and referral partners' };
-type Selection = { row: AccessRequest; type: Review['command']['type']; role: AccessRequest['role']; delegated: boolean };
+type Selection = { row: AccessRequest; type: Review['command']['type']; role: AccessRequest['role']; delegated?: boolean };
 type RetainedReview = { body: Review; email: string };
-export function AccessRequests({ requests, reload, owner, fetcher }: {
+export function AccessRequests({ requests, reload, owner, fetcher, renderHistory }: {
   requests: RequestState; reload: () => Promise<void>; owner: boolean; fetcher: typeof fetch;
+  renderHistory?: (props: AccountHistoryProps) => ReactNode;
 }) {
+  const [history, setHistory] = useState<{ userId: string; revision: number }>();
+  const currentHistory = history && owner && renderHistory && requests.status === 'ready' &&
+    requests.rows.some(row => row.userId === history.userId && row.revision === history.revision) ? history : undefined;
+  useEffect(() => { if (history && !currentHistory) setHistory(undefined); }, [history, currentHistory]);
   const [roles, setRoles] = useState<Record<string, string>>({});
   const [selection, setSelection] = useState<Selection>();
   const [operation, setOperation] = useState<RetainedReview>();
@@ -189,25 +212,12 @@ export function AccessRequests({ requests, reload, owner, fetcher }: {
     setMessage('');
     const { body, email } = retained;
     try {
-      const value = await accountApi(fetcher, 'access-requests', body) as {
-        schema: number; request: unknown;
-        receipt: { operationId: string; expectedRevision: number; revision: number; commandFingerprint: string };
-      };
-      const row = requestRow(value.request);
-      const state = { approve: 'approved', deny: 'denied', revoke: 'revoked' }[body.command.type];
-      if (value.schema !== 1 || row.userId !== body.command.userId || row.email !== email ||
-          row.state !== state || row.role !== body.command.role || row.revision !== body.expectedRevision + 1 ||
-          (body.command.type === 'approve' && Boolean(row.delegatedUserAdmin) !== Boolean(body.command.delegatedUserAdmin)) ||
-          value.receipt?.operationId !== body.operationId || value.receipt.expectedRevision !== body.expectedRevision ||
-          value.receipt.revision !== row.revision || value.receipt.commandFingerprint !== await fingerprint(body)) {
-        throw new Error('Decision receipt could not be verified. Refresh the list before retrying the same decision.');
-      }
+      const value = await accountApi(fetcher, 'access-requests', body);
+      const row = await verifyAccessDecisionReceipt(value, body, email);
       setOperation(undefined);
       setRoles(current => { const next = { ...current }; delete next[row.userId]; return next; });
       await reload();
-      setMessage(body.command.type === 'approve'
-        ? 'Access saved. This person must sign in again to use the approved role.'
-        : body.command.type === 'revoke' ? 'Access revoked. Previous sessions can no longer be used.' : 'Denial saved.');
+      setMessage(`${body.command.type === 'approve' ? 'Approval' : body.command.type === 'revoke' ? 'Revocation' : 'Denial'} recorded. Check the refreshed account status for current access.${body.command.type === 'approve' ? ' If approval is still current, the person must sign in again.' : ''}`);
     } catch (failure) {
       setKnownFailure(failure instanceof SharedError && ['conflict', 'invalid_request'].includes(failure.code));
       setError(failure instanceof Error ? failure.message : 'The account decision could not be verified.');
@@ -218,9 +228,9 @@ export function AccessRequests({ requests, reload, owner, fetcher }: {
   }
   function stage(row: AccessRequest, type: Review['command']['type']) {
     const choice = roles[row.userId];
-    if (type === 'approve' && !['staff', ...(owner ? ['manager'] : [])].includes(choice)) return;
+    if (type === 'approve' && !['staff', 'manager', ...(owner ? ['partner'] : [])].includes(choice)) return;
     setSelection({ row, type, role: type === 'approve' ? choice === 'staff' ? 'staff' : 'manager' : null,
-      delegated: false });
+      delegated: type === 'approve' && owner && choice !== 'staff' ? choice === 'partner' : undefined });
   }
   function confirm() {
     if (!selection) return;
@@ -231,7 +241,7 @@ export function AccessRequests({ requests, reload, owner, fetcher }: {
       setError('The selected account changed. Refresh and review it again.');
       return;
     }
-    void commit({ email: row.email, body: buildAccessReview(crypto.randomUUID(), row, type, role) });
+    void commit({ email: row.email, body: buildAccessReview(crypto.randomUUID(), row, type, role, delegated) });
   }
 
   const rows = requests.rows || [];
@@ -250,25 +260,26 @@ export function AccessRequests({ requests, reload, owner, fetcher }: {
         <p><span className={`status-badge ${row.state === 'pending' ? 'tone-due' : row.state === 'approved' ? 'tone-contacted' : 'tone-new'}`}>{label}</span></p>
         <small>Requested {companyTime(row.requestedAt)}</small>
         {row.decidedAt && <small>Last decision {companyTime(row.decidedAt)}</small>}
-        {row.role && <small>{roleLabels[row.role]}{row.delegatedUserAdmin && ' · can manage staff accounts'}</small>}
+        {row.role && <small>{roleLabels[row.role]}{row.delegatedUserAdmin && ' · can manage staff and managers'}</small>}
       </div>
       <div className="access-request-actions">
-        {(row.state !== 'approved' || owner) && <label>
+        {<label>
           <span>{row.state === 'approved' ? 'New role' : 'Role to approve'}</span>
           <select value={roles[row.userId] || ''} disabled={disabled}
             onChange={event => setRoles(current => ({ ...current, [row.userId]: event.target.value }))}>
             <option value="">Choose a role</option>
             <option value="staff">{roleLabels.staff}</option>
-            {owner && <><option value="manager">{roleLabels.manager}</option>
-              </>}
+            <option value="manager">{roleLabels.manager}</option>
+            {owner && <option value="partner">Partner administrator · manages staff and managers</option>}
           </select>
         </label>}
-        {(row.state !== 'approved' || owner) && <button type="button" className="primary-button"
+        {<button type="button" className="primary-button"
           disabled={disabled || !roles[row.userId]} onClick={() => stage(row, 'approve')}>
           {row.state === 'approved' ? 'Change role' : row.state === 'pending' ? 'Approve access' : 'Approve again'}
         </button>}
         {row.state === 'pending' && <button type="button" disabled={disabled} onClick={() => stage(row, 'deny')}>Deny request</button>}
         {row.state === 'approved' && <button type="button" disabled={disabled} onClick={() => stage(row, 'revoke')}>Revoke access</button>}
+        {owner && renderHistory && <button type="button" disabled={disabled} onClick={() => setHistory({userId: row.userId, revision: row.revision})}>Recorded decisions</button>}
       </div>
     </article>;
   }
@@ -283,23 +294,28 @@ export function AccessRequests({ requests, reload, owner, fetcher }: {
       {error && <p ref={notice} tabIndex={-1} role="alert" className="field-error">{error}</p>}
       {message && <p ref={notice} tabIndex={-1} role="status">{message}</p>}
       {operation && <aside className="panel dashboard-card">
-        <p>Decision retained for <strong>{operation.email}</strong>. Refresh and check access before retrying.</p>
+        <p>{pending ? 'Saving decision' : knownFailure ? 'Rejected decision retained' : 'Decision outcome unconfirmed'} for <strong>{operation.email}</strong>.</p>
+        <p>{operation.body.command.type === 'approve' ? `Approve access: ${roleLabels[operation.body.command.role!]}`
+          : operation.body.command.type === 'deny' ? 'Deny signup request' : 'Revoke account access'}</p>
+        {!pending && <p>Refresh and check the current account status before retrying this decision.</p>}
         <button type="button" disabled={pending} onClick={() => void commit(operation)}>Retry same decision</button>
         {knownFailure && <button type="button" onClick={() => { setOperation(undefined); setError(''); }}>Clear rejected decision</button>}
       </aside>}
-      {requests.status === 'ready' && (waiting.length
-        ? <div className="access-request-list">{waiting.map(card)}</div>
-        : <p role="status">No pending signup requests.</p>)}
+      <p role="status">{requests.status === 'ready' && (waiting.length === 0
+        ? 'No pending signup requests.'
+        : `${waiting.length} pending signup request${waiting.length === 1 ? '' : 's'}.`)}</p>
+      {requests.status === 'ready' && waiting.length > 0 && <div className="access-request-list">{waiting.map(card)}</div>}
     </section>
     {requests.status === 'ready' && <section className="panel dashboard-card" aria-labelledby="google-accounts-heading">
       <h2 id="google-accounts-heading">Reviewed Google accounts</h2>
       {accounts.length ? <div className="access-request-list">{accounts.map(card)}</div> : <p>No requests have been reviewed yet.</p>}
     </section>}
+    {currentHistory && renderHistory && renderHistory({ ...currentHistory, fetcher, onClose: () => setHistory(undefined) })}
     {selection && <AccountConfirmation title={selection.type === 'revoke' ? 'Revoke access?' :
       selection.type === 'deny' ? 'Deny this request?' : selection.row.state === 'approved' ? 'Change this role?' : 'Approve this account?'}
       email={selection.row.email} onCancel={() => setSelection(undefined)} onConfirm={confirm}>
       <p>{selection.row.displayName}</p>
-      <p>{selection.role ? `${roleLabels[selection.role]}${selection.delegated ? ' · can manage staff accounts' : ''}. The person must sign in again.`
+      <p>{selection.role ? `${roleLabels[selection.role]}${selection.delegated ? ' · can manage staff and managers' : ''}. The person must sign in again.`
         : selection.type === 'revoke' ? 'This ends existing sessions and blocks new sign-ins.' : 'This person will remain unable to sign in.'}</p>
     </AccountConfirmation>}
   </>;

@@ -168,7 +168,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     {session?.authenticated === false && <SignIn session={session} client={client} onVerified={refresh} />}
 
     {session?.authenticated && manageAccounts && <div id="accounts-workspace" hidden={!accountsOpen}>
-     <AdminTools key={actor + ':' + can(session, 'backup.export') + ':' + accessScope} session={session}
+     <AdminTools key={actor + ':' + can(session, 'backup.export') + ':' + accessScope} session={session} accountDecisionHistoryEnabled={can(session, 'account.history')}
       onChanged={() => refresh()} requests={accountRequests.state} reloadRequests={accountRequests.reload}
       fetcher={fetcher} visible={accountsOpen} />
     </div>}

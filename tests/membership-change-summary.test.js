@@ -28,5 +28,5 @@ test('summary renders names as text, including untrusted provider characters',()
 test('confirmation and retained retry both summarize the exact command fields',()=>{
  const source=readFileSync(new URL('../admin-src/app/shared/AdminTools.tsx',import.meta.url),'utf8');
  assert.match(source,/<MembershipChangeSummary fields=\{operation.body.command.fields\}/);
- assert.match(source,/<MembershipChangeSummary fields=\{buildMembershipOperation\('', draft\).command.fields\}/);
+ assert.match(source,/<MembershipChangeSummary fields=\{buildMembershipOperation\('', draft, mainOwner\).command.fields\}/);
 });
