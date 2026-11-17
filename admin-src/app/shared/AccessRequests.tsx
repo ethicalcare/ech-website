@@ -187,6 +187,8 @@ export function AccessRequests({ requests, reload, owner, fetcher, renderHistory
   requests: RequestState; reload: () => Promise<void>; owner: boolean; fetcher: typeof fetch;
   renderHistory?: (props: AccountHistoryProps) => ReactNode;
 }) {
+  const [search, setSearch] = useState('');
+  const searchId = useId();
   const [history, setHistory] = useState<{ userId: string; revision: number }>();
   const currentHistory = history && owner && renderHistory && requests.status === 'ready' &&
     requests.rows.some(row => row.userId === history.userId && row.revision === history.revision) ? history : undefined;
@@ -245,8 +247,12 @@ export function AccessRequests({ requests, reload, owner, fetcher, renderHistory
   }
 
   const rows = requests.rows || [];
-  const waiting = rows.filter(row => row.state === 'pending');
-  const accounts = rows.filter(row => row.state !== 'pending');
+  const query = search.trim().toLocaleLowerCase();
+  const matches = (row: AccessRequest) => !query || row.displayName.toLocaleLowerCase().includes(query) || row.email.toLocaleLowerCase().includes(query);
+  const allWaiting = rows.filter(row => row.state === 'pending');
+  const allAccounts = rows.filter(row => row.state !== 'pending');
+  const waiting = allWaiting.filter(matches);
+  const accounts = allAccounts.filter(matches);
   function card(row: AccessRequest) {
     const disabled = pending || Boolean(operation);
     const label = row.state === 'pending' ? 'Waiting for approval' : row.state === 'approved' ? 'Active'
@@ -289,6 +295,10 @@ export function AccessRequests({ requests, reload, owner, fetcher, renderHistory
         <p>Check the email and confirm the person should have ECH access before you choose a role.</p></div>
         <button type="button" disabled={requests.status === 'loading' || pending} onClick={() => void reload()}>Refresh requests</button>
       </div>
+      <label htmlFor={searchId}>Find an account by name or email</label>
+      <input id={searchId} type="search" value={search} onChange={event => setSearch(event.target.value)}
+        placeholder="Name or email" autoComplete="off" />
+      {search && <button type="button" onClick={() => setSearch('')}>Clear account search</button>}
       {requests.status === 'loading' && <p role="status">Checking signup requests…</p>}
       {requests.status === 'unavailable' && <p role="alert" className="field-error">Signup requests are unavailable. Refresh to check the current list.</p>}
       {error && <p ref={notice} tabIndex={-1} role="alert" className="field-error">{error}</p>}
@@ -302,13 +312,14 @@ export function AccessRequests({ requests, reload, owner, fetcher, renderHistory
         {knownFailure && <button type="button" onClick={() => { setOperation(undefined); setError(''); }}>Clear rejected decision</button>}
       </aside>}
       <p role="status">{requests.status === 'ready' && (waiting.length === 0
-        ? 'No pending signup requests.'
-        : `${waiting.length} pending signup request${waiting.length === 1 ? '' : 's'}.`)}</p>
+        ? (query ? 'No pending signup requests match this search.' : 'No pending signup requests.')
+        : (query ? `${waiting.length} of ${allWaiting.length} loaded pending signup requests match.` : `${waiting.length} pending signup request${waiting.length === 1 ? '' : 's'}.`))}</p>
       {requests.status === 'ready' && waiting.length > 0 && <div className="access-request-list">{waiting.map(card)}</div>}
     </section>
     {requests.status === 'ready' && <section className="panel dashboard-card" aria-labelledby="google-accounts-heading">
       <h2 id="google-accounts-heading">Reviewed Google accounts</h2>
-      {accounts.length ? <div className="access-request-list">{accounts.map(card)}</div> : <p>No requests have been reviewed yet.</p>}
+      {query && <p role="status">{accounts.length} of {allAccounts.length} loaded reviewed accounts match.</p>}
+      {accounts.length ? <div className="access-request-list">{accounts.map(card)}</div> : <p>{query ? 'No reviewed accounts match this search.' : 'No requests have been reviewed yet.'}</p>}
     </section>}
     {currentHistory && renderHistory && renderHistory({ ...currentHistory, fetcher, onClose: () => setHistory(undefined) })}
     {selection && <AccountConfirmation title={selection.type === 'revoke' ? 'Revoke access?' :
