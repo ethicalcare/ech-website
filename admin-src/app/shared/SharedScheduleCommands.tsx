@@ -59,11 +59,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
         reasons:{...draft.reasons,[action]:''}};
       // Saving one action must not remove leave protection for another action's
       // edited fields, even when its reason has not been written yet.
-      const hasRemainingDraft=Object.values(nextDraft.reasons).some(reason=>reason.trim().length>0)
-        || nextDraft.workerId!==(result.visit.workerId??'')
-        || nextDraft.start!==reportLocalTime(result.visit.start)
-        || nextDraft.end!==reportLocalTime(result.visit.end);
-      outcomeUncertain.current=false;setPending(null);setDirty(hasRemainingDraft);setDraft(nextDraft);
+      outcomeUncertain.current=false;setPending(null);setDirty(hasDraft(nextDraft,result.visit));setDraft(nextDraft);
       if(role!=='staff')setMode('reschedule');
       setMessage('Confirmed schedule change. The current shared schedule was rechecked.');confirmed.current(result.visit);
     } catch(failure) {
@@ -94,6 +90,20 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
       setError(true);setMessage('The current visit could not be reloaded. Your draft and exact request are retained.');
       if(failure instanceof SharedError && ['unauthenticated','scope_changed','forbidden','conflict'].includes(failure.code))scopeFailure.current(failure.code);
     } finally {if(!request.signal.aborted && current===generation.current)setBusy(false);}
+  }
+  function hasDraft(value:typeof draft,current:ScheduleVisit) {
+    return Object.values(value.reasons).some(reason=>reason.trim().length>0)
+      || value.workerId!==(current.workerId??'')
+      || value.start!==reportLocalTime(current.start)
+      || value.end!==reportLocalTime(current.end);
+  }
+  function discardActionDraft() {
+    if(!active||role==='staff'||pending||busy||mutationOwner.current)return;
+    const next={...draft,reasons:{...draft.reasons,[mode]:''},
+      ...(mode==='assign'?{workerId:visit.workerId??''}:{}),
+      ...(mode==='reschedule'?{start:reportLocalTime(visit.start),end:reportLocalTime(visit.end)}:{})};
+    setDraft(next);setDirty(hasDraft(next,visit));setError(false);
+    setMessage('Unsubmitted edits for this action were discarded. Other action drafts are unchanged. No shared visit was changed.');
   }
   function submit(event:FormEvent) {
     // Synchronous ownership fences repeat events before disabled state renders.
@@ -145,6 +155,8 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
           :<><label htmlFor={`${id}-reason`}>Operational reason</label><textarea id={`${id}-reason`} required minLength={3} maxLength={500} value={draft.reasons[mode]} onChange={event=>setDraft(old=>({...old,reasons:{...old.reasons,[mode]:event.target.value}}))}/></>}
         {mode==='cancel' && <p>This cancels the visit and preserves its history.</p>}
         <button type="submit">{mode==='confirm'?'Confirm assignment':'Save schedule change'}</button>
+        {manager&&<button type="button" onClick={discardActionDraft}>Discard this action's draft</button>}
+        {manager&&<p>Discard clears only this action’s unsubmitted edits. It does not cancel a visit, undo a saved change or discard an unresolved request.</p>}
       </fieldset></form>}
       {!editable && <p>This visit is {visit.status.toLowerCase()}. Scheduling changes are unavailable for this status.</p>}
       {manager && <p>Managers can use New shared visit in the schedule to select existing recorded readiness and saved instruction version metadata. Source authoring and instruction content are unavailable here.</p>}
