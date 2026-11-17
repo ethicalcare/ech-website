@@ -9,3 +9,5 @@
 .shared-schedule-calendar__day button{white-space:normal;overflow-wrap:anywhere;width:100%;min-height:44px;}
 .shared-schedule-calendar__empty{color:var(--muted);font-size:13px;}
 @media(max-width:600px){.shared-schedule-calendar__days{grid-template-columns:repeat(var(--calendar-columns),minmax(160px,1fr));}.shared-schedule-calendar{max-height:65vh;}}
+
+.shared-schedule-calendar__weekday{min-width:0;padding:10px 12px;font-weight:700;background:var(--surface-soft);border-bottom:1px solid var(--line);overflow-wrap:anywhere;}

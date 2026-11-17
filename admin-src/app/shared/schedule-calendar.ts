@@ -18,3 +18,6 @@ export function visitsOnDay(visits:readonly ScheduleVisit[],day:string):Schedule
  const from=reportUtcTime(day+'T00:00'),to=reportUtcTime(addCalendarDays(day,1)+'T00:00');
  return visits.filter(visit=>visit.start<to&&visit.end>from).sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end)||a.id.localeCompare(b.id));
 }
+
+export const calendarWeekdays=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] as const;
+export function calendarWeekday(day:string):number{addCalendarDays(day,0);return new Date(day+'T00:00:00.000Z').getUTCDay();}
