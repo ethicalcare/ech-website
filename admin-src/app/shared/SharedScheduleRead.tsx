@@ -1,4 +1,5 @@
 'use client';
+import {scheduleCapabilityCopy} from './schedule-capability-copy';
 import {ScheduleStaffFilter,type ScheduleStaffSelection} from './ScheduleStaffFilter';
 import {calendarDays,focusedCalendarWindow,type CalendarCoverage,visitsOnDay,calendarWeekday,calendarWeekdays,type CalendarView} from './schedule-calendar';
 import './shared-schedule-calendar.css';
@@ -62,7 +63,7 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const clients=new Map(data?.clients.map(row=>[row.id,row.name]));
  const staff=new Map(data?.staff.map(row=>[row.id,row.name]));
  return <section className="panel dashboard-card" aria-label="Shared schedule">
-  <h2 ref={scheduleHeading} tabIndex={-1}>Shared visit schedule</h2><p>Read-only shared records. Times shown in Vancouver time. No changes are saved from this view.</p>
+  <h2 ref={scheduleHeading} tabIndex={-1}>Shared visit schedule</h2><p>{scheduleCapabilityCopy(role,{scheduleCommands:schedulingEnabled,visitActions:actionsEnabled,taskResults:tasksEnabled})} Times shown in Vancouver time.</p>
   <label>Calendar date (Vancouver)<input type="date" value={day} disabled={leave.pending||createOpen} onChange={event=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(event.currentTarget.value);}}}/></label>
   <div role="group" aria-label="Calendar view">{(['day','week','month'] as const).map(mode=><button key={mode} type="button" aria-pressed={view===mode} disabled={coverage==='day'&&mode!=='day'||coverage==='week'&&mode==='month'} onClick={()=>setView(mode)}>{mode[0].toUpperCase()+mode.slice(1)}</button>)}<button type="button" disabled={leave.pending||createOpen} onClick={()=>{const today=scheduleDay(new Date().toISOString());if(today!==day&&canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(today);}}}>Today</button></div>
   <button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setReload(value=>value+1);}}}>Reload schedule</button>
