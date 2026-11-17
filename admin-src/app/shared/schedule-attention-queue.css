@@ -1,0 +1,9 @@
+.schedule-attention{min-width:0;margin-block:20px;padding:16px;border:1px solid var(--line);border-radius:10px;overflow-wrap:anywhere;}
+.schedule-attention h3{margin:0 0 8px;}
+.schedule-attention ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px;}
+.schedule-attention li{min-width:0;padding:12px;border:1px solid var(--line);border-radius:8px;}
+.schedule-attention dl{display:grid;grid-template-columns:minmax(6rem,auto) minmax(0,1fr);gap:4px 12px;margin:0 0 12px;}
+.schedule-attention dt{font-weight:600;}.schedule-attention dd{min-width:0;margin:0;overflow-wrap:anywhere;}
+.schedule-attention button{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere;}
+.schedule-attention button:focus-visible{outline:3px solid var(--green);outline-offset:2px;}
+@media(max-width:480px){.schedule-attention dl{grid-template-columns:minmax(0,1fr);gap:2px;}.schedule-attention dd{margin-bottom:6px;}.schedule-attention button{width:100%;}}
