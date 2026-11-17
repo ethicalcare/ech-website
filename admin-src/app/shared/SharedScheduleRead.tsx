@@ -46,6 +46,6 @@ function ScheduleRows({actor,role,fetcher}:{actor:string;role:'owner'|'manager'|
   {visible?.error&&<p role="alert">{visible.error}</p>}
   {data&&<><p>{data.visits.length} visits in this seven-day UTC window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
   <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{label(visit.start)} to {label(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button type="button" onClick={()=>setSelected({id:visit.id,revision:visit.revision})}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
-  {selectedVisit&&<SharedVisitRead key={selectedVisit.id+':'+selectedVisit.revision} actor={actor} role={role} visit={selectedVisit} fetcher={fetcher} onClose={()=>setSelected(null)}/>}
+  {selectedVisit&&<SharedVisitRead key={selectedVisit.id+':'+selectedVisit.revision} actor={actor} role={role} visit={selectedVisit} fetcher={fetcher} onClose={()=>setSelected(null)} onVerificationFailure={()=>{setSelected(null);setReload(value=>value+1);}}/>}
  </section>;
 }

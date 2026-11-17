@@ -1,0 +1,30 @@
+.shared-visit-report { border-top: 1px solid var(--line, #c4d8d0); margin-top: 1.5rem; padding-top: 1rem; }
+.shared-visit-report h3, .shared-visit-report h4 { margin-block: 1rem .5rem; }
+.shared-visit-report__versions { min-width: 0; max-height: 14rem; overflow-y: auto; margin-block: 1rem; border: 1px solid currentColor; border-radius: .4rem; }
+.shared-visit-report__versions legend { font-weight: 700; }
+.shared-visit-report__versions label, .shared-admin .shared-visit-report__versions label { display: flex; align-items: center; gap: .6rem; min-height: 2.75rem; cursor: pointer; }
+.shared-visit-report__version-copy { display: grid; gap: .2rem; padding-block: .45rem; }
+.shared-visit-report__version-copy small { font-size: .85rem; font-weight: 400; }
+.shared-visit-report__versions input { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; accent-color: var(--teal, #176252); }
+.shared-admin .shared-visit-report__versions input[type="radio"] { width: 1.1rem; height: 1.1rem; min-height: 0; padding: 0; }
+.shared-admin[data-theme="dark"] .shared-visit-report__versions input[type="radio"] { accent-color: var(--green, #95cfc6); }
+.shared-visit-report__verification { font-size: .9rem; }
+.shared-visit-report__actor { overflow-wrap: anywhere; }
+.shared-visit-report dd, .shared-visit-report__wording { white-space: pre-wrap; overflow-wrap: anywhere; }
+.shared-visit-report ul, .shared-visit-report ol { padding-inline-start: 1.3rem; }
+.shared-visit-report li { margin-block: .5rem; }
+.shared-visit-actions { border-top: 1px solid var(--line, #c4d8d0); margin-top: 1rem; padding-top: 1rem; }
+.shared-visit-actions fieldset { min-width: 0; margin-block: 1rem; padding: 1rem; }
+.shared-visit-actions label { display: block; font-weight: 600; margin-top: .8rem; }
+.shared-visit-actions input, .shared-visit-actions textarea, .shared-visit-actions select { display: block; width: 100%; max-width: 100%; box-sizing: border-box; font: inherit; padding: .6rem; }
+.shared-visit-actions textarea { height: 7rem; min-height: 6rem; overflow-y: auto; resize: vertical; }
+.shared-visit-actions button { min-height: 2.75rem; margin: .5rem .5rem .5rem 0; white-space: normal; }
+.shared-visit-actions p { overflow-wrap: anywhere; }
+.shared-visit-leave { box-sizing: border-box; width: min(32rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow-y: auto; color: inherit; background: var(--surface, #fff); border: 2px solid currentColor; border-radius: .5rem; padding: 1.25rem; }
+.shared-visit-leave::backdrop { background: rgb(0 0 0 / .55); }
+.shared-visit-leave button { min-height: 2.75rem; margin: .5rem .5rem .5rem 0; white-space: normal; }
+
+.shared-visit-report__history-notice { border-inline-start: .25rem solid var(--teal, #176252); margin-block: 1rem; padding: .5rem 1rem; overflow-wrap: anywhere; }
+.shared-visit-report__history-notice p { margin-block: .4rem; }
+.shared-visit-report__history-notice button, .shared-visit-report__source-link { min-height: 2.75rem; white-space: normal; }
+.shared-visit-report__source-link { display: block; margin-block-start: .5rem; }
