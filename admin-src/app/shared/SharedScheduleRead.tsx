@@ -1,4 +1,5 @@
 'use client';
+import {scheduleWeek,scheduleDay,scheduleLabel} from './schedule-window';
 import {useCallback,useEffect,useMemo,useState} from 'react';
 import {SharedScheduleCreate} from './SharedScheduleCreate';
 import {createScheduleCreateClient} from './schedule-create-client';
@@ -15,7 +16,7 @@ export function SharedScheduleRead({session,fetcher=fetch,active=true}:{session:
  return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
 }
 function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled}:{scope:string;tasksEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
- const [day,setDay]=useState(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+ const [day,setDay]=useState(()=>scheduleDay(new Date().toISOString()));
  const [createOpen,setCreateOpen]=useState(false),[creationHeld,setCreationHeld]=useState(false);
  const [creationStaff,setCreationStaff]=useState<import('./schedule-client').ScheduleIdentity[]>([]);
  const createClient=useMemo(()=>role==='staff'?null:createScheduleCreateClient(fetcher,actor,role),[fetcher,actor,role]);
@@ -34,12 +35,8 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  useEffect(()=>{
   const controller=new AbortController();let current=true;
   setState({request});
-  // Window uses explicit UTC dates; appointment labels use Vancouver time.
-  // It does not infer a clinical day boundary.
-  const from=new Date(day+'T00:00:00.000Z');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(from.getTime())||from.toISOString().slice(0,10)!==day){setState({request,error:'Choose a valid date.'});return()=>{current=false;controller.abort();};}
-  const to=new Date(from.getTime()+7*86400000).toISOString();
-  void client.loadSchedule({from:from.toISOString(),to},controller.signal).then(snapshot=>{
+  let window;try{window=scheduleWeek(day);}catch{setState({request,error:'Choose a valid date.'});return()=>{current=false;controller.abort();};}
+  void client.loadSchedule(window,controller.signal).then(snapshot=>{
    if(current&&!controller.signal.aborted)setState({request,snapshot});
   }).catch(()=>{if(current&&!controller.signal.aborted)setState({request,error:'Schedule could not be verified. Reload to try again.'});});
   return()=>{current=false;controller.abort();};
@@ -49,18 +46,16 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const selectedVisit=data?.visits.find(visit=>visit.id===selected?.id&&visit.revision===selected.revision);
  const clients=new Map(data?.clients.map(row=>[row.id,row.name]));
  const staff=new Map(data?.staff.map(row=>[row.id,row.name]));
- const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',dateStyle:'medium',timeStyle:'short'});
- const label=(stamp:string)=>formatter.format(new Date(stamp));
  return <section className="panel dashboard-card" aria-label="Shared schedule">
   <h2>Shared visit schedule</h2><p>Read-only shared records. Times shown in Vancouver time. No changes are saved from this view.</p>
-  <label>Week starting (UTC)<input type="date" value={day} disabled={leave.pending||createOpen} onChange={event=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(event.currentTarget.value);}}}/></label>
+  <label>Week starting (Vancouver)<input type="date" value={day} disabled={leave.pending||createOpen} onChange={event=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(event.currentTarget.value);}}}/></label>
   <button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setReload(value=>value+1);}}}>Reload schedule</button>
   {createClient&&schedulingEnabled&&!createOpen&&<button type="button" disabled={!data||leave.pending} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCreationStaff(data?.staff??[]);setCreateOpen(true);}}}>New shared visit</button>}
   {createOpen&&createClient&&<><button type="button" onClick={()=>{if(!creationHeld||window.confirm('Close this creation form? Unsubmitted edits will be lost. Reserved requests must be recovered when you reopen.')){setCreateOpen(false);setCreationHeld(false);}}}>Close creation form</button><SharedScheduleCreate client={createClient} allowRecurrence={recurrenceEnabled} staff={creationStaff} active={active} onConfirmed={creationConfirmed} onScopeFailure={invalidate} onPendingChange={setCreationHeld}/></>}
   {!visible?.error&&!data&&<p role="status">Loading schedule…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
-  {data&&!createOpen&&!leave.pending&&!leave.retained&&<><p>{data.visits.length} visits in this seven-day UTC window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
-  <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{label(visit.start)} to {label(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(selected?.id===visit.id&&selected.revision===visit.revision)return;if(canLeave()){setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
+  {data&&!createOpen&&!leave.pending&&!leave.retained&&<><p>{data.visits.length} visits in this seven-day Vancouver window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
+  <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{scheduleLabel(visit.start)} to {scheduleLabel(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(selected?.id===visit.id&&selected.revision===visit.revision)return;if(canLeave()){setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
   {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior schedule rows and visit details are hidden until its result is verified.</p>}
   {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
  </section>;
