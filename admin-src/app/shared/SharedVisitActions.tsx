@@ -185,6 +185,14 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
     }
     setMode(next);
   }
+  function discardActionDraft() {
+    if(!active||!supported||hideDraft||pending||busy||writeFlight.current||unresolved.current)return;
+    // Other command drafts remain pinned to their own visit/report versions.
+    setDraft(empty);setMode('submit');setComparison(null);
+    draftVisit.current={...visit};draftReportRevision.current=context?.report?.reportRevision??null;
+    draftReviewVersion.current=null;requestVisit.current=null;setError(false);
+    setMessage('Unsent edits for this action were discarded. Other action drafts and saved reports are unchanged.');
+  }
   function correction() {selectMode('correct');}
   function review() {selectMode('review');}
   async function reconcile() {
@@ -295,6 +303,7 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
           <button type="submit">{visit.status==='Confirmed'?'Request visit start':visit.status==='In progress'?'Submit report':mode==='review'?'Record exact-version review':'Submit correction'}</button>
         </fieldset>
       </form>}
+      {activeDirty&&!pending&&<><button type="button" disabled={busy} onClick={discardActionDraft}>Discard this action's draft</button><p>Discard clears only this action’s unsent edits. Saved reports, other action drafts and unresolved requests are not discarded.</p></>}
       {visit.status==='Completed' && !latest && <p>No report is available to correct or review.</p>}
       <p>Drafts stay only in memory while this visit remains open. Closing the visit or changing account clears them. A report does not approve worked time, verify attendance, resolve an issue, provide clinical authority or send a handover. Addressed handovers and clinical records are not supported.</p>
     </>}
