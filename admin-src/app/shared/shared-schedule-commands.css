@@ -1,0 +1,14 @@
+.shared-schedule-commands { border-top: 1px solid var(--line, #c4d8d0); margin-top: 1rem; padding-top: 1rem; }
+.shared-schedule-commands fieldset { min-width: 0; margin-block: 1rem; padding: 1rem; }
+.shared-schedule-commands label { display: block; font-weight: 600; margin-top: .8rem; }
+.shared-schedule-commands input, .shared-schedule-commands textarea, .shared-schedule-commands select { display: block; width: 100%; max-width: 100%; box-sizing: border-box; font: inherit; padding: .6rem; }
+.shared-schedule-commands textarea { height: 7rem; min-height: 6rem; overflow-y: auto; resize: vertical; }
+.shared-schedule-commands button { min-height: 2.75rem; margin: .5rem .5rem .5rem 0; white-space: normal; }
+.shared-schedule-commands p { overflow-wrap: anywhere; }
+.creation-receipt-review code, .creation-receipt-review dd, .creation-receipt-review li { overflow-wrap: anywhere; }
+.creation-receipt-review ol { padding-inline-start: 1.4rem; }
+.creation-receipt-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
+.creation-receipt-pair > div { min-width: 0; border: 1px solid var(--line, #c4d8d0); padding: .8rem; }
+.creation-receipt-pair h5 { font: inherit; font-weight: 700; margin-block: 0 .6rem; }
+.creation-receipt-pair dt { font-weight: 600; }
+.creation-receipt-pair dd { margin: 0 0 .7rem; }
