@@ -1,4 +1,5 @@
 'use client';
+import {clearVisitTaskResultEntries} from './SharedVisitTaskResults';
 import './admin.css';
 import './crm.css';
 import './named-shell.css';
@@ -62,7 +63,7 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
   const [drafts] = useState(() => new Map<string, RetainedDraft>()); const [inlineOperations,setInlineOperations] = useState(() => new Map<string, Command>()); const [inlineReview, setInlineReview] = useState(false); const inlineBusy = useRef(false);
   const client = useMemo(() => createSessionClient(fetcher), [fetcher]);
   const clearProtected = useCallback(() => { setShowAccounts(false); setInquiries([]); setPartners([]); setAssignees([]); setSelected(undefined); setCreating(undefined); setAddingPartner(false); setCursors({ inquiry: null, partner: null }); setSearch(''); setNotice(''); }, []);
-  const invalidate = useCallback(() => { epoch.current += 1; verified.current = null; setSession(null); clearProtected(); setError('Session or record access is unverified. Protected views were cleared. Unsaved record drafts remain in this tab for the same authorized account after reload.'); }, [clearProtected]);
+  const invalidate = useCallback(() => { epoch.current += 1; verified.current = null; clearVisitTaskResultEntries(); setSession(null); clearProtected(); setError('Session or record access is unverified. Protected views were cleared. Unsaved record drafts remain in this tab for the same authorized account after reload.'); }, [clearProtected]);
   // Repository constructors retain this callback; only asynchronous request failures invoke it.
   // eslint-disable-next-line react-hooks/refs
   const inquiryRepository = useMemo(() => createSharedRepository('inquiry', fetcher, invalidate), [fetcher, invalidate]);
@@ -77,7 +78,7 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
       const current = await client.load(); if (ticket !== epoch.current) return;
       const old = verified.current;
       const unchanged = old?.authenticated && current.authenticated && old.principal.id === current.principal.id && operationsFeatureScope(old) === operationsFeatureScope(current) && JSON.stringify(old.capabilities) === JSON.stringify(current.capabilities);
-      if (!unchanged) { clearProtected(); setSession(null); }
+      if (!unchanged) { clearVisitTaskResultEntries(); clearProtected(); setSession(null); }
       if (current.authenticated && canOperate(current) && (full || !unchanged)) {
         const [inq, par, people] = await Promise.all([inquiryRepository.list(), (async()=>{
           const result=await partnerRepository.list();const seen=new Set(result.items.map(row=>row.id));const cursors=new Set<string>();
@@ -92,7 +93,7 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
     } catch { if (ticket === epoch.current) invalidate(); }
     finally { refreshing.current = false; if (foreground && (ticket === epoch.current || verified.current === null)) setChecking(false); }
   }, [client, clearProtected, inquiryRepository, partnerRepository, invalidate]);
-  useEffect(() => { const initial=requestAnimationFrame(()=>void refresh()); const focus = () => { if (document.visibilityState === 'visible' && Date.now() - lastChecked.current >= 60_000) void refresh(false); }; window.addEventListener('focus', focus); document.addEventListener('visibilitychange', focus); const timer = window.setInterval(focus, 60_000); return () => {cancelAnimationFrame(initial); epoch.current += 1; window.clearInterval(timer); window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', focus); }; }, [refresh]);
+  useEffect(() => { const initial=requestAnimationFrame(()=>void refresh()); const focus = () => { if (document.visibilityState === 'visible' && Date.now() - lastChecked.current >= 60_000) void refresh(false); }; window.addEventListener('focus', focus); document.addEventListener('visibilitychange', focus); const timer = window.setInterval(focus, 60_000); return () => {cancelAnimationFrame(initial); clearVisitTaskResultEntries(); epoch.current += 1; window.clearInterval(timer); window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', focus); }; }, [refresh]);
   function saved(record: SharedRecord, kind: RecordKind, actor: string) {
     if (!verified.current?.authenticated || verified.current.principal.id !== actor) return;
     if (kind === 'inquiry') setInquiries(rows => [record as SharedInquiry, ...rows.filter(row => row.id !== record.id)]); else setPartners(rows => [record as SharedPartner, ...rows.filter(row => row.id !== record.id)]);

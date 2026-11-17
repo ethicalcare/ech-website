@@ -35,7 +35,7 @@ test('old client session envelope unchanged; explicit version1 negotiates authen
  };
  const load=(version,cookie=true)=>handleAdmin('session',new Request(config.ADMIN_ORIGIN+'/api/admin/session',{headers:{
   ...(cookie?{cookie:'__Host-ech-access=fictional-token'}:{}),...(version===undefined?{}:{'X-ECH-Operations-Features':version})}}),{...config,...flags},provider);
- for(const version of [undefined,'0','2','true','1, 1']){
+ for(const version of [undefined,'0','3','true','1, 1']){
   const r=await load(version);assert.equal(r.status,200);
   const body=await r.json();assert.deepEqual(Object.keys(body).sort(),['authenticated','capabilities','principal']);assert.doesNotThrow(()=>parseSession(body));
  }
@@ -61,7 +61,7 @@ test('new parser accepts legacy sessions but rejects malformed/inconsistent nego
 test('session client explicitly negotiates features and remains compatible with old servers',async()=>{
  for(const body of [session(),{...session(),operationsFeatures:all}]){
   const client=createSessionClient(async(url,options)=>{
-   assert.equal(url,'/api/admin/session');assert.equal(options.headers['X-ECH-Operations-Features'],'1');
+   assert.equal(url,'/api/admin/session');assert.equal(options.headers['X-ECH-Operations-Features'],'2');
    assert.equal(options.credentials,'same-origin');assert.equal(options.cache,'no-store');
    return Response.json(body);
   });
@@ -80,6 +80,8 @@ test('workspace compares feature scope and clears displayed session before loadi
  // Source-wiring regression, not rendered browser verification.
  const source=await readFile(new URL('../admin-src/app/shared/AdminWorkspace.tsx',import.meta.url),'utf8');
  assert.match(source,/operationsFeatureScope\(old\) === operationsFeatureScope\(current\)/);
- assert.match(source,/if \(!unchanged\) \{ clearProtected\(\); setSession\(null\); \}/);
- assert.ok(source.indexOf('if (!unchanged) { clearProtected(); setSession(null); }')<source.indexOf('const [inq, par, people] = await Promise.all'));
+ assert.match(source,/if \(!unchanged\) \{ clearVisitTaskResultEntries\(\); clearProtected\(\); setSession\(null\); \}/);
+ assert.ok(source.indexOf('if (!unchanged) { clearVisitTaskResultEntries(); clearProtected(); setSession(null); }')<source.indexOf('const [inq, par, people] = await Promise.all'));
 });
+
+test('task-results negotiation is optional, strict and changes the session scope',()=>{const old=session();const current={...old,operationsFeatures:{...all,taskResults:true}};assert.doesNotThrow(()=>parseSession(current));assert.notEqual(operationsFeatureScope(current),operationsFeatureScope({...old,operationsFeatures:all}));for(const taskResults of ['true',null,1])assert.throws(()=>parseSession({...old,operationsFeatures:{...all,taskResults}}));assert.throws(()=>parseSession({...old,operationsFeatures:{...off,taskResults:true}}));});

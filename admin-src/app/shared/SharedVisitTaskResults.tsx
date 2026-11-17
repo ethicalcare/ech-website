@@ -12,6 +12,11 @@ type Entries = {draft:Draft|null;pending:VisitTaskWrite|null};
 // Caller clears these when the authenticated session is replaced or signed out.
 const retained=new Map<string,Entries>();
 export function clearVisitTaskResultEntries(){retained.clear();}
+// A new membership must never hide an uncertain request stored under an earlier one.
+export function hasUnresolvedTaskMembership(scopeKey:string,visitId:string,role:Exclude<OperationalRole,null>,actorId:string,membershipRevision:number){
+  for(const [key,entry] of retained){const [actor,scope,visit,entryRole,revision]=JSON.parse(key);if(actor===actorId&&scope===scopeKey&&visit===visitId&&entryRole===role&&revision!==membershipRevision&&entry.pending)return true;}
+  return false;
+}
 export function discardUnsentVisitTaskDraft(scopeKey:string,visitId:string,role:Exclude<OperationalRole,null>,membershipRevision:number,actorId:string){
   const key=JSON.stringify([actorId,scopeKey,visitId,role,membershipRevision]),entry=retained.get(key);
   if(entry && !entry.pending)retained.delete(key);

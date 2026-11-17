@@ -12,9 +12,9 @@ import {createScheduleClient,type ScheduleSnapshot} from './schedule-client';
 // role or negotiated features destroys it rather than reusing prior rows.
 export function SharedScheduleRead({session,fetcher=fetch,active=true}:{session:Session|null;fetcher?:typeof fetch;active?:boolean}){
  if(!session?.authenticated || !operationsFeatures(session).reads || !session.principal.operationalRole)return null;
- return <ScheduleRows key={operationsFeatureScope(session)} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
+ return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
 }
-function ScheduleRows({actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled}:{actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
+function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled}:{scope:string;tasksEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
  const [day,setDay]=useState(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
  const [createOpen,setCreateOpen]=useState(false),[creationHeld,setCreationHeld]=useState(false);
  const [creationStaff,setCreationStaff]=useState<import('./schedule-client').ScheduleIdentity[]>([]);
@@ -62,6 +62,6 @@ function ScheduleRows({actor,role,fetcher,active,schedulingEnabled,actionsEnable
   {data&&!createOpen&&!leave.pending&&!leave.retained&&<><p>{data.visits.length} visits in this seven-day UTC window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
   <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{label(visit.start)} to {label(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(selected?.id===visit.id&&selected.revision===visit.revision)return;if(canLeave()){setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
   {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior schedule rows and visit details are hidden until its result is verified.</p>}
-  {selectedVisit&&<SharedVisitRead key={selectedVisit.id} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
+  {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
  </section>;
 }

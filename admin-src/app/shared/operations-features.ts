@@ -9,5 +9,5 @@ export function operationsFeatures(session:Session|null):Readonly<OperationsFeat
 export function operationsFeatureScope(session:Session|null):string{
   if(!session?.authenticated)return 'disabled';
   const f=operationsFeatures(session);
-  return JSON.stringify([session.principal.id,session.principal.operationalRole,f.reads,f.scheduleCommands,f.scheduleRecurrence,f.visitActions]);
+  return JSON.stringify([session.principal.id,session.principal.operationalRole,f.reads,f.scheduleCommands,f.scheduleRecurrence,f.visitActions,f.taskResults===true]);
 }
