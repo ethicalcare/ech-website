@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "executionAuthorized": false,
+  "migrations": [
+    {
+      "file": "migrations/20261020_ech_leads.sql",
+      "sha256": "882869184d80bbd701a3630af2516d92ca62dc9c4eafb12eea659ff3128dc8f9"
+    },
+    {
+      "file": "migrations/20261022_application_admin.sql",
+      "sha256": "c03c49e799078fd6221e102cfb0a6533dba6794ce6a24800ea5f269b80656b42"
+    },
+    {
+      "file": "migrations/20261024_google_access_requests.sql",
+      "sha256": "f5956081454d8016d0416b92245b5b8efff5f7eccfc79e95973b4ab959ce594f"
+    },
+    {
+      "file": "migrations/20261114_partner_account_administration.sql",
+      "sha256": "fb8bf321d016d10e893134d425c30bbc5daa2a3823c16488d2f7bf66f525fb36"
+    },
+    {
+      "file": "migrations/20261114000100_operations_schedule.sql",
+      "sha256": "0ec7c4fd1c29afbd98d121d33ef4642b930e1d0b431881d99f9f837082a82ed5"
+    },
+    {
+      "file": "migrations/20261114000200_operations_commands.sql",
+      "sha256": "2458a04ca011d211bf2bc15dfa98d25ac1ec49ae35b298dc244e426309476006"
+    },
+    {
+      "file": "migrations/20261114000300_operations_dispatch_rules.sql",
+      "sha256": "108b000bf8758fee801a6f6bce1dde7e10e89f6851e3298a4d07d69f298557a1"
+    },
+    {
+      "file": "migrations/20261114000400_operations_visit_details.sql",
+      "sha256": "18014db8975fdbb5b6ba34aee358de0d9b4f3d914c51f758ec588f320f4a6827"
+    },
+    {
+      "file": "migrations/20261114000500_operations_visit_reporting.sql",
+      "sha256": "8294d049f83fc6c6a26d7549542ed3ea7431db0b2e68627d85d67f07b03f07a6"
+    },
+    {
+      "file": "migrations/20261114000600_operations_visit_report_read.sql",
+      "sha256": "67d116085098a89da915ed9e491e8c37869cd8912f3a3bc31fde69fbab6b6fcb"
+    },
+    {
+      "file": "migrations/20261114000700_operations_schedule_visit_read.sql",
+      "sha256": "c9bb7da8529a82bf02e8d7ee5ba2c67a1fb57ca1286b4a38fbcd5f5ae1756949"
+    },
+    {
+      "file": "migrations/20261114000800_operations_schedule_sources.sql",
+      "sha256": "2a12f80c2aea104bf9051cdcdf27c3f46545b2ee5cd20b787292318c27d00a26"
+    },
+    {
+      "file": "migrations/20261114000900_operations_schedule_recurrence.sql",
+      "sha256": "3a704f9dd25cbfdf5e1ee9e615cc20c6b40e8da4d36405022ff0773ae774df65"
+    },
+    {
+      "file": "migrations/20261114001000_operations_creation_drafts.sql",
+      "sha256": "dae19f4aca4fe2ca6f703167130cecbbf50184eec1ef22669dd7fb2db1fa7aea"
+    },
+    {
+      "file": "migrations/20261114001100_operations_client_instructions.sql",
+      "sha256": "85bcd563e4942665df8a58d7df3baa3354be54266a9f084ad1950b079e9606b8"
+    },
+    {
+      "file": "migrations/20261114001200_operations_client_pagination.sql",
+      "sha256": "5e4fe6805c0cb7fd38c5f4cfe434e8ca3d86d370288620e6a0046cff859397ae"
+    },
+    {
+      "file": "migrations/20261114001300_operations_visit_task_plan.sql",
+      "sha256": "52cb772964759c59d199548e61c8e22ebe3637816f4421d1073c980a5402628e"
+    },
+    {
+      "file": "migrations/20261114001400_operations_visit_task_create.sql",
+      "sha256": "6d2390d6e9c66f703e1cfc871500129077792146fc21ebdad1e45fb0d4ad1ae6"
+    },
+    {
+      "file": "migrations/20261114001500_operations_visit_task_plan_read.sql",
+      "sha256": "d5516db18d2fd73bf8f235c9b95ebb83b8f6e7c0074d4fe9c82068526ea4092b"
+    },
+    {
+      "file": "migrations/20261114001600_operations_visit_task_results.sql",
+      "sha256": "b0421e68c9129f3af51405f4fbbbe800213cd719705d0c7b54960541326f85ba"
+    },
+    {
+      "file": "migrations/20261114001700_operations_visit_task_addition_read.sql",
+      "sha256": "2772a58ec3807b5b913422e18ab1aff486b5f600f993bcf74e4603a7ea99fded"
+    },
+    {
+      "file": "migrations/20261114001800_operations_task_timing_snapshots.sql",
+      "sha256": "09be3d452bb0cf21d6660fa871d13ba77d46bb57570ff3100190b170bed3d470"
+    },
+    {
+      "file": "migrations/20261114001900_operations_report_author_labels.sql",
+      "sha256": "929972163b398e675fb55c9c3a6e936782dfcc00de5cf7494372813b9de96295"
+    },
+    {
+      "file": "migrations/20261114002000_operations_report_note_event_time.sql",
+      "sha256": "e4046a1982e0891fab4bacbb8530dc0a8167ab3e9207f8ca162373cb79d9e6bc"
+    },
+    {
+      "file": "migrations/20261115002100_account_decision_history.sql",
+      "sha256": "cfe563dec550e090981d6a28e4af45fc0c5a39abd3c9f3ef30ac9d1d3099b0bc"
+    },
+    {
+      "file": "migrations/20261115002200_schedule_receipt_status.sql",
+      "sha256": "01a7a117db35e6cb22bfa9d4a82c84e50fedc7c1a6e88a065970348857daebf5"
+    },
+    {
+      "file": "migrations/20261115002300_visit_source_phones.sql",
+      "sha256": "27d55dd4c8cd915d0dc61e9b6e10dfd6008c5a6cbd93af58e31945bed8bef615"
+    },
+    {
+      "file": "migrations/20261115002400_phone_source_refresh.sql",
+      "sha256": "40444f857960fb62a52e3435a169b8636762f0561a9c74002963419bdbc775bb"
+    },
+    {
+      "file": "migrations/20261116002500_review_confirmed_client_source.sql",
+      "sha256": "eb3986604e18d7e7529f7139bc7b1b893890e6e3eea0ee47ff26d9053cbdb525"
+    }
+  ]
+}
