@@ -2,6 +2,7 @@
 .shared-schedule-calendar__days{display:grid;grid-template-columns:repeat(var(--calendar-columns),minmax(180px,1fr));min-width:0;align-items:start;}
 .shared-schedule-calendar[data-view=day] .shared-schedule-calendar__days{grid-template-columns:minmax(0,1fr);}
 .shared-schedule-calendar__day{min-width:0;padding:12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+.shared-schedule-calendar__day[aria-current=date]{outline:3px solid var(--green);outline-offset:-3px;}
 .shared-schedule-calendar__day h3{font-size:14px;margin:0 0 12px;}
 .shared-schedule-calendar__day ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;}
 .shared-schedule-calendar__day li{min-width:0;border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--surface);overflow-wrap:anywhere;}

@@ -29,7 +29,7 @@ test('opening focuses details once and accepted close returns focus without losi
   const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
   const field=()=>root.root.findAllByType('textarea').find(n=>n.props.id.endsWith(role==='staff'?'-summary':'-note'));
   try{
-   await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}),{createNodeMock:element=>({disabled:!!element.props.disabled,focus:()=>focus.push(JSON.stringify(element.props.children))})});});await act(async()=>button('View visit details').props.onClick());assert.equal(focus.at(-1),'"Selected visit details"');const opened=focus.length;
+   await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}),{createNodeMock:element=>({disabled:!!element.props.disabled,focus:()=>focus.push(JSON.stringify(element.props.children))})});});const currentDay=root.root.findAll(n=>n.type==='section'&&n.props['aria-current']==='date');assert.equal(currentDay.length,1);assert.match(currentDay[0].props['aria-label'],/1 visible visit/);await act(async()=>button('View visit details').props.onClick());assert.equal(focus.at(-1),'"Selected visit details"');const opened=focus.length;
    if(role==='manager')await act(async()=>button('Review latest report').props.onClick());
    await act(async()=>field().props.onChange({target:{value:'Keep this exact unsaved wording'}}));
    await act(async()=>root.update(React.createElement(SharedScheduleRead,{session,fetcher,active:false})));await act(async()=>root.update(React.createElement(SharedScheduleRead,{session,fetcher,active:true})));assert.equal(focus.length,opened,'background navigation does not steal focus from current context');
@@ -41,4 +41,23 @@ test('opening focuses details once and accepted close returns focus without losi
    allowDiscard=true;await act(async()=>button('Close visit details').props.onClick());assert.equal(prompts,2);assert.equal(field(),undefined);assert.match(focus.at(-1),/View visit details/,'close returns to original visit button');await act(async()=>button('View visit details').props.onClick());assert.equal(focus.at(-1),'"Selected visit details"');const beforeSignout=focus.length;await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:null,fetcher})));assert.equal(focus.length,beforeSignout,'scope removal does not focus a stale account button');assert.equal(root.toJSON(),null);
   }finally{if(root)await act(async()=>root.unmount());}
  }}finally{globalThis.window=saved;}
+});
+test('close falls back to schedule heading when origin is filtered out, retaining date and filters',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;const saved=globalThis.window;globalThis.window=Object.assign(new EventTarget(),{confirm:()=>true});let root;const focused=[];
+ const actor='10000000-0000-4000-8000-000000000001',id='20000000-0000-4000-8000-000000000001';
+ const session={authenticated:true,principal:{id:actor,operationalRole:'manager'},capabilities:[],operationsFeatures:{reads:true,scheduleCommands:false,scheduleRecurrence:false,visitActions:false}};
+ const fetcher=async url=>{if(url.includes('?visit='))return Response.json({visitId:id,revision:1,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'});const from=fixtureVisitStart(url);return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fictional client'}],staff:[{id:actor,name:'Fictional worker'}],visits:[{id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Assigned',revision:1}]});};
+ const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
+ try{await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}),{createNodeMock:e=>({disabled:!!e.props.disabled,focus:()=>focused.push(JSON.stringify(e.props.children))})});});const originalDate=root.root.findAllByType('input').find(n=>n.props.type==='date').props.value;
+  await act(async()=>button('View visit details').props.onClick());await act(async()=>button('Clear staff').props.onClick());assert.equal(button('View visit details'),undefined);
+  await act(async()=>button('Close visit details').props.onClick());assert.equal(focused.at(-1),'"Shared visit schedule"');assert.equal(root.root.findAllByType('input').find(n=>n.props.type==='date').props.value,originalDate);assert.equal(button('View visit details'),undefined,'filter remains applied');
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=saved;}
+});
+test('calendar marks exactly one selected date, identifies its count and dates empty days across views',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;const saved=globalThis.window;globalThis.window=Object.assign(new EventTarget(),{confirm:()=>true});let root;
+ const actor='10000000-0000-4000-8000-000000000001',session={authenticated:true,principal:{id:actor,operationalRole:'manager'},capabilities:[],operationsFeatures:{reads:true,scheduleCommands:false,scheduleRecurrence:false,visitActions:false}};
+ try{await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher:async()=>Response.json({schema:1,mode:'shared',clients:[],staff:[],visits:[]})}));});
+  const day=root.root.findAllByType('input').find(n=>n.props.type==='date').props.value;const button=text=>root.root.findAllByType('button').find(b=>b.props.children===text);
+  for(const view of ['Day','Week','Month']){await act(async()=>button(view).props.onClick());const selected=root.root.findAll(n=>n.type==='section'&&n.props['aria-current']==='date');assert.equal(selected.length,1);assert.equal(selected[0].props['aria-label'],`${day} · 0 visible visits`);const heading=selected[0].findByType('h3').children.join(''),empty=selected[0].findByType('p').children.join('');assert(heading.includes('Selected day'));assert(heading.includes(day));assert(empty.includes(`No visible visits on ${day}`));}
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=saved;}
 });
