@@ -68,7 +68,7 @@ test('writes remain unavailable regardless of existing command flags; malformed 
   assert.equal((await handleAdmin('operations',request({scheduling:'1'},{method}),{...env,ECH_HOSTED_SCHEDULE_COMMANDS:'true',ECH_LOCAL_SCHEDULE_COMMANDS:true},p.fetcher)).status,405);
  }
  assert.equal(p.calls.length,0);
- for(const query of [{visit:id(2),report:id(2),revision:'3'},{commands:'1'},{taskTiming:'1'},{clientRead:'1'},{...date,extra:'1'},{scheduleVisit:id(2),membershipRevision:'4'}]){
+ for(const query of [{visit:id(2),report:id(2),revision:'3'},{commands:'0'},{taskTiming:'1'},{clientRead:'1'},{...date,extra:'1'},{scheduleVisit:id(2),membershipRevision:'4'}]){
   const p=provider(),r=await handleAdmin('operations',request(query),env,p.fetcher);
   assert.ok([400,409].includes(r.status));assert.ok(!p.calls.some(c=>routes.some(x=>c.path.endsWith(x.rpc))));
  }
@@ -77,5 +77,13 @@ test('upstream denial/staleness is preserved without protected payload disclosur
  for(const status of [401,403,409,412]){
   const p=provider({status}),r=await handleAdmin('operations',request(routes[3].query),env,p.fetcher);
   assert.equal(r.status,status);assert.doesNotMatch(await r.text(),/private-marker/);
+ }
+});
+
+test('authenticated command availability uses hosted admission and performs no command RPC',async()=>{
+ for(const enabled of [false,true]) {
+  const p=provider();const r=await handleAdmin('operations',request({commands:'1'}),{...env,ECH_HOSTED_VISIT_ACTIONS:'true',...(enabled?{ECH_HOSTED_OPERATIONS_WRITES:'true'}:{})},p.fetcher);
+  assert.equal(r.status,200);assert.deepEqual(await r.json(),{schema:1,enabled,membershipRevision:5});
+  assert.equal(p.calls.length,3);assert.ok(!p.calls.some(c=>routes.some(x=>c.path.endsWith(x.rpc))));
  }
 });
