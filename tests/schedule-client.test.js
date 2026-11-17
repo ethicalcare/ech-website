@@ -37,7 +37,7 @@ test('uses the shared, same-origin GET and returns each fresh manager, owner or 
     assert.equal(options.credentials, 'same-origin');
     assert.equal(options.redirect, 'error');
     assert.equal(options.cache, 'no-store');
-    assert.equal(options.referrerPolicy, 'no-referrer');
+    assert.equal(options.referrerPolicy, 'strict-origin');
     assert.equal(options.body, undefined);
     assert.ok(options.signal instanceof AbortSignal);
     return Response.json(responses.shift());

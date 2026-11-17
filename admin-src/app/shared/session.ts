@@ -7,7 +7,9 @@ export async function readJson(response: Response, maximum = 3_000_000): Promise
   const bytes = new Uint8Array(length); let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
   try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); } catch { throw new SharedError('invalid_response', 'Invalid server JSON.'); }
 }
-export function requestOptions(): RequestInit { return { credentials: 'same-origin', mode: 'same-origin', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer', signal: AbortSignal.timeout(15_000) }; }
+// Keep the origin available to the server CSRF guard without sending page paths or queries.
+// no-referrer serializes Origin as null for same-origin POST requests in conforming browsers.
+export function requestOptions(): RequestInit { return { credentials: 'same-origin', mode: 'same-origin', cache: 'no-store', redirect: 'error', referrerPolicy: 'strict-origin', signal: AbortSignal.timeout(15_000) }; }
 export function statusError(status: number, mutation = false): SharedError {
   if (status === 401 || status === 403) return new SharedError(status === 401 ? 'unauthenticated' : 'forbidden', 'This session no longer permits the request. Sign in or reload account status.');
   if (status === 409) return new SharedError('conflict', 'This record changed. Your draft is retained. Reload and review before saving again.');
