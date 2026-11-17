@@ -75,3 +75,10 @@ test('new revision pins retained request and suppresses stale or cross-account r
  await h.update({active:false});assert.equal(signal.aborted,true);await act(async()=>resolve(snapshot()));assert.equal(h.root.toJSON(),null);await h.stop();
  const posts=[];let data=snapshot();const h2=harness({load:async()=>structuredClone(data),save:async request=>{posts.push(request);throw Error('Unknown fictional result');}});await h2.mount();try{await h2.click('Record my factual result');await h2.change('outcome','done');await h2.change('time','2026-11-16T10:00');await h2.submit();data.visitRevision=3;await h2.update({visitRevision:3});assert.equal(h2.button('Retry exact task result').props.disabled,true);assert.equal(posts.length,1);await h2.update({actorId:operation,scopeKey:'fictional-session-other'});assert.equal(h2.button('Retry exact task result'),undefined);}finally{await h2.stop();}
 }));
+
+test('individual saved result details retain microsecond event and recording precision',()=>withUI(async()=>{
+ const data=snapshot();data.results=[eventFor(envelope())];const h=harness({load:async()=>structuredClone(data),save:async()=>{throw Error('Unexpected write');}});await h.mount();try{
+  const facts=h.root.root.findAllByProps({className:'visit-task-results__facts'});assert.equal(facts.length,1);const times=facts[0].findAllByType('time');assert.equal(times[0].children.join(''),'2026-11-16 10:00:00.123456 Vancouver');assert.equal(times[1].children.join(''),'2026-11-16 11:00:00.123456 Vancouver');
+  assert.equal(times[0].props.dateTime,envelope().actualAt);assert.equal(times[1].props.dateTime,'2026-11-16T18:00:00.123456Z');
+ }finally{await h.stop();}
+}));

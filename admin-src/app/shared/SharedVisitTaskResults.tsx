@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { SharedError, type OperationalRole } from './live-model';
 import { reportLocalTime } from './visit-time';
+import { taskEventLocalTime } from './visit-task-timeline';
 import { sameTaskResultInstant, taskResultActualTime } from './task-result-time';
 import { type createVisitTaskClient, type VisitTaskRead, type VisitTaskWrite, type VisitTaskOutcome, type VisitTaskResult } from './visit-task-client';
 import { SharedVisitTaskTimeline } from './SharedVisitTaskTimeline';
@@ -27,7 +28,7 @@ type Props={enabled?:boolean;actorId:string;scopeKey:string;visitId:string;visit
   onPlanChange?:(plan:VisitTaskRead|null)=>void; refreshKey?:number; mutationsBlocked?:boolean;
 };
 const labels:Record<VisitTaskOutcome,string>={done:'Done',declined:'Declined',unable:'Unable', 'not-required':'Not required'};
-function displayTime(value:string){return reportLocalTime(value).replace('T',' ')+' Vancouver';}
+function displayTime(value:string){return taskEventLocalTime(value)+' Vancouver';}
 export function SharedVisitTaskResults(props:Props){return <TaskResultsBody key={`${props.actorId}:${props.scopeKey}:${props.visitId}:${props.role}:${props.membershipRevision}:${props.visitRevision}:${props.active}:${props.enabled===true}`} {...props}/>;}
 function TaskResultsBody({enabled=false,actorId,scopeKey,visitId,visitRevision,visitStatus,membershipRevision,role,active,client,onScopeFailure,onStale,onLeaveStateChange,onPlanChange,refreshKey=0,mutationsBlocked=false}:Props){
   const scope=JSON.stringify([actorId,scopeKey,visitId,role,membershipRevision]);
