@@ -99,7 +99,8 @@ export function SharedVisitReport({ visitId, visitRevision, load, onVerification
                   aria-label={versionLabel(version.version)} aria-describedby={summaryId}
                   onChange={() => onSelectedVersionChange(version.version)} />
                 <span className="shared-visit-report__version-copy"><strong>{versionLabel(version.version)}</strong>
-                  <small id={summaryId}>{outcomeLabel[version.outcome]} · {status}</small></span>
+                  <small id={summaryId}>{version.version === latestVersion?.version ? 'Latest saved version' : 'Historical version'} · {outcomeLabel[version.outcome]} · {status}
+                    <br />Recorded at · Vancouver: {formatVancouverInstant(version.recordedAt)}</small></span>
               </label>;
             })}
           </fieldset>
