@@ -53,11 +53,17 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
       const result=await client.commit(command,request.signal,visit);
       if(request.signal.aborted || current!==generation.current)return;
       const action=command.command.type;
-      outcomeUncertain.current=false;setPending(null);setDirty((['assign','unassign','reschedule','cancel','confirm'] as const).some(key=>key!==action && draft.reasons[key].trim().length>0));
-      setDraft(old=>({workerId:action==='assign'||action==='unassign'?result.visit.workerId??'':old.workerId,
-        start:action==='reschedule'?reportLocalTime(result.visit.start):old.start,
-        end:action==='reschedule'?reportLocalTime(result.visit.end):old.end,
-        reasons:{...old.reasons,[action]:''}}));
+      const nextDraft={workerId:action==='assign'||action==='unassign'?result.visit.workerId??'':draft.workerId,
+        start:action==='reschedule'?reportLocalTime(result.visit.start):draft.start,
+        end:action==='reschedule'?reportLocalTime(result.visit.end):draft.end,
+        reasons:{...draft.reasons,[action]:''}};
+      // Saving one action must not remove leave protection for another action's
+      // edited fields, even when its reason has not been written yet.
+      const hasRemainingDraft=Object.values(nextDraft.reasons).some(reason=>reason.trim().length>0)
+        || nextDraft.workerId!==(result.visit.workerId??'')
+        || nextDraft.start!==reportLocalTime(result.visit.start)
+        || nextDraft.end!==reportLocalTime(result.visit.end);
+      outcomeUncertain.current=false;setPending(null);setDirty(hasRemainingDraft);setDraft(nextDraft);
       if(role!=='staff')setMode('reschedule');
       setMessage('Confirmed schedule change. The current shared schedule was rechecked.');confirmed.current(result.visit);
     } catch(failure) {
