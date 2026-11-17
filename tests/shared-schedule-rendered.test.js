@@ -87,20 +87,20 @@ test('rendered schedule clears rows on reload/date change and never renders malf
   await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});
   await act(async()=>requests[0].resolve(Response.json({schema:1,mode:'shared',clients:[],staff:[],visits:[]})));
   assert.match(JSON.stringify(root.toJSON()),/No visits returned/);
-  await act(async()=>root.root.findByType('button').props.onClick());
+  await act(async()=>root.root.findAllByType('button').find(node=>node.props.children==='Reload schedule').props.onClick());
   assert.doesNotMatch(JSON.stringify(root.toJSON()),/No visits returned/);
   assert.equal(requests[0].options.signal.aborted,true);
-  await act(async()=>root.root.findByType('input').props.onChange({currentTarget:{value:'2026-11-20'}}));
+  await act(async()=>root.root.findAllByType('input').find(node=>node.props.type==='date').props.onChange({currentTarget:{value:'2026-11-20'}}));
   assert.equal(requests[1].options.signal.aborted,true);
   await act(async()=>requests[1].resolve(Response.json({schema:1,mode:'shared',clients:[],staff:[],visits:[]})));
   assert.doesNotMatch(JSON.stringify(root.toJSON()),/No visits returned/);
   assert.match(requests[2].url,/from=2026-11-20/);
   await act(async()=>requests[2].resolve(Response.json({schema:1,mode:'shared',clients:[],staff:[],visits:[],untrusted:'provider secret'})));
   assert.match(JSON.stringify(root.toJSON()),/could not be verified/);assert.doesNotMatch(JSON.stringify(root.toJSON()),/provider secret/);
-  await act(async()=>root.root.findByType('button').props.onClick());
+  await act(async()=>root.root.findAllByType('button').find(node=>node.props.children==='Reload schedule').props.onClick());
   await act(async()=>requests[3].resolve(Response.json({error:'provider secret'},{status:403})));
   assert.match(JSON.stringify(root.toJSON()),/could not be verified/);assert.doesNotMatch(JSON.stringify(root.toJSON()),/provider secret/);
-  await act(async()=>root.root.findByType('input').props.onChange({currentTarget:{value:''}}));
+  await act(async()=>root.root.findAllByType('input').find(node=>node.props.type==='date').props.onChange({currentTarget:{value:''}}));
   assert.equal(requests.length,4);assert.match(JSON.stringify(root.toJSON()),/Choose a valid date/);
  }finally{if(root)await act(async()=>root.unmount());}
 });

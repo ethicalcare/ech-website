@@ -1,4 +1,5 @@
 'use client';
+import {ScheduleStaffFilter,type ScheduleStaffSelection} from './ScheduleStaffFilter';
 import {scheduleWeek,scheduleDay,scheduleLabel} from './schedule-window';
 import {useCallback,useEffect,useMemo,useState,useRef,useLayoutEffect} from 'react';
 import {SharedScheduleCreate} from './SharedScheduleCreate';
@@ -19,6 +20,7 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const visitButtons=useRef(new Map<string,HTMLButtonElement>());
  const returnFocus=useRef<string|null>(null);
  const scheduleHeading=useRef<HTMLHeadingElement|null>(null);
+ const [staffFilter,setStaffFilter]=useState<ScheduleStaffSelection>({ids:null,unassigned:true,query:''});
  const [day,setDay]=useState(()=>scheduleDay(new Date().toISOString()));
  const [createOpen,setCreateOpen]=useState(false),[creationHeld,setCreationHeld]=useState(false);
  const [creationStaff,setCreationStaff]=useState<import('./schedule-client').ScheduleIdentity[]>([]);
@@ -48,6 +50,7 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
  const visible=state.request===request?state:undefined;
  const data=visible?.snapshot;
  const selectedVisit=data?.visits.find(visit=>visit.id===selected?.id&&visit.revision===selected.revision);
+ const filteredVisits=data?.visits.filter(visit=>visit.workerId===null?staffFilter.unassigned:staffFilter.ids===null||staffFilter.ids.includes(visit.workerId))??[];
  const clients=new Map(data?.clients.map(row=>[row.id,row.name]));
  const staff=new Map(data?.staff.map(row=>[row.id,row.name]));
  return <section className="panel dashboard-card" aria-label="Shared schedule">
@@ -58,9 +61,12 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
   {createOpen&&createClient&&<><button type="button" onClick={()=>{if(!creationHeld||window.confirm('Close this creation form? Unsubmitted edits will be lost. Reserved requests must be recovered when you reopen.')){setCreateOpen(false);setCreationHeld(false);}}}>Close creation form</button><SharedScheduleCreate client={createClient} allowRecurrence={recurrenceEnabled} staff={creationStaff} active={active} onConfirmed={creationConfirmed} onScopeFailure={invalidate} onPendingChange={setCreationHeld}/></>}
   {!visible?.error&&!data&&<p role="status">Loading schedule…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
-  {data&&!createOpen&&!leave.pending&&!leave.retained&&<><p>{data.visits.length} visits in this seven-day Vancouver window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
-  <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{scheduleLabel(visit.start)} to {scheduleLabel(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button ref={element=>{if(element)visitButtons.current.set(visit.id,element);else visitButtons.current.delete(visit.id);}} type="button" disabled={leave.pending||createOpen} onClick={()=>{if(selected?.id===visit.id&&selected.revision===visit.revision)return;if(canLeave()){setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
+  <ScheduleStaffFilter staff={data?.staff??[]} value={staffFilter} onChange={setStaffFilter} disabled={!data||createOpen}/>
+  {data&&!createOpen&&!leave.pending&&!leave.retained&&<><p>{filteredVisits.length} of {data.visits.length} visits shown in this seven-day Vancouver window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
+  {data.visits.length>0&&!filteredVisits.length&&<p>No visits match the staff selection. Change the filter to show other permitted visits.</p>}
+  <ul>{filteredVisits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{scheduleLabel(visit.start)} to {scheduleLabel(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button ref={element=>{if(element)visitButtons.current.set(visit.id,element);else visitButtons.current.delete(visit.id);}} type="button" disabled={leave.pending||createOpen} onClick={()=>{if(selected?.id===visit.id&&selected.revision===visit.revision)return;if(canLeave()){setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
   {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior schedule rows and visit details are hidden until its result is verified.</p>}
+  {selectedVisit&&!filteredVisits.some(visit=>visit.id===selectedVisit.id)&&<p>The selected visit is outside the current staff filter. Its details and drafts remain open.</p>}
   {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
  </section>;
 }
