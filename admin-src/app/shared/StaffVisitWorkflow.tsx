@@ -18,9 +18,10 @@ export function StaffVisitWorkflow({visit:initialVisit,actor,role,fetcher,active
  const clients=useMemo(()=>({actions:createVisitActionsClient(fetcher,actor,role),schedule:createScheduleCommandClient(fetcher,actor,role),read:createScheduleClient(fetcher,role,actor),detail:createVisitDetailClient(fetcher,actor,role),report:createVisitReportClient(fetcher,actor,role)}),[fetcher,actor,role]);
  const scopeFailure=useCallback(()=>onScopeFailure(),[onScopeFailure]);
  const confirmed=useCallback((current:ScheduleVisit)=>{
-  // Completed staff actions unmount their form before its leave-state effect
-  // can run. Clear only that acknowledged terminal journey, not manager drafts.
-  if(role==='staff'&&visit.status!=='Completed'&&current.status==='Completed')onLeaveStateChange({dirty:false,pending:false,retained:false});
+  // Confirmed assignments and completed staff actions unmount their form before
+  // its leave-state effect can run. Clear only these acknowledged transitions,
+  // never an uncertain request or an unrelated manager draft.
+  if(role==='staff'&&((visit.status==='Assigned'&&current.status==='Confirmed')||(visit.status!=='Completed'&&current.status==='Completed')))onLeaveStateChange({dirty:false,pending:false,retained:false});
   setVisit(current);onConfirmed(current);
  },[onConfirmed,onLeaveStateChange,role,visit.status]);
  const reconcile=useCallback((current:ScheduleVisit)=>{setVisit(current);onReconciled?.(current);},[onReconciled]);

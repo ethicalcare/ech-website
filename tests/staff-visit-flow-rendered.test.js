@@ -122,3 +122,20 @@ test('first explicit confirmation rejection can reload; lost/acknowledged outcom
   }finally{if(root)await act(async()=>root.unmount());}
  }
 });
+test('acknowledged staff confirmation clears leave protection when visit actions are disabled',async()=>{
+ const actor='10000000-0000-4000-8000-000000000001',id='20000000-0000-4000-8000-000000000001';
+ const visit={id,clientId:id,workerId:actor,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T18:00:00.000Z',status:'Assigned',revision:1};
+ const saved={...visit,status:'Confirmed',revision:2};let leave,confirmed,root,posts=0;
+ const fetcher=async(url,options)=>{
+  if(options.method==='POST'){posts++;const action=JSON.parse(options.body);return Response.json({visit:saved,receipt:{operationId:action.operationId,expectedRevision:1,revision:2}});}
+  if(url.includes('scheduling=1'))return Response.json({schema:1,enabled:true,membershipRevision:7});
+  if(url.includes('scheduleVisit='))return Response.json({schema:1,visit:saved});
+  throw new Error('Unexpected route '+url);
+ };
+ try{
+  await act(async()=>{root=create(React.createElement(StaffVisitWorkflow,{visit,actor,role:'staff',fetcher,active:true,schedulingEnabled:true,actionsEnabled:false,onConfirmed:value=>{confirmed=value;},onScopeFailure:()=>assert.fail('Unexpected failure'),onLeaveStateChange:value=>{leave=value;}}));});
+  await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));
+  assert.equal(posts,1);assert.equal(confirmed.status,'Confirmed');assert.equal(root.root.findAllByType('form').length,0);
+  assert.deepEqual(leave,{dirty:false,pending:false,retained:false});
+ }finally{if(root)await act(async()=>root.unmount());}
+});
