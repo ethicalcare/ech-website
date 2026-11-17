@@ -2,6 +2,7 @@
 import {VisitTaskWorkflow} from './VisitTaskWorkflow';
 import {StaffVisitWorkflow} from './StaffVisitWorkflow';
 import {useCallback} from 'react';
+import {companyTime} from './time';
 import type {VisitLeaveState} from './SharedVisitActions';
 import {SharedVisitReport} from './SharedVisitReport';
 import {createVisitReportClient} from './visit-report-client';
@@ -45,7 +46,14 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
   <button type="button" disabled={leave.pending} onClick={onClose}>Close visit details</button><button type="button" disabled={leave.dirty||leave.pending||leave.retained} onClick={()=>setRetry(value=>value+1)}>Reload visit details</button>
   {!detail&&!visible?.error&&<p role="status">Loading visit details…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
-  {showDetails&&<><dl>{Object.entries(labels).map(([field,label])=><div key={field}><dt>{label}</dt><dd>{detail.fields[field as keyof typeof labels]||'Not provided'}</dd></div>)}</dl>
+  {showDetails&&<>
+   {active&&<section aria-label="Selected visit assignment"><h4>Scheduled visit responsibility</h4><dl>
+    <dt>Assigned worker</dt><dd>{visit.workerId===null?'Unassigned':staff.find(person=>person.id===visit.workerId)?.name||'Assigned worker name unavailable'}</dd>
+    <dt>Scheduled service</dt><dd>{visit.service}</dd>
+    <dt>Scheduled time · Vancouver</dt><dd><time dateTime={visit.start}>{companyTime(visit.start)}</time> – <time dateTime={visit.end}>{companyTime(visit.end)}</time></dd>
+    <dt>Visit status</dt><dd>{visit.status}</dd>
+   </dl><p>This is the scheduled assignment, not report authorship, verified attendance or approval of worked time.</p></section>}
+   <dl>{Object.entries(labels).map(([field,label])=><div key={field}><dt>{label}</dt><dd>{detail.fields[field as keyof typeof labels]||'Not provided'}</dd></div>)}</dl>
    {detail.fields.contact&&<section aria-label="Visit logistics contact"><h4>Visit logistics contact</h4><p>{detail.fields.contact.name}</p><p>{detail.fields.contact.phone||'Phone not provided'}</p></section>}
    <p>Contact authority is unknown. Do not infer consent or decision-making authority.</p><p>Allergy status is unknown. Absence of information does not mean no allergies.</p>
    <button type="button" aria-expanded={reportOpen} onClick={()=>setReportOpen(value=>!value)}>{reportOpen?'Hide report history':'View report history'}</button>
