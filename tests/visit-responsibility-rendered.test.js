@@ -25,17 +25,16 @@ const fictionalReport = () => ({
 });
 
 const {SharedVisitRead}=await component('SharedVisitRead');
-import {companyTime} from '../admin-src/app/shared/time.ts';
 test('selected assignment uses only authorized roster and clears on revision change, denied access and inactivity',async()=>{
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;let root;const calls=[];
- const entry={id:visit,revision:3,clientId:reviewer,workerId:actor,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T18:00:00.000Z',status:'Assigned'};
+ const entry={id:visit,revision:3,clientId:reviewer,workerId:actor,service:'Home support',start:'2026-11-17T07:00:00.000Z',end:'2026-11-17T08:00:00.000Z',status:'Assigned'};
  const fetcher=(url,options)=>new Promise(resolve=>{assert.equal(options.method,'GET');assert(url.includes('?visit='));calls.push({resolve,options});});
  const props={actor,role:'manager',visit:entry,staff:[{id:actor,name:'Fictional assigned worker'},{id:reviewer,name:'Unrelated worker'}],fetcher,onClose(){}};
  const text=()=>JSON.stringify(root.toJSON());
  try{
   await act(async()=>{root=create(React.createElement(SharedVisitRead,props));});assert(!text().includes('Fictional assigned worker'));
   await act(async()=>calls[0].resolve(Response.json({visitId:visit,revision:3,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'})));
-  assert(text().includes('Fictional assigned worker'));assert(!text().includes('Unrelated worker'));assert(text().includes(companyTime(entry.start)));assert.match(text(),/not report authorship/);
+  assert(text().includes('Fictional assigned worker'));assert(!text().includes('Unrelated worker'));assert(text().includes('2026-11-17 00:00 Vancouver'));assert.match(text(),/not report authorship/);
   await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,active:false})));assert(!text().includes('Fictional assigned worker'));
   await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,staff:[]})));assert.match(text(),/Assigned worker name unavailable/);assert.doesNotMatch(text(),/Unassigned/);
   await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,visit:{...entry,workerId:null,revision:4}})));assert(!text().includes('Fictional assigned worker'));assert.equal(calls.length,2);

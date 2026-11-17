@@ -3,7 +3,7 @@ import './shared-visit-details.css';
 import {VisitTaskWorkflow} from './VisitTaskWorkflow';
 import {StaffVisitWorkflow} from './StaffVisitWorkflow';
 import {useCallback} from 'react';
-import {companyTime} from './time';
+import {scheduleLabel} from './schedule-window';
 import type {VisitLeaveState} from './SharedVisitActions';
 import {createCompletedTaskHistoryClient} from './completed-task-history-client';
 import {SharedVisitReport} from './SharedVisitReport';
@@ -54,7 +54,7 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
    {active&&<section aria-label="Selected visit assignment"><h4>Scheduled visit responsibility</h4><dl>
     <dt>Assigned worker</dt><dd>{visit.workerId===null?'Unassigned':staff.find(person=>person.id===visit.workerId)?.name||'Assigned worker name unavailable'}</dd>
     <dt>Scheduled service</dt><dd>{visit.service}</dd>
-    <dt>Scheduled time · Vancouver</dt><dd><time dateTime={visit.start}>{companyTime(visit.start)}</time> – <time dateTime={visit.end}>{companyTime(visit.end)}</time></dd>
+    <dt>Scheduled time · Vancouver</dt><dd><time dateTime={visit.start}>{scheduleLabel(visit.start)}</time> – <time dateTime={visit.end}>{scheduleLabel(visit.end)}</time></dd>
     <dt>Visit status</dt><dd>{visit.status}</dd>
    </dl><p>This is the scheduled assignment, not report authorship, verified attendance or approval of worked time.</p></section>}
    <dl>{Object.entries(labels).map(([field,label])=><div key={field}><dt>{label}</dt><dd>{detail.fields[field as keyof typeof labels]||'Not provided'}</dd></div>)}</dl>
