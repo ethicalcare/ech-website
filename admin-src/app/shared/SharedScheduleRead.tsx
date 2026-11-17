@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
+import {SharedVisitRead} from './SharedVisitRead';
 import type {Session} from './live-model';
 import {operationsFeatures,operationsFeatureScope} from './operations-features';
 import {createScheduleClient,type ScheduleSnapshot} from './schedule-client';
@@ -12,6 +13,7 @@ export function SharedScheduleRead({session,fetcher=fetch}:{session:Session|null
 }
 function ScheduleRows({actor,role,fetcher}:{actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch}){
  const [day,setDay]=useState(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+ const [selected,setSelected]=useState<{id:string;revision:number}|null>(null);
  const [reload,setReload]=useState(0);
  const [state,setState]=useState<{request:string;snapshot?:ScheduleSnapshot;error?:string}>({request:''});
  const client=useMemo(()=>createScheduleClient(fetcher,role,actor),[fetcher,role,actor]);
@@ -31,6 +33,7 @@ function ScheduleRows({actor,role,fetcher}:{actor:string;role:'owner'|'manager'|
  },[client,day,reload,request]);
  const visible=state.request===request?state:undefined;
  const data=visible?.snapshot;
+ const selectedVisit=data?.visits.find(visit=>visit.id===selected?.id&&visit.revision===selected.revision);
  const clients=new Map(data?.clients.map(row=>[row.id,row.name]));
  const staff=new Map(data?.staff.map(row=>[row.id,row.name]));
  const formatter=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',dateStyle:'medium',timeStyle:'short'});
@@ -42,6 +45,7 @@ function ScheduleRows({actor,role,fetcher}:{actor:string;role:'owner'|'manager'|
   {!visible?.error&&!data&&<p role="status">Loading schedule…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
   {data&&<><p>{data.visits.length} visits in this seven-day UTC window.</p>{!data.visits.length&&<p>No visits returned for this account and window.</p>}
-  <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{label(visit.start)} to {label(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p></li>)}</ul></>}
+  <ul>{data.visits.map(visit=><li key={visit.id}><strong>{clients.get(visit.clientId)}</strong><p>{visit.service} · {visit.status}</p><p>{label(visit.start)} to {label(visit.end)}</p><p>{visit.workerId?staff.get(visit.workerId):'Unassigned'}</p><button type="button" onClick={()=>setSelected({id:visit.id,revision:visit.revision})}>View visit details for {clients.get(visit.clientId)}</button></li>)}</ul></>}
+  {selectedVisit&&<SharedVisitRead key={selectedVisit.id+':'+selectedVisit.revision} actor={actor} role={role} visit={selectedVisit} fetcher={fetcher} onClose={()=>setSelected(null)}/>}
  </section>;
 }
