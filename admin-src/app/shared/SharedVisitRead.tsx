@@ -5,6 +5,7 @@ import {StaffVisitWorkflow} from './StaffVisitWorkflow';
 import {useCallback} from 'react';
 import {companyTime} from './time';
 import type {VisitLeaveState} from './SharedVisitActions';
+import {createCompletedTaskHistoryClient} from './completed-task-history-client';
 import {SharedVisitReport} from './SharedVisitReport';
 import {createVisitReportClient} from './visit-report-client';
 import {useEffect,useMemo,useState,useRef,useLayoutEffect} from 'react';
@@ -13,6 +14,7 @@ import type {ScheduleIdentity,ScheduleVisit} from './schedule-client';
 
 // Parent keys this view by account/role/feature scope and visit revision.
 export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerificationFailure,active=true,staff=[],schedulingEnabled=false,actionsEnabled=false,onConfirmed,onLeaveStateChange,tasksEnabled=false,scope=""}:{tasksEnabled?:boolean;scope?:string;actor:string;role:'owner'|'manager'|'staff';visit:ScheduleVisit;fetcher:typeof fetch;onClose:()=>void;onVerificationFailure?:()=>void;active?:boolean;staff?:ScheduleIdentity[];schedulingEnabled?:boolean;actionsEnabled?:boolean;onConfirmed?:(visit:ScheduleVisit)=>void;onLeaveStateChange?:(state:VisitLeaveState)=>void}){
+ const loadCompletedHistory=useMemo(()=>createCompletedTaskHistoryClient(fetcher,actor,role),[fetcher,actor,role]);
  const heading=useRef<HTMLHeadingElement|null>(null);
  const focused=useRef(false);
  useLayoutEffect(()=>{if(active&&!focused.current&&heading.current){heading.current.focus();focused.current=true;}},[active]);
@@ -59,7 +61,7 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
    {detail.fields.contact&&<section aria-label="Visit logistics contact"><h4>Visit logistics contact</h4><p>{detail.fields.contact.name}</p><p>{detail.fields.contact.phone||'Phone not provided'}</p></section>}
    <p>Contact authority is unknown. Do not infer consent or decision-making authority.</p><p>Allergy status is unknown. Absence of information does not mean no allergies.</p>
    <button type="button" aria-expanded={reportOpen} onClick={()=>setReportOpen(value=>!value)}>{reportOpen?'Hide report history':'View report history'}</button>
-   {reportOpen&&<SharedVisitReport key={key} visitId={visit.id} visitRevision={visit.revision} load={loadReport} onVerificationFailure={()=>{setState({key,error:"Visit access could not be verified. Reload the schedule."});setReportOpen(false);setReportVersion(null);onVerificationFailure?.();}} selectedVersion={reportVersion} onSelectedVersionChange={setReportVersion}/>}
+   {reportOpen&&<SharedVisitReport key={key} visitId={visit.id} visitRevision={visit.revision} load={loadReport} loadCompletedHistory={visit.status==='Completed'?loadCompletedHistory:undefined} onVerificationFailure={()=>{setState({key,error:"Visit access could not be verified. Reload the schedule."});setReportOpen(false);setReportVersion(null);onVerificationFailure?.();}} selectedVersion={reportVersion} onSelectedVersionChange={setReportVersion}/>}
   </>}
   {(detail||leave.dirty||leave.pending||leave.retained)&&<StaffVisitWorkflow visit={visit} actor={actor} role={role} staff={staff} fetcher={fetcher} active={active&&!taskLeave.dirty&&!taskLeave.pending} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={saved} onReconciled={reconciled} onReconciliationFailure={reconciliationFailed} onScopeFailure={scopeFailed} onLeaveStateChange={leaveChanged}/>}
   {(detail||leave.dirty||leave.pending||leave.retained)&&tasksEnabled&&<VisitTaskWorkflow enabled scope={scope} actor={actor} role={role} visit={visit} fetcher={fetcher} active={active&&!!detail} blocked={!!(workflowLeave.dirty||workflowLeave.pending||workflowLeave.retained)} onLeave={setTaskLeave} onFailure={scopeFailed}/>}

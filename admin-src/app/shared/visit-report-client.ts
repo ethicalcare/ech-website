@@ -9,7 +9,7 @@ export type ReportVersion = Recorded & { outcome: 'completed' | 'follow-up' | 'n
   noteEventAt?: string | null };
 export type ReportReview = Recorded & { decision: 'accepted' | 'returned'; note: string };
 export type VisitReport = { schema: 1; visitId: string; visitRevision: number; reportRevision: number;
-  versions: ReportVersion[]; reviews: ReportReview[]; authorLabels?: {actorId:string;currentLabel:string|null}[] };
+  versions: ReportVersion[]; reviews: ReportReview[]; completedTaskHistoryEnabled?:boolean; authorLabels?: {actorId:string;currentLabel:string|null}[] };
 export type LoadVisitReport = (visitId: string, revision: number, signal: AbortSignal, expectedReportRevision?: number | null) => Promise<VisitReport>;
 
 export function createVisitReportClient(fetcher: typeof fetch, actor: string, role: Exclude<OperationalRole, null>): LoadVisitReport {
@@ -28,7 +28,7 @@ export function createVisitReportClient(fetcher: typeof fetch, actor: string, ro
     let response: Response;
     try {
       response = await fetcher(`/api/admin/operations?${query}`, { ...options, method: 'GET', signal: combined,
-        headers: { Accept: 'application/json', 'X-ECH-Schedule-Actor': actor, 'X-ECH-Schedule-Role': role, 'X-ECH-Report-Features':'1' } });
+        headers: { Accept: 'application/json', 'X-ECH-Schedule-Actor': actor, 'X-ECH-Schedule-Role': role, 'X-ECH-Report-Features':'2' } });
     } catch {
       signal.throwIfAborted();
       throw new SharedError('unavailable', 'Visit reports could not be verified.');

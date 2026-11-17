@@ -13,11 +13,11 @@ test('negotiated author labels use exact existing SQL contract and scoped client
  const f=fixture(),result=await readOperations(current,request(),f.fetcher,env);
  assert.equal(f.calls.length,2);assert.deepEqual(JSON.parse(f.calls[1].options.body),{p_visit_id:report.visitId,p_expected_visit_revision:3,p_expected_role:'staff',p_membership_revision:7,p_expected_report_revision:5});assert.equal(f.calls[1].options.redirect,'manual');assert.equal(f.calls[1].options.headers.Authorization,'Bearer fictional');
  assert.deepEqual(result.authorLabels,projection().labels);
- const client=createVisitReportClient(async(url,options)=>{assert.equal(options.headers['X-ECH-Report-Features'],'1');return Response.json(result);},actor,'staff');assert.deepEqual(await client(report.visitId,3,new AbortController().signal),result);
+ const client=createVisitReportClient(async(url,options)=>{assert.equal(options.headers['X-ECH-Report-Features'],'2');return Response.json(result);},actor,'staff');assert.deepEqual(await client(report.visitId,3,new AbortController().signal),result);
 });
 test('strict default off, inherited settings and absent/unknown negotiation never request names',async()=>{
  for(const flag of [undefined,false,true,'TRUE',' true','true ']){const f=fixture();assert.deepEqual(await readOperations(current,request(),f.fetcher,{...env,ECH_HOSTED_REPORT_AUTHOR_LABELS:flag}),report);assert.equal(f.calls.length,1);}
- for(const feature of [null,'2','true']){const f=fixture();assert.deepEqual(await readOperations(current,request(feature),f.fetcher,env),report);assert.equal(f.calls.length,1);}
+ for(const feature of [null,'3','true']){const f=fixture();assert.deepEqual(await readOperations(current,request(feature),f.fetcher,env),report);assert.equal(f.calls.length,1);}
  const f=fixture();assert.deepEqual(await readOperations(current,request(),f.fetcher,Object.create(env)),report);assert.equal(f.calls.length,1);
 });
 test('missing, extra, duplicate, mismatched, oversized or unsafe labels fail closed; null remains unknown',async()=>{

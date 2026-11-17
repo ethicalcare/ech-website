@@ -1,3 +1,5 @@
+import {SharedDailyCareLog} from './SharedDailyCareLog';
+import type {CompletedTaskHistory} from './completed-task-history-client';
 import {ReportActor} from './ReportActor';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { SharedError } from './live-model';
@@ -10,7 +12,8 @@ type State = { status: 'loading' | 'paused' } | { status: 'ready'; report: Visit
 const versionLabel = (version: number) => version === 0 ? 'Original report · version 0' : `Correction ${version} · version ${version}`;
 const outcomeLabel = { completed: 'Completed', 'follow-up': 'Follow-up needed', 'not-completed': 'Not completed' };
 
-export function SharedVisitReport({ visitId, visitRevision, load, onVerificationFailure, selectedVersion, onSelectedVersionChange }: {
+export function SharedVisitReport({ visitId, visitRevision, load, loadCompletedHistory, onVerificationFailure, selectedVersion, onSelectedVersionChange }: {
+  loadCompletedHistory?:(visitId:string,visitRevision:number,reportRevision:number,signal:AbortSignal)=>Promise<CompletedTaskHistory>;
   visitId: string; visitRevision: number; load: LoadVisitReport; onVerificationFailure: (code: string) => void;
   selectedVersion: number | null; onSelectedVersionChange: (version: number) => void;
 }) {
@@ -147,7 +150,7 @@ export function SharedVisitReport({ visitId, visitRevision, load, onVerification
             </ol>}
           </article>
         </>}
-        {report.versions.length > 0 && <SharedVisitNoteTimeline report={report} />}
+        {report.versions.length > 0 && (report.completedTaskHistoryEnabled===true && loadCompletedHistory ? <SharedDailyCareLog key={`${visitId}:${visitRevision}:${report.reportRevision}`} report={report} load={loadCompletedHistory} onFailure={()=>failure.current('unavailable')}/> : <SharedVisitNoteTimeline report={report} />)}
         <p>A report review does not verify attendance, approve work time, resolve an issue or grant clinical authority.</p>
       </>}
     </div>
