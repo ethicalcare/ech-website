@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -72,7 +73,7 @@ test('mounted workflow gates writes and retains pending form while hiding protec
   if(url.includes('?commands=1')){availability++;return Response.json({schema:1,enabled:true,membershipRevision:1});}
   if(url.includes('?visit='))return Response.json({visitId:id,revision:1,fields:{address:'Protected fixture address'},contactAuthority:'unknown',allergyStatus:'unknown'});
   if(url.includes('?report='))return Response.json({schema:1,visitId:id,visitRevision:1,reportRevision:0,versions:[],reviews:[]});
-  const from=new URL(url,'https://fixture.invalid').searchParams.get('from');
+  const from=fixtureVisitStart(url);
   return Response.json({schema:1,mode:'shared',clients:[{id,name:'Protected fixture name'}],staff:[{id:actor,name:'Staff fixture'}],visits:[{id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Confirmed',revision:1}]});
  };
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));

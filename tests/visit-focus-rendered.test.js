@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -23,7 +24,7 @@ test('opening focuses details once and accepted close returns focus without losi
    if(url.includes('commands=1'))return Response.json({schema:1,enabled:true,membershipRevision:3});
    if(url.includes('?visit='))return Response.json({visitId:id,revision:1,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'});
    if(url.includes('?report='))return Response.json({schema:1,visitId:id,visitRevision:1,reportRevision:role==='staff'?0:1,reviews:[],versions:role==='staff'?[]:[{revision:1,version:0,sourceRevision:null,actorId:author,actorRole:'staff',recordedAt:'2026-11-01T18:01:00.000Z',outcome:'completed',summary:'Original report',issue:'',actualStart:'2026-11-01T17:00:00.000Z',actualEnd:'2026-11-01T18:00:00.000Z',completedTasks:['Meal preparation'],observations:'',reason:null}]});
-   const from=new URL(url,'https://fixture.invalid').searchParams.get('from');return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fixture client'}],staff:[{id:actor,name:'Worker'}],visits:[{id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:role==='staff'?'In progress':'Completed',revision:1}]});
+   const from=fixtureVisitStart(url);return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fixture client'}],staff:[{id:actor,name:'Worker'}],visits:[{id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:role==='staff'?'In progress':'Completed',revision:1}]});
   };
   const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
   const field=()=>root.root.findAllByType('textarea').find(n=>n.props.id.endsWith(role==='staff'?'-summary':'-note'));

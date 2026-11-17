@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -22,7 +23,7 @@ test('task mount is opt-in; verified tasks propagate draft navigation guards and
  if(url.includes('commands=1'))return Response.json({schema:1,enabled:true,membershipRevision:3});
  if(url.includes('?report='))return Response.json({schema:1,visitId:id,visitRevision:1,reportRevision:0,reviews:[],versions:[]});
  if(url.includes('?visit='))return Response.json({visitId:id,revision:1,fields:{address:'Protected address'},contactAuthority:'unknown',allergyStatus:'unknown'});
- const from=new URL(url,'https://fixture.invalid').searchParams.get('from');return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fixture'}],staff:[{id:actor,name:'Worker'}],visits:[{id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision:1}]});
+ const from=fixtureVisitStart(url);return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fixture'}],staff:[{id:actor,name:'Worker'}],visits:[{id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision:1}]});
  };
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
  try{
@@ -47,7 +48,7 @@ test('unknown task save survives reopen, blocks changed membership, and retries 
  if(url.includes('visitTaskAvailability')){taskCalls++;return Response.json({schema:1,enabled:true,membershipRevision:membership});}
  if(url.includes('visitTasks')){taskCalls++;if(options.method==='POST'){const request=JSON.parse(options.body);writes.push(request);saved={taskId:request.taskId,version:1,outcome:request.outcome,observation:request.observation,actualAt:request.actualAt,recordedAt:'2026-11-17T19:00:00.000Z',actorId:actor,reason:null};if(writes.length===1)throw new Error('Lost response');return Response.json({visitId:id,taskId:task,version:1,operationId:request.operationId,recordedAt:saved.recordedAt});}if(deny)return new Response('',{status:403});return Response.json({visitId:id,visitRevision:1,plan:[{id:category,label:'Household',tasks:[{id:task,text:'Prepare meal'}]}],additions:[],results:saved?[saved]:[],resultVisibility:'limited'});}
  if(url.includes('?visit='))return Response.json({visitId:id,revision:1,fields:{address:'Protected address'},contactAuthority:'unknown',allergyStatus:'unknown'});
- const from=new URL(url,'https://fixture.invalid').searchParams.get('from');return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fixture'}],staff:[{id:actor,name:'Worker'}],visits:[{id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision:1}]});
+ const from=fixtureVisitStart(url);return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fixture'}],staff:[{id:actor,name:'Worker'}],visits:[{id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision:1}]});
  };
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
  try{

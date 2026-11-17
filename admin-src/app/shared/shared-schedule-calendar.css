@@ -1,0 +1,11 @@
+.shared-schedule-calendar{min-width:0;max-width:100%;max-height:70vh;overflow:auto;overscroll-behavior-x:contain;overscroll-behavior-y:auto;border:1px solid var(--line);border-radius:12px;}
+.shared-schedule-calendar__days{display:grid;grid-template-columns:repeat(var(--calendar-columns),minmax(180px,1fr));min-width:0;align-items:start;}
+.shared-schedule-calendar[data-view=day] .shared-schedule-calendar__days{grid-template-columns:minmax(0,1fr);}
+.shared-schedule-calendar__day{min-width:0;padding:12px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+.shared-schedule-calendar__day h3{font-size:14px;margin:0 0 12px;}
+.shared-schedule-calendar__day ul{list-style:none;margin:0;padding:0;display:grid;gap:10px;}
+.shared-schedule-calendar__day li{min-width:0;border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--surface);overflow-wrap:anywhere;}
+.shared-schedule-calendar__day p{margin:6px 0;}
+.shared-schedule-calendar__day button{white-space:normal;overflow-wrap:anywhere;width:100%;min-height:44px;}
+.shared-schedule-calendar__empty{color:var(--muted);font-size:13px;}
+@media(max-width:600px){.shared-schedule-calendar__days{grid-template-columns:repeat(var(--calendar-columns),minmax(160px,1fr));}.shared-schedule-calendar{max-height:65vh;}}

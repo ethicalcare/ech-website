@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -18,7 +19,7 @@ const session=(actor=id,role='manager',reads=true)=>({authenticated:true,princip
 const pending=[];
 const fetcher=(url,options)=>new Promise(resolve=>pending.push({url,options,resolve}));
 const element=s=>React.createElement(SharedScheduleRead,{session:s,fetcher});
-const payload=request=>{const from=new URL(request.url,'https://fixture.invalid').searchParams.get('from');return {schema:1,mode:'shared',clients:[{id:other,name:'Protected fixture name'}],staff:[],visits:[{id,clientId:other,workerId:null,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Open',revision:1}]};};
+const payload=request=>{const from=fixtureVisitStart(request.url);return {schema:1,mode:'shared',clients:[{id:other,name:'Protected fixture name'}],staff:[],visits:[{id,clientId:other,workerId:null,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Open',revision:1}]};};
 let root;await act(async()=>{root=create(element(null));});
 assert.equal(pending.length,0);assert.equal(root.toJSON(),null);
 await act(async()=>root.update(element(session(id,'manager',false))));assert.equal(pending.length,0);
@@ -94,7 +95,7 @@ test('rendered schedule clears rows on reload/date change and never renders malf
   assert.equal(requests[1].options.signal.aborted,true);
   await act(async()=>requests[1].resolve(Response.json({schema:1,mode:'shared',clients:[],staff:[],visits:[]})));
   assert.doesNotMatch(JSON.stringify(root.toJSON()),/No visits returned/);
-  assert.match(requests[2].url,/from=2026-11-20/);
+  assert.match(requests[2].url,/from=2026-11-01/);
   await act(async()=>requests[2].resolve(Response.json({schema:1,mode:'shared',clients:[],staff:[],visits:[],untrusted:'provider secret'})));
   assert.match(JSON.stringify(root.toJSON()),/could not be verified/);assert.doesNotMatch(JSON.stringify(root.toJSON()),/provider secret/);
   await act(async()=>root.root.findAllByType('button').find(node=>node.props.children==='Reload schedule').props.onClick());

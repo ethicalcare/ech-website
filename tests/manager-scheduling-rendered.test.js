@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -28,7 +29,7 @@ test('manager assigns returned staff with verified readback and retains another 
   if(url.includes('scheduling=1'))return Response.json({schema:1,enabled:true,membershipRevision:9});
   if(url.includes('scheduleVisit='))return Response.json({schema:1,visit});
   if(url.includes('?visit='))return Response.json({visitId:id,revision:visit.revision,fields:{address:'Fixture address'},contactAuthority:'unknown',allergyStatus:'unknown'});
-  const from=new URL(url,'https://fixture.invalid').searchParams.get('from');visit||={id,clientId:id,workerId:null,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Open',revision:1};
+  const from=fixtureVisitStart(url);visit||={id,clientId:id,workerId:null,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Open',revision:1};
   return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fictional client'}],staff:[{id:worker,name:'Returned staff member'}],visits:[visit]});
  };
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
@@ -97,7 +98,7 @@ test('mounted staff completed report clears terminal leave guard and restores hi
   if(url.includes('commands=1'))return Response.json({schema:1,enabled:true,membershipRevision:1});
   if(url.includes('?visit='))return Response.json({visitId:id,revision:visit.revision,fields:{address:'Verified detail'},contactAuthority:'unknown',allergyStatus:'unknown'});
   if(url.includes('?report='))return Response.json(report);
-  const from=new URL(url,'https://fixture.invalid').searchParams.get('from');visit||={id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision:1};
+  const from=fixtureVisitStart(url);visit||={id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision:1};
   return Response.json({schema:1,mode:'shared',clients:[{id,name:'Verified client'}],staff:[{id:actor,name:'Worker'}],visits:[visit]});
  };
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));

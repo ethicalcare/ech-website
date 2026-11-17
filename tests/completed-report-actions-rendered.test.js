@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -33,7 +34,7 @@ test('independent owner reviews exact latest version with retry, then corrects a
   if(url.includes('commands=1'))return Response.json({schema:1,enabled:true,membershipRevision:8});
   if(url.includes('?visit='))return Response.json({visitId:id,revision:5,fields:{address:'Verified detail'},contactAuthority:'unknown',allergyStatus:'unknown'});
   if(url.includes('?report='))return Response.json(report);
-  const from=new URL(url,'https://fixture.invalid').searchParams.get('from');return Response.json({schema:1,mode:'shared',clients:[{id,name:'Verified client'}],staff:[{id:author,name:'Staff author'}],visits:[{id,clientId:id,workerId:author,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Completed',revision:5}]});
+  const from=fixtureVisitStart(url);return Response.json({schema:1,mode:'shared',clients:[{id,name:'Verified client'}],staff:[{id:author,name:'Staff author'}],visits:[{id,clientId:id,workerId:author,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Completed',revision:5}]});
  };
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
  const change=async(suffix,value)=>act(async()=>root.root.findAll(node=>node.props.id?.endsWith('-'+suffix)&&['input','select','textarea'].includes(node.type))[0].props.onChange({target:{value}}));
@@ -86,7 +87,7 @@ test('completed-report action setup denied or stale clears previously read detai
    if(url.includes('?visit='))return Response.json({visitId:id,revision:5,fields:{address:'Sensitive prior detail'},contactAuthority:'unknown',allergyStatus:'unknown'});
    if(url.includes('?report='))return Response.json({error:'refused'},{status});
    scheduleReads++;if(scheduleReads>1)return new Promise(()=>{});
-   const from=new URL(url,'https://fixture.invalid').searchParams.get('from');return Response.json({schema:1,mode:'shared',clients:[{id,name:'Sensitive prior client'}],staff:[{id:author,name:'Fixture author'}],visits:[{id,clientId:id,workerId:author,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Completed',revision:5}]});
+   const from=fixtureVisitStart(url);return Response.json({schema:1,mode:'shared',clients:[{id,name:'Sensitive prior client'}],staff:[{id:author,name:'Fixture author'}],visits:[{id,clientId:id,workerId:author,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Completed',revision:5}]});
   };
   try{
    await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});

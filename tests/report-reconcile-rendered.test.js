@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -22,7 +23,7 @@ test('retained report draft reloads current same-purpose revision, failed reload
  if(url.includes('scheduleVisit=')){currentReads++;if(fail===true)return new Response('',{status:503});return Response.json({schema:1,visit:{...visit,revision,...(fail==='purpose'?{clientId:'30000000-0000-4000-8000-000000000001'}:{})}});}
  if(url.includes('?visit=')){detailReads++;const response=Response.json({visitId:id,revision,fields:{address:'Protected address revision '+revision},contactAuthority:'unknown',allergyStatus:'unknown'});if(detailReads===3)return new Promise(resolve=>{resolveDetail=()=>resolve(response);});return response;}
  if(url.includes('?report='))return Response.json({schema:1,visitId:id,visitRevision:revision,reportRevision:0,reviews:[],versions:[]});
- const from=new URL(url,'https://fixture.invalid').searchParams.get('from');visit={id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision};return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fixture client'}],staff:[{id:actor,name:'Worker'}],visits:[visit]});
+ const from=fixtureVisitStart(url);visit={id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision};return Response.json({schema:1,mode:'shared',clients:[{id,name:'Fixture client'}],staff:[{id:actor,name:'Worker'}],visits:[visit]});
  };
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
  const summary=()=>root.root.findAllByType('textarea').find(n=>n.props.id.endsWith('-summary'));

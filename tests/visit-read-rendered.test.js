@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -21,7 +22,7 @@ test('selected visit details retain scope, clear on selection/close/reload and r
  const detail=(id=actor,revision=1)=>({visitId:id,revision,fields:{address:'Protected fixture address',contact:{name:'Fictional logistics',phone:null,purpose:'visit_logistics'}},contactAuthority:'unknown',allergyStatus:'unknown'});
  try{
   await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});
-  const from=new URL(requests[0].url,'https://fixture.invalid').searchParams.get('from');
+  const from=fixtureVisitStart(requests[0].url);
   const visit={id:actor,clientId:client,workerId:other,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Assigned',revision:1};
   await act(async()=>requests[0].resolve(Response.json({schema:1,mode:'shared',clients:[{id:client,name:'Fictional client'}],staff:[{id:other,name:'Mapped worker'}],visits:[visit]})));
   assert.equal(requests.length,1);

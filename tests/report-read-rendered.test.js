@@ -1,3 +1,4 @@
+import {fixtureVisitStart} from './calendar-fixture-time.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -66,7 +67,7 @@ test('report access/stale failures clear sensitive detail AND schedule before re
   let root;const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
   try{
    await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});
-   const from=new URL(calls[0].url,'https://fixture.invalid').searchParams.get('from');
+   const from=fixtureVisitStart(calls[0].url);
    await act(async()=>calls[0].resolve(Response.json({schema:1,mode:'shared',clients:[{id:reviewer,name:'Sensitive client name'}],staff:[{id:actor,name:'Fixture worker'}],visits:[{id:visit,revision:3,clientId:reviewer,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'Assigned'}]})));
    await act(async()=>button('View visit details').props.onClick());
    await act(async()=>calls[1].resolve(Response.json({visitId:visit,revision:3,fields:{address:'Sensitive address',entry:'Sensitive entry',contact:{name:'Sensitive contact',phone:'+16045550199',purpose:'visit_logistics'}},contactAuthority:'unknown',allergyStatus:'unknown'})));
