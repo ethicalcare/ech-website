@@ -1,3 +1,4 @@
+import { activityDayGroups } from './activity-day-groups';
 import { orderedTaskEvents, taskEventLocalTime } from './visit-task-timeline';
 import type { VisitTaskOutcome, VisitTaskRead } from './visit-task-client';
 
@@ -20,8 +21,8 @@ export function SharedVisitTaskTimeline({snapshot}:{snapshot:VisitTaskRead}) {
     <p>Ordered by actual event time. Recorded time is shown separately. Task activity does not approve worked time.</p>
     {snapshot.resultVisibility==='limited' && <p>Only results visible to this account are shown; this is not a complete visit history.</p>}
     {events.length===0 ? <p>No visible task-result events are available. This does not establish that care was missed.</p> :
-      <ol>{events.map(event=><li key={`${event.taskId}:${event.version}`}>
-        <h4>{labels.get(event.taskId) ?? 'Task unavailable'} · {outcomes[event.outcome]}</h4>
+      activityDayGroups(events,event=>event.actualAt).map(group=><section key={group.day} aria-label={`Task activity on ${group.day} Vancouver`}><h4>{group.day} · Vancouver</h4><ol>{group.events.map(event=><li key={`${event.taskId}:${event.version}`}>
+        <h5>{labels.get(event.taskId) ?? 'Task unavailable'} · {outcomes[event.outcome]}</h5>
         <p>{event.version===latestVisible.get(event.taskId) ? 'Latest visible version' : 'Earlier visible version · superseded'}</p>
         <dl>
           <dt>Actual event time · Vancouver</dt><dd><time dateTime={event.actualAt}>{taskEventLocalTime(event.actualAt)}</time></dd>
@@ -31,6 +32,6 @@ export function SharedVisitTaskTimeline({snapshot}:{snapshot:VisitTaskRead}) {
           <dt>Observation</dt><dd>{event.observation || 'No observation recorded.'}</dd>
           {event.reason && <><dt>Correction reason</dt><dd>{event.reason}</dd></>}
         </dl>
-      </li>)}</ol>}
+      </li>)}</ol></section>)}
   </section>;
 }

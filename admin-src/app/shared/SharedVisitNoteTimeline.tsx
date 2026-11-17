@@ -1,3 +1,4 @@
+import { activityDayGroups } from './activity-day-groups';
 import { useState } from 'react';
 import { companyTime } from './time';
 import type { VisitReport, ReportVersion } from './visit-report-client';
@@ -31,7 +32,7 @@ export function SharedVisitNoteTimeline({report}:{report:VisitReport}) {
     <summary>Visit note activity · all saved report versions</summary>
     {open && <>
     <p>Known note event times are ordered chronologically. Each original and correction remains visible; historical versions are not additional care events. This is this visit’s report-note history, not a complete daily care log. Reviews and worked-time approval remain separate.</p>
-    {known.length?<ol aria-label="Visit notes with known event times">{known.map(entry)}</ol>:<p>No note event times are recorded.</p>}
+    {known.length?<div aria-label="Visit notes with known event times">{activityDayGroups(known,event=>event.noteEventAt!).map(group=><section key={group.day} aria-label={`Visit notes on ${group.day} Vancouver`}><h4>{group.day} · Vancouver</h4><ol>{group.events.map(entry)}</ol></section>)}</div>:<p>No note event times are recorded.</p>}
     {unknown.length>0&&<section aria-label="Visit notes with unknown event time"><h4>Event time unknown</h4><p>These entries cannot be placed in the event chronology. Recorded time does not establish when the note event happened.</p><ol>{unknown.map(entry)}</ol></section>}
     </>}
   </details>;
