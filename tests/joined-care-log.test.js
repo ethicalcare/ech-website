@@ -71,3 +71,39 @@ test('care-log cached rows clear when the authorization-scoped loader changes an
   assert.doesNotMatch(text(),/Fictional walk|Original factual note/);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=old.window;globalThis.document=old.document;}
 });
+
+const {SharedVisitRead}=await component('SharedVisitRead');
+test('selected-visit identity binds actual history clients and rejects late previous-identity history',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const old={window:globalThis.window,document:globalThis.document};
+ globalThis.window=Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});
+ globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true});
+ const historyReads=[];let root;
+ const fetcher=async(url,options)=>{
+  const params=new URL(url,'https://fictional.invalid').searchParams;
+  if(params.has('completedTaskHistory'))return new Promise(resolve=>historyReads.push({options,resolve}));
+  if(params.has('report'))return Response.json({...report,completedTaskHistoryEnabled:true});
+  if(params.has('visit'))return Response.json({visitId:report.visitId,revision:report.visitRevision,fields:{address:'Fictional protected address'},contactAuthority:'unknown',allergyStatus:'unknown'});
+  throw Error('Unexpected fictional route');
+ };
+ const visit={id:report.visitId,clientId:'40000000-0000-4000-8000-000000000001',workerId:task.actorId,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T19:00:00.000Z',status:'Completed',revision:report.visitRevision};
+ const props={visit,actor:task.actorId,role:'manager',fetcher,onClose(){}};
+ const text=()=>JSON.stringify(root.toJSON());
+ const historyButton=()=>root.root.findAllByType('button').find(b=>b.props.children==='View report history');
+ try{
+  await act(async()=>{root=create(React.createElement(SharedVisitRead,props));});
+  await act(async()=>historyButton().props.onClick());assert.equal(historyReads.length,1);
+  assert.equal(historyReads[0].options.headers['X-ECH-Schedule-Actor'],props.actor);
+  assert.equal(historyReads[0].options.headers['X-ECH-Schedule-Role'],'manager');
+  const nextActor='50000000-0000-4000-8000-000000000001';
+  await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,actor:nextActor,role:'owner'})));
+  assert.equal(historyReads[0].options.signal.aborted,true);
+  assert.equal(historyReads.length,2);
+  assert.equal(historyReads[1].options.headers['X-ECH-Schedule-Actor'],nextActor);
+  assert.equal(historyReads[1].options.headers['X-ECH-Schedule-Role'],'owner');
+  await act(async()=>historyReads[0].resolve(Response.json({...history,resultVisibility:'complete'})));
+  assert.doesNotMatch(text(),/Fictional walk|Original factual note/);
+  await act(async()=>historyReads[1].resolve(new Response(null,{status:403})));
+  assert.doesNotMatch(text(),/Fictional walk|Original factual note/);assert.match(text(),/Visit access could not be verified/);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=old.window;globalThis.document=old.document;}
+});
