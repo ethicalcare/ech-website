@@ -48,6 +48,15 @@ test('staff accepts assigned visit, starts it and submits report with exact retr
   assert.equal(posts[0].command.type,'confirm');assert.equal(confirmed.at(-1).status,'Confirmed');
   await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));await settle();
   assert.equal(posts[1].command.type,'start');assert.equal(confirmed.at(-1).status,'In progress');
+  for (const [label,suffix] of [['Jump to visit notes','observations'],['Jump to visit issue','issue']]) {
+   const shortcut=root.root.findAllByType('button').find(button=>button.props.children===label);
+   const field=root.root.findAllByType('textarea').find(input=>input.props.id.endsWith('-'+suffix));
+   assert.equal(shortcut.props.type,'button');
+   let focused;
+   shortcut.props.onClick({currentTarget:{ownerDocument:{getElementById:id=>({focus(){focused=id;}})}}});
+   assert.equal(focused,field.props.id);
+  }
+  assert.equal(posts.length,2,'shortcuts only focus existing fields');
   const change=async(suffix,value)=>act(async()=>{root.root.findAll(node=>node.props.id?.endsWith('-'+suffix)&&['input','select','textarea'].includes(node.type))[0].props.onChange({target:{value}});});
   await change('outcome','completed');await change('summary','Fictional care provided.');await change('tasks','Fictional meal preparation');await change('start','2026-11-01T10:00');await change('end','2026-11-01T11:00');
   assert.equal(leave.dirty,true);
