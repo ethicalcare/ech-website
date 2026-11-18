@@ -42,3 +42,32 @@ test('care log identifies latest visible versions per task and report without dr
  assert.equal(entries.find(e=>e.key==='note:3').latestVisible,true);
  assert.equal(entries.length,5);
 });
+
+test('care-log cached rows clear when the authorization-scoped loader changes and old reads cannot restore them',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const old={window:globalThis.window,document:globalThis.document};
+ globalThis.window=Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});
+ globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true});
+ let root,failures=0;const reads=[];
+ const loader=scope=>(id,revision,reportRevision,signal)=>new Promise((resolve,reject)=>reads.push({scope,signal,resolve,reject}));
+ const first=loader('old'),second=loader('new'),third=loader('denied');
+ const props={report,load:first,onFailure:()=>failures++};
+ const text=()=>JSON.stringify(root.toJSON());
+ try{
+  await act(async()=>{root=create(React.createElement(SharedDailyCareLog,props));});
+  await act(async()=>reads[0].resolve(history));assert.match(text(),/Fictional walk/);
+  await act(async()=>{root.update(React.createElement(SharedDailyCareLog,{...props,load:second}));});
+  assert.doesNotMatch(text(),/Fictional walk|Original factual note/);
+  await act(async()=>reads[1].resolve(history));assert.match(text(),/Fictional walk/);
+  await act(async()=>window.dispatchEvent(new Event('focus')));
+  const oldRead=reads[2];assert.equal(oldRead.scope,'new');
+  await act(async()=>{root.update(React.createElement(SharedDailyCareLog,{...props,load:third}));});
+  assert.equal(oldRead.signal.aborted,true);assert.equal(reads[3].scope,'denied');
+  assert.doesNotMatch(text(),/Fictional walk|Original factual note/);
+  await act(async()=>oldRead.resolve(history));
+  assert.doesNotMatch(text(),/Fictional walk|Original factual note/);
+  await act(async()=>reads[3].reject(Error('Fictional denied assignment')));
+  assert.equal(failures,1);assert.match(text(),/Care log access could not be verified/);
+  assert.doesNotMatch(text(),/Fictional walk|Original factual note/);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=old.window;globalThis.document=old.document;}
+});
