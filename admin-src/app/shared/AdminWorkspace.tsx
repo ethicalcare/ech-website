@@ -1,4 +1,5 @@
 'use client';
+import {StaffProfiles} from './StaffProfiles';
 import {clearVisitTaskResultEntries} from './SharedVisitTaskResults';
 import './admin.css';
 import './crm.css';
@@ -149,6 +150,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     {!session && !checking && <section className="panel dashboard-card"><p>Account access could not be verified.</p><button type="button" onClick={() => refresh()}>Reload account status</button></section>}
     {session?.authenticated === false && <SignIn session={session} client={client} onVerified={refresh} />}
 
+    {session?.authenticated && <StaffProfiles key={session.principal.id} session={session} fetcher={fetcher}/> }
     {session?.authenticated && manageAccounts && <div id="accounts-workspace" hidden={!accountsOpen}>
      <AdminTools key={actor + ':' + can(session, 'backup.export') + ':' + accessScope} session={session} accountDecisionHistoryEnabled={can(session, 'account.history')}
       onChanged={() => refresh()} requests={accountRequests.state} reloadRequests={accountRequests.reload}

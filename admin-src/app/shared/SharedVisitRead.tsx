@@ -2,6 +2,7 @@
 import './shared-visit-details.css';
 import {VisitTaskWorkflow} from './VisitTaskWorkflow';
 import {StaffVisitWorkflow} from './StaffVisitWorkflow';
+import {VisitAttendance} from './VisitAttendance';
 import {useCallback} from 'react';
 import {scheduleLabel} from './schedule-window';
 import type {VisitLeaveState} from './SharedVisitActions';
@@ -13,7 +14,7 @@ import {createVisitDetailClient,type VisitDetail} from './visit-detail-client';
 import type {ScheduleIdentity,ScheduleVisit} from './schedule-client';
 
 // Parent keys this view by account/role/feature scope and visit revision.
-export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerificationFailure,active=true,staff=[],schedulingEnabled=false,actionsEnabled=false,onConfirmed,onLeaveStateChange,tasksEnabled=false,scope=""}:{tasksEnabled?:boolean;scope?:string;actor:string;role:'owner'|'manager'|'staff';visit:ScheduleVisit;fetcher:typeof fetch;onClose:()=>void;onVerificationFailure?:()=>void;active?:boolean;staff?:ScheduleIdentity[];schedulingEnabled?:boolean;actionsEnabled?:boolean;onConfirmed?:(visit:ScheduleVisit)=>void;onLeaveStateChange?:(state:VisitLeaveState)=>void}){
+export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerificationFailure,active=true,staff=[],schedulingEnabled=false,actionsEnabled=false,onConfirmed,onLeaveStateChange,tasksEnabled=false,attendanceEnabled=false,scope=""}:{tasksEnabled?:boolean;attendanceEnabled?:boolean;scope?:string;actor:string;role:'owner'|'manager'|'staff';visit:ScheduleVisit;fetcher:typeof fetch;onClose:()=>void;onVerificationFailure?:()=>void;active?:boolean;staff?:ScheduleIdentity[];schedulingEnabled?:boolean;actionsEnabled?:boolean;onConfirmed?:(visit:ScheduleVisit)=>void;onLeaveStateChange?:(state:VisitLeaveState)=>void}){
  const loadCompletedHistory=useMemo(()=>createCompletedTaskHistoryClient(fetcher,actor,role),[fetcher,actor,role]);
  const heading=useRef<HTMLHeadingElement|null>(null);
  const focused=useRef(false);
@@ -60,6 +61,7 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
    </dl><p>This is the scheduled assignment, not report authorship, verified attendance or approval of worked time.</p></section>}
    <dl>{Object.entries(labels).map(([field,label])=><div key={field}><dt>{label}</dt><dd>{detail.fields[field as keyof typeof labels]||'Not provided'}</dd></div>)}</dl>
    {detail.fields.contact&&<section aria-label="Visit logistics contact"><h4>Visit logistics contact</h4><p>{detail.fields.contact.name}</p><p>{detail.fields.contact.phone||'Phone not provided'}</p></section>}
+   {attendanceEnabled&&<VisitAttendance key={key} visit={visit} actor={actor} role={role} fetcher={fetcher}/>}
    <p>Contact authority is unknown. Do not infer consent or decision-making authority.</p><p>Allergy status is unknown. Absence of information does not mean no allergies.</p>
    <button type="button" aria-expanded={reportOpen} onClick={()=>setReportOpen(value=>!value)}>{reportOpen?'Hide report history':'View report history'}</button>
    {reportOpen&&<SharedVisitReport key={key} visitId={visit.id} visitRevision={visit.revision} load={loadReport} loadCompletedHistory={visit.status==='Completed'?loadCompletedHistory:undefined} onVerificationFailure={()=>{setState({key,error:"Visit access could not be verified. Reload the schedule."});setReportOpen(false);setReportVersion(null);onVerificationFailure?.();}} selectedVersion={reportVersion} onSelectedVersionChange={setReportVersion}/>}

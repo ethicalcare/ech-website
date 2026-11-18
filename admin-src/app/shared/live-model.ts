@@ -2,7 +2,7 @@ export const CAPABILITIES = ['account.history', 'access.review', 'users.manage',
 export type Capability = typeof CAPABILITIES[number];
 export type OperationalRole = 'owner' | 'manager' | 'staff' | null;
 export type Principal = { id: string; email: string; technicalAdmin: boolean; applicationAdmin: boolean; delegatedUserAdmin?: true; operationalRole: OperationalRole };
-export type OperationsFeatures = { reads:boolean; scheduleCommands:boolean; scheduleRecurrence:boolean; visitActions:boolean; taskResults?:boolean };
+export type OperationsFeatures = { reads:boolean; scheduleCommands:boolean; scheduleRecurrence:boolean; visitActions:boolean; taskResults?:boolean; visitAttendance?:boolean };
 export type Session = { authenticated: true; principal: Principal; capabilities: Capability[]; operationsFeatures?:OperationsFeatures } | { authenticated: false; principal: null; capabilities: []; login: { method: 'email_otp' | 'email_password'; siteKey: string | null; googleEnabled?: true } };
 export type SharedPerson = { id: string; name: string; role: string; methods: { id: string; kind: 'phone' | 'email'; value: string; label: string }[] };
 export type SharedInquiry = { id: string; revision: number; name: string; phone: string; email: string; city: string; relationship: string; careRecipient: string; careRecipientPhone: string; careRecipientEmail: string; preferredContact: string; need: string; source: string; status: string; ownerId: string | null; next: string; followUpAt: string | null; referralPartnerId: string | null; referringPersonId: string | null; referralContext: string; details: string; createdAt: string; updatedAt: string };
@@ -40,10 +40,10 @@ export function parseSession(value: unknown): Session {
   assertWire(Array.isArray(s.capabilities) && new Set(s.capabilities).size === s.capabilities.length && s.capabilities.every(c => typeof c === 'string' && allowed.includes(c)));
   if(Object.hasOwn(s,'operationsFeatures')){
     const fields=object(s.operationsFeatures);
-    const f=exact(fields,['reads','scheduleCommands','scheduleRecurrence','visitActions',...(Object.hasOwn(fields,'taskResults')?['taskResults']:[])]);
+    const f=exact(fields,['reads','scheduleCommands','scheduleRecurrence','visitActions',...(Object.hasOwn(fields,'taskResults')?['taskResults']:[]),...(Object.hasOwn(fields,'visitAttendance')?['visitAttendance']:[])]);
     assertWire(Object.values(f).every(value=>typeof value==='boolean'));
     assertWire(p.operationalRole!==null || Object.values(f).every(value=>value===false));
-    assertWire(f.reads===true || (!f.scheduleCommands && !f.scheduleRecurrence && !f.visitActions && !f.taskResults));
+    assertWire(f.reads===true || (!f.scheduleCommands && !f.scheduleRecurrence && !f.visitActions && !f.taskResults && !f.visitAttendance));
     assertWire(!f.scheduleRecurrence || (f.scheduleCommands && ['owner','manager'].includes(p.operationalRole as string)));
   }
   return s as Session;

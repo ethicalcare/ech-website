@@ -139,3 +139,28 @@ test('acknowledged staff confirmation clears leave protection when visit actions
   assert.deepEqual(leave,{dirty:false,pending:false,retained:false});
  }finally{if(root)await act(async()=>root.unmount());}
 });
+
+test('staff opens the current in-progress visit from My day and can return to the calendar',async()=>{
+ const saved=globalThis.window;globalThis.window=Object.assign(new EventTarget(),{confirm:()=>false});
+ const actor='10000000-0000-4000-8000-000000000001',id='20000000-0000-4000-8000-000000000001';
+ const other='20000000-0000-4000-8000-000000000002';
+ const session={authenticated:true,principal:{id:actor,operationalRole:'staff'},capabilities:[],operationsFeatures:{reads:true,scheduleCommands:false,scheduleRecurrence:false,visitActions:false}};
+ let root;
+ const fetcher=async(url)=>{
+  if(url.includes('visit=')){assert.ok(url.includes(id));return Response.json({visitId:id,revision:1,fields:{address:'Fictional shift location'},contactAuthority:'unknown',allergyStatus:'unknown'});}
+  const from=fixtureVisitStart(url);
+  const visit={id,clientId:id,workerId:actor,service:'Home support',start:from,end:new Date(Date.parse(from)+3600000).toISOString(),status:'In progress',revision:1};
+  return Response.json({schema:1,mode:'shared',clients:[{id,name:'Current client'},{id:other,name:'Other client'}],staff:[{id:actor,name:'Staff fixture'}],visits:[{...visit,id:other,clientId:other,status:'Assigned'},visit]});
+ };
+ const byLabel=label=>root.root.findAll(node=>node.props['aria-label']===label);
+ const button=label=>root.root.findAllByType('button').find(node=>node.props.children===label);
+ try{
+  await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});
+  assert.equal(byLabel('My day')[0].findByType('strong').props.children,'Current client');
+  await act(async()=>button('Open current visit').props.onClick());
+  assert.equal(byLabel('Visit calendar').length,0);
+  assert.match(JSON.stringify(root.toJSON()),/Fictional shift location/);
+  await act(async()=>button('Close visit details').props.onClick());
+  assert.equal(byLabel('Visit calendar').length,1);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=saved;}
+});
