@@ -305,7 +305,7 @@ export function AccessRequests({ requests, reload, owner, fetcher, renderHistory
       {message && <p ref={notice} tabIndex={-1} role="status">{message}</p>}
       {operation && <aside className="panel dashboard-card">
         <p>{pending ? 'Saving decision' : knownFailure ? 'Rejected decision retained' : 'Decision outcome unconfirmed'} for <strong>{operation.email}</strong>.</p>
-        <p>{operation.body.command.type === 'approve' ? `Approve access: ${roleLabels[operation.body.command.role!]}`
+        <p>{operation.body.command.type === 'approve' ? `Approve access: ${roleLabels[operation.body.command.role!]}${operation.body.command.delegatedUserAdmin === true ? ' · can manage staff and managers' : ''}`
           : operation.body.command.type === 'deny' ? 'Deny signup request' : 'Revoke account access'}</p>
         {!pending && <p>Refresh and check the current account status before retrying this decision.</p>}
         <button type="button" disabled={pending} onClick={() => void commit(operation)}>Retry same decision</button>
