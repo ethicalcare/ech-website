@@ -135,3 +135,29 @@ test('inactive selected visit conceals details, aborts old reads and freshly ver
   assert.doesNotMatch(text(),/Fictional protected address/);assert.match(text(),/Visit details could not be verified/);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=old.window;globalThis.document=old.document;}
 });
+
+test('selected-visit deactivation retains a dirty scheduling draft without sending it',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ let root,leave;const reads=[];
+ const visit={id:report.visitId,clientId:'40000000-0000-4000-8000-000000000001',workerId:task.actorId,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T19:00:00.000Z',status:'Assigned',revision:report.visitRevision};
+ const fetcher=async(url,options)=>{
+  assert.equal(options.method,'GET','unsent drafts must not mutate the server');reads.push(url);
+  if(url.includes('scheduling=1'))return Response.json({schema:1,enabled:true,membershipRevision:7});
+  assert(url.includes('?visit='));return Response.json({visitId:visit.id,revision:visit.revision,fields:{address:'Fictional protected address'},contactAuthority:'unknown',allergyStatus:'unknown'});
+ };
+ const props={visit,actor:task.actorId,role:'manager',fetcher,schedulingEnabled:true,onClose(){},onLeaveStateChange:value=>{leave=value;}};
+ const text=()=>JSON.stringify(root.toJSON());
+ try{
+  await act(async()=>{root=create(React.createElement(SharedVisitRead,props));});
+  await act(async()=>{root.root.findAllByType('input')[0].props.onChange({target:{value:'2026-11-01T10:15:00.000'}});root.root.findByType('textarea').props.onChange({target:{value:'Fictional travel adjustment'}});root.root.findByType('form').props.onChange();});
+  assert.equal(leave.dirty,true);const priorReads=reads.length;
+  await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,active:false})));
+  assert.equal(leave.dirty,true);assert.equal(reads.length,priorReads);
+  assert.match(text(),/schedule draft is retained/);assert.doesNotMatch(text(),/Fictional protected address|Fictional travel adjustment/);
+  assert.equal(root.root.findAllByType('textarea').length,0);
+  await act(async()=>root.update(React.createElement(SharedVisitRead,props)));
+  assert.equal(leave.dirty,true);assert.equal(reads.length,priorReads+2,'detail and command access are freshly checked');
+  assert.equal(root.root.findAllByType('input')[0].props.value,'2026-11-01T10:15:00.000');
+  assert.equal(root.root.findByType('textarea').props.value,'Fictional travel adjustment');
+ }finally{if(root)await act(async()=>root.unmount());}
+});
