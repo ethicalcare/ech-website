@@ -19,9 +19,9 @@ import {createScheduleClient,type ScheduleSnapshot} from './schedule-client';
 // role or negotiated features destroys it rather than reusing prior rows.
 export function SharedScheduleRead({session,fetcher=fetch,active=true}:{session:Session|null;fetcher?:typeof fetch;active?:boolean}){
  if(!session?.authenticated || !operationsFeatures(session).reads || !session.principal.operationalRole)return null;
- return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
+ return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} attendanceEnabled={operationsFeatures(session).visitAttendance===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
 }
-function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled}:{scope:string;tasksEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
+function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled}:{scope:string;tasksEnabled:boolean;attendanceEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
  const visitButtons=useRef(new Map<string,HTMLButtonElement>());
  const currentVisitButton=useRef<HTMLButtonElement|null>(null);
  const [focusedShift,setFocusedShift]=useState(false);
@@ -107,6 +107,6 @@ function ScheduleRows({scope,tasksEnabled,actor,role,fetcher,active,schedulingEn
   </section>}
   {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior schedule rows and visit details are hidden until its result is verified.</p>}
   {selectedVisit&&!showingFocusedShift&&!shownVisits.some(visit=>visit.id===selectedVisit.id)&&<p>The selected visit is outside the current staff filter or calendar view. Its details and drafts remain open.</p>}
-  {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
+  {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} attendanceEnabled={attendanceEnabled} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
  </section>;
 }

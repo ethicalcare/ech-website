@@ -125,6 +125,10 @@
     {
       "file": "migrations/20261118070000_operations_exact_day_visit.sql",
       "sha256": "68235b55058314587d98b18d40edf6afd6585ed00bfceee36b3e602a1ccfbd77"
+    },
+    {
+      "file": "migrations/20261118221000_operations_visit_attendance.sql",
+      "sha256": "31193840831325f3f9463e2fe8f0125e6093a7e8257b17d7c22978ae057e81fd"
     }
   ]
 }
