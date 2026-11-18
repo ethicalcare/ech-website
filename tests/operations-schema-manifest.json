@@ -121,6 +121,10 @@
     {
       "file": "migrations/20261117145120_completed_task_history.sql",
       "sha256": "09dc8de17f5b19f276f49097da1a5a3a1984569830cc5ca26c3dc63112aac960"
+    },
+    {
+      "file": "migrations/20261118070000_operations_exact_day_visit.sql",
+      "sha256": "68235b55058314587d98b18d40edf6afd6585ed00bfceee36b3e602a1ccfbd77"
     }
   ]
 }

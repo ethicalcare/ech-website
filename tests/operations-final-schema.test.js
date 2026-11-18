@@ -6,7 +6,7 @@ const sources=schemaSources();
 const names=sources.map(s=>s.file.split('/').pop());
 test('complete final schema matches reviewed source hashes and all repository SQL',()=>{
   assert.deepEqual([...names].sort(),readdirSync(new URL('../migrations/',import.meta.url)).filter(n=>n.endsWith('.sql')).sort());
-  assert.equal(new Set(names.map(n=>n.split('_')[0])).size,30);
+  assert.equal(new Set(names.map(n=>n.split('_')[0])).size,31);
   for(const {sql} of sources){assert.match(sql,/\bbegin\s*;/iu);assert.match(sql,/\bcommit\s*;\s*$/iu);}
 });
 test('full explicit dependency order includes partner and all Operations revisions',()=>{

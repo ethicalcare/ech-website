@@ -66,7 +66,7 @@ export function createVisitActionsClient(fetcher: typeof fetch, actor: string, r
     },
     async commit(action: VisitAction, signal: AbortSignal, visit: ScheduleVisit,
       loadDetail: (id:string,revision:number,signal:AbortSignal)=>Promise<VisitDetail>, loadReport: LoadVisitReport): Promise<{visit:ScheduleVisit;report:VisitReport|null;receipt:VisitActionReceipt}> {
-      if (!isVisitAction(action)) throw new SharedError('invalid_request','Use a summary of 3–2000 characters, past UTC times under 24 hours, at most 50 completed tasks, and a reason or review note of 3–500 characters. A completed outcome requires at least one task.');
+      if (!isVisitAction(action)) throw new SharedError('invalid_request','Use a summary of 3–2000 characters, past UTC times no longer than 24 hours, at most 50 completed tasks, and a reason or review note of 3–500 characters. A completed outcome requires at least one task.');
       if (!visit || visit.id !== action.visitId || visit.revision !== action.visitRevision)
         throw new SharedError('stale_visit','The selected visit does not match this request. Reload the visit before preparing a new request.');
       const receipt = await send('', signal, action);

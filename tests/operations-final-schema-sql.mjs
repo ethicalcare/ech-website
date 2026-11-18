@@ -12,7 +12,7 @@ const args=process.argv.slice(2);
 assert.ok(args.length===0 || (args.length===1 && args[0]==='--run-fictional'),'Only --run-fictional supported; no connection/URL arguments');
 const owner=randomUUID();
 const sources=fictionalSources(owner);
-console.log('PREPARATION: 30 source hashes verified. Applying migrations grants some authenticated reads; this harness uses only a private disposable cluster.');
+console.log('PREPARATION: 31 source hashes verified. Applying migrations grants some authenticated reads; this harness uses only a private disposable cluster.');
 if(!args.length){console.log(sources.map(s=>s.file).join('\n'));console.log('NOT EXECUTED. Use --run-fictional with preinstalled native PostgreSQL for schema/ACL verification. This is not hosted-provider or behavioral verification.');process.exit(0);}
 const bin=n=>process.env.PG_BIN?join(resolve(process.env.PG_BIN),n):n;
 // Do not inherit a default server, database, service file or credentials.
@@ -66,6 +66,45 @@ try{
  assert.equal(sql(`select relrowsecurity from pg_class where oid=${quote('public.'+table)}::regclass`),'t',table);
  for(const role of ['anon','authenticated'])for(const privilege of ['INSERT','UPDATE','DELETE','TRUNCATE'])assert.equal(sql(`select has_table_privilege(${quote(role)},${quote('public.'+table)},${quote(privilege)})`),'f',role+' '+table+' '+privilege);
  }
+ });
+ check('exact-day scheduling follows the owner-reviewed service limit only',()=>{
+  const statements = `do $fixture$
+declare v public.ech_schedule_visits; endpoint timestamptz;
+begin
+ v.id := '10000000-0000-4000-8000-000000000911';
+ v.client_id := '10000000-0000-4000-8000-000000000912';
+ v.service := 'Home support';
+ v.status := 'Open';
+ v.starts_at := '2026-11-01 05:00:00+00';
+ v.ends_at := v.starts_at + interval '24 hours';
+ insert into public.ech_schedule_clients (id,name) values (v.client_id,'Fictional client');
+ insert into public.ech_schedule_service_instructions (client_id,version,saved_at,saved_by,evidence_ref)
+   values(v.client_id,1,now(),'${owner}','fictional plan');
+ insert into public.ech_schedule_client_readiness (client_id,service,area,confirmed_by,confirmed_at,instructions_version)
+   values(v.client_id,v.service,'Fictional area','${owner}',now(),1);
+ insert into public.ech_schedule_service_rules (service,min_minutes,max_minutes,travel_buffer_minutes,required_credentials,review_ref)
+   values(v.service,180,1440,0,array[]::text[],'fictional reviewed max');
+ perform public.ech_schedule_validate_dispatch(v,false);
+ v.ends_at := v.ends_at + interval '0.001 seconds';
+ begin
+   perform public.ech_schedule_validate_dispatch(v,false);
+   raise exception 'More than 24 hours accepted';
+ exception when sqlstate 'PT409' then null;
+ end;
+ update public.ech_schedule_service_rules set max_minutes=720 where service=v.service;
+ v.ends_at := v.starts_at + interval '12 hours' - interval '0.001 seconds';
+ perform public.ech_schedule_validate_dispatch(v,false);
+ foreach endpoint in array array[v.starts_at + interval '12 hours', v.starts_at + interval '24 hours'] loop
+  v.ends_at := endpoint;
+  begin
+   perform public.ech_schedule_validate_dispatch(v,false);
+   raise exception 'Existing lower max broadened';
+  exception when sqlstate 'PT409' then null;
+  end;
+ end loop;
+end;
+$fixture$;`;
+  sql(statements);
  });
  console.log(`${passed} final-schema installation/catalog/ACL checks passed. No writer activation; no behavioral or real-provider sign-in claim.`);
 }finally{

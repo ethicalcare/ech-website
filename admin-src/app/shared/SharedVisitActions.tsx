@@ -162,7 +162,7 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
     // Invalid local input has never been sent. Keep it editable instead of
     // putting it into the retained-request/reconciliation workflow.
     if(!isVisitAction(action)) {
-      setError(true);setMessage('Check the factual summary, actual times and completed tasks. Use a summary of 3–2000 characters, an end time after the start and in the past, a visit under 24 hours, and at most 50 tasks of 500 characters each. Issue text allows 1000 characters and observations 3000. Corrections and reviews also need a reason or note of 3–500 characters. Remove unsupported control characters from text. Your draft is still editable.');return;
+      setError(true);setMessage('Check the factual summary, actual times and completed tasks. Use a summary of 3–2000 characters, an end time after the start and in the past, a visit no longer than 24 hours, and at most 50 tasks of 500 characters each. Issue text allows 1000 characters and observations 3000. Corrections and reviews also need a reason or note of 3–500 characters. Remove unsupported control characters from text. Your draft is still editable.');return;
     }
     requestVisit.current={...visit};unresolved.current=false;
     setPending(action);void execute(action);
@@ -285,7 +285,7 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
             </> : <>
               {visit.status==='In progress' && <><label htmlFor={`${id}-outcome`}>Outcome reported</label><select id={`${id}-outcome`} required value={draft.outcome} onChange={event=>change('outcome',event.target.value)}><option value="" disabled>Choose the factual outcome</option><option value="completed">Completed</option><option value="follow-up">Follow-up needed</option><option value="not-completed">Not completed</option></select></>}
               <label htmlFor={`${id}-summary`}>{completedTasks.length===0 ? 'Factual summary · what happened and why no tasks were completed' : 'Factual summary'}</label><textarea id={`${id}-summary`} required minLength={3} maxLength={2000} value={draft.summary} onChange={event=>change('summary',event.target.value)} />
-              <p id={`${id}-time-help`}>Enter the actual date and time in Vancouver. The end must be after the start; visits must be under 24 hours and cannot overlap another report for this worker.</p>
+              <p id={`${id}-time-help`}>Enter the actual date and time in Vancouver. The end must be after the start; actual intervals cannot exceed 24 hours or overlap another report for this worker; exactly 24 hours requires a scheduled 24-hour visit.</p>
               <label htmlFor={`${id}-start`}>Actual start · Vancouver</label><input id={`${id}-start`} type="datetime-local" step="0.001" aria-describedby={`${id}-time-help`} required value={draft.actualStart} onChange={event=>change('actualStart',event.target.value)} />
               <label htmlFor={`${id}-end`}>Actual end · Vancouver</label><input id={`${id}-end`} type="datetime-local" step="0.001" aria-describedby={`${id}-time-help`} required value={draft.actualEnd} onChange={event=>change('actualEnd',event.target.value)} />
               <label htmlFor={`${id}-tasks`}>Completed tasks · one per line, at most 50</label><textarea id={`${id}-tasks`} aria-describedby={`${id}-tasks-help`} value={draft.tasks} onChange={event=>change('tasks',event.target.value)} />
