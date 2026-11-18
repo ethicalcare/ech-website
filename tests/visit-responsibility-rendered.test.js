@@ -36,10 +36,11 @@ test('selected assignment uses only authorized roster and clears on revision cha
   await act(async()=>calls[0].resolve(Response.json({visitId:visit,revision:3,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'})));
   assert(text().includes('Fictional assigned worker'));assert(!text().includes('Unrelated worker'));assert(text().includes('2026-11-17 00:00 Vancouver'));assert.match(text(),/not report authorship/);
   await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,active:false})));assert(!text().includes('Fictional assigned worker'));
-  await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,staff:[]})));assert.match(text(),/Assigned worker name unavailable/);assert.doesNotMatch(text(),/Unassigned/);
-  await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,visit:{...entry,workerId:null,revision:4}})));assert(!text().includes('Fictional assigned worker'));assert.equal(calls.length,2);
-  await act(async()=>calls[1].resolve(Response.json({visitId:visit,revision:4,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'})));assert.match(text(),/Unassigned/);
+  await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,staff:[]})));assert(!text().includes('Scheduled visit responsibility'));
+  await act(async()=>calls[1].resolve(Response.json({visitId:visit,revision:3,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'})));assert.match(text(),/Assigned worker name unavailable/);assert.doesNotMatch(text(),/Unassigned/);
+  await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,visit:{...entry,workerId:null,revision:4}})));assert(!text().includes('Fictional assigned worker'));assert.equal(calls.length,3);
+  await act(async()=>calls[2].resolve(Response.json({visitId:visit,revision:4,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'})));assert.match(text(),/Unassigned/);
   await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,visit:{...entry,revision:5}})));assert(!text().includes('Scheduled visit responsibility'));
-  await act(async()=>calls[2].resolve(Response.json({error:{code:'forbidden'}},{status:403})));assert(!text().includes('Scheduled visit responsibility'));assert.equal(calls.length,3,'no extra name/profile endpoint');
+  await act(async()=>calls[3].resolve(Response.json({error:{code:'forbidden'}},{status:403})));assert(!text().includes('Scheduled visit responsibility'));assert.equal(calls.length,4,'fresh return read and no extra name/profile endpoint');
  }finally{if(root)await act(async()=>root.unmount());}
 });

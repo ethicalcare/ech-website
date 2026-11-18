@@ -107,3 +107,31 @@ test('selected-visit identity binds actual history clients and rejects late prev
   assert.doesNotMatch(text(),/Fictional walk|Original factual note/);assert.match(text(),/Visit access could not be verified/);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=old.window;globalThis.document=old.document;}
 });
+
+
+test('inactive selected visit conceals details, aborts old reads and freshly verifies on return',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const old={window:globalThis.window,document:globalThis.document};
+ globalThis.window=Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});
+ globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true});
+ const reads=[];let root;
+ const fetcher=(url,options)=>new Promise(resolve=>reads.push({options,resolve}));
+ const visit={id:report.visitId,clientId:'40000000-0000-4000-8000-000000000001',workerId:task.actorId,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T19:00:00.000Z',status:'Completed',revision:report.visitRevision};
+ const props={visit,actor:task.actorId,role:'manager',fetcher,onClose(){}};
+ const detail={visitId:visit.id,revision:visit.revision,fields:{address:'Fictional protected address'},contactAuthority:'unknown',allergyStatus:'unknown'};
+ const text=()=>JSON.stringify(root.toJSON());
+ try{
+  await act(async()=>{root=create(React.createElement(SharedVisitRead,{...props,active:false}));});assert.equal(reads.length,0);
+  await act(async()=>root.update(React.createElement(SharedVisitRead,props)));assert.equal(reads.length,1);
+  await act(async()=>reads[0].resolve(Response.json(detail)));assert.match(text(),/Fictional protected address/);
+  await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,active:false})));
+  assert.doesNotMatch(text(),/Fictional protected address/);assert.equal(reads[0].options.signal.aborted,true);
+  await act(async()=>root.update(React.createElement(SharedVisitRead,props)));assert.equal(reads.length,2);
+  assert.doesNotMatch(text(),/Fictional protected address/);
+  await act(async()=>root.update(React.createElement(SharedVisitRead,{...props,active:false})));
+  await act(async()=>reads[1].resolve(Response.json(detail)));assert.doesNotMatch(text(),/Fictional protected address/);
+  await act(async()=>root.update(React.createElement(SharedVisitRead,props)));assert.equal(reads.length,3);
+  await act(async()=>reads[2].resolve(Response.json({error:'Denied'},{status:403})));
+  assert.doesNotMatch(text(),/Fictional protected address/);assert.match(text(),/Visit details could not be verified/);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=old.window;globalThis.document=old.document;}
+});

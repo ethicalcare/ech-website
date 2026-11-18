@@ -29,20 +29,21 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
  const [reportVersion,setReportVersion]=useState<number|null>(null);
  const loadReport=useMemo(()=>createVisitReportClient(fetcher,actor,role),[fetcher,actor,role]);
  const [retry,setRetry]=useState(0);
- const key=JSON.stringify([actor,role,visit.id,visit.revision,retry]);
+ const key=JSON.stringify([actor,role,visit.id,visit.revision,retry,active]);
  const [state,setState]=useState<{key:string;detail?:VisitDetail;error?:string}>({key:''});
  const detailGeneration=useRef(0);
  const detailController=useRef<AbortController|null>(null);
  const load=useMemo(()=>createVisitDetailClient(fetcher,actor,role),[fetcher,actor,role]);
  useEffect(()=>{
   const generation=++detailGeneration.current;const controller=new AbortController();detailController.current?.abort();detailController.current=controller;setState({key});
+  if(!active)return()=>{detailGeneration.current++;controller.abort();};
   void load(visit.id,visit.revision,controller.signal).then(detail=>{if(generation===detailGeneration.current&&!controller.signal.aborted)setState({key,detail});}).catch(()=>{if(generation===detailGeneration.current&&!controller.signal.aborted)setState({key,error:'Visit details could not be verified. Reload the schedule if this visit has changed.'});});
   return()=>{detailGeneration.current++;controller.abort();};
- },[load,visit.id,visit.revision,key]);
+ },[load,visit.id,visit.revision,key,active]);
  const reconciled=useCallback((current:ScheduleVisit)=>{setRetry(value=>value+1);onConfirmed?.(current);},[onConfirmed]);
  const reconciliationFailed=useCallback(()=>{detailGeneration.current++;detailController.current?.abort();setState({key,error:'Current visit details could not be verified. Your report draft is retained.'});setReportOpen(false);setReportVersion(null);},[key]);
  const visible=state.key===key?state:undefined,detail=visible?.detail;
- const showDetails=detail&&!leave.pending&&!leave.retained;
+ const showDetails=active&&detail&&!leave.pending&&!leave.retained;
  const labels={address:'Address',unit:'Unit',entry:'Entry instructions',preferences:'Visit preferences'} as const;
  return <section className="panel dashboard-card shared-visit-details" aria-label="Selected visit details">
   <header className="shared-visit-details__heading"><h3 ref={heading} tabIndex={-1}>Selected visit details</h3>
