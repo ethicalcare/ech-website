@@ -86,7 +86,7 @@ export function useAccountRequests(fetcher: typeof fetch, scope: string, panelOp
   panelIsOpen.current = panelOpen;
   const reload = useCallback((quiet = false): Promise<void> => {
     if (!scope || document.visibilityState !== 'visible') return Promise.resolve();
-    if (inFlight.current && quiet) return inFlight.current;
+    if (inFlight.current && quiet && !controller.current?.signal.aborted) return inFlight.current;
     // Explicit refreshes (including verified writes) must read newer state.
     if (inFlight.current) controller.current?.abort();
     const ticket = ++sequence.current;
@@ -128,9 +128,8 @@ export function useAccountRequests(fetcher: typeof fetch, scope: string, panelOp
         return;
       }
       if (shouldRefreshVisibleAccounts(panelIsOpen.current, document.visibilityState, Date.now(), lastChecked.current)) {
-        const pending = inFlight.current;
-        if (pending) void pending.finally(() => { if (active && panelIsOpen.current && document.visibilityState === 'visible') void reload(true); });
-        else if (active) void reload(true);
+        // Reuse a live read, but never wait for an aborted hidden-tab transport.
+        void reload(true);
       }
     };
     document.addEventListener('visibilitychange', onVisible);

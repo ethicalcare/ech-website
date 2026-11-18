@@ -22,7 +22,7 @@ const {useAccountRequests} = await import('data:text/javascript;base64,' + Buffe
 
 test('opening Accounts refreshes stale lists immediately, without duplicate or hidden requests', async () => {
   const original = {document: globalThis.document, window: globalThis.window, now: Date.now};
-  const slots = []; let cursor = 0; let effects = []; let now = 120_000; let calls = 0; const signals = [];
+  const slots = []; let cursor = 0; let effects = []; let now = 120_000; let calls = 0; const signals = []; let visibilityHandler;
   const same = (a, b) => a && b && a.length === b.length && a.every((v,i) => Object.is(v,b[i]));
   globalThis.accountHooks = {
     ref(value) {const i=cursor++; return slots[i] ||= {current:value};},
@@ -30,7 +30,7 @@ test('opening Accounts refreshes stale lists immediately, without duplicate or h
     callback(fn,deps) {const i=cursor++; if (!same(slots[i]?.deps,deps)) slots[i]={value:fn,deps}; return slots[i].value;},
     effect(fn,deps) {const i=cursor++; if (!same(slots[i]?.deps,deps)) effects.push(() => {slots[i]?.cleanup?.(); slots[i]={deps,cleanup:fn()};});},
   };
-  globalThis.document = {visibilityState:'visible', addEventListener(){}, removeEventListener(){}};
+  globalThis.document = {visibilityState:'visible', addEventListener(name,handler){if(name==='visibilitychange')visibilityHandler=handler;}, removeEventListener(name,handler){if(name==='visibilitychange'&&visibilityHandler===handler)visibilityHandler=undefined;}};
   globalThis.window = {setInterval(){return 1;},clearInterval(){}};
   Date.now = () => now;
   let finish;
@@ -65,6 +65,18 @@ test('opening Accounts refreshes stale lists immediately, without duplicate or h
     assert.equal(render(false,'new-owner-scope').state.status,'ready','late old-scope response cannot replace new snapshot');
     assert.equal(render(false,'new-owner-scope').state.rows[0].email,'read5@example.test');
     assert.equal(calls,5,'settling old transport does not schedule another read');
+    render(true,'new-owner-scope').reload();assert.equal(calls,6);
+    const hiddenReadFinish=finish;
+    document.visibilityState='hidden';visibilityHandler();
+    assert.equal(signals[5].aborted,true);
+    assert.equal(render(true,'new-owner-scope').state.status,'loading');
+    document.visibilityState='visible';visibilityHandler();
+    assert.equal(calls,7,'visible Accounts replaces an aborted read immediately');
+    visibilityHandler();assert.equal(calls,7,'repeated visibility notification reuses live read');
+    await settle();assert.equal(render(true,'new-owner-scope').state.rows[0].email,'read7@example.test');
+    hiddenReadFinish();await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(render(true,'new-owner-scope').state.rows[0].email,'read7@example.test');
+    assert.equal(calls,7,'late aborted read neither overwrites nor triggers a duplicate fetch');
   } finally {
     slots.forEach(slot=>slot?.cleanup?.());
     Date.now=original.now; globalThis.document=original.document; globalThis.window=original.window;
