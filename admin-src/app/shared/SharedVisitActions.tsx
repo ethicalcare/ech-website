@@ -276,6 +276,11 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
       {(visit.status==='Confirmed' || visit.status==='In progress' || latest && (mode==='correct' || mode==='review' && reviewEligibility.allowed)) && <form onSubmit={submit}>
         <fieldset disabled={busy || !!pending || !!comparison || activeDirty && (!sameVisit(draftVisit.current,visit) || draftReportRevision.current!==(context.report?.reportRevision??null)) || mode==='review' && draftReviewVersion.current!==latest?.version}>
           <legend>{visit.status==='Confirmed'?'Start assigned visit':visit.status==='In progress'?'Submit factual visit report':mode==='review'?`Independent review · exact version ${draftReviewVersion.current}`:`Correct latest report · version ${latest?.version}`}</legend>
+          {visit.status==='In progress' && <div className="shared-visit-actions__choices" aria-label="Visit report shortcuts">
+            <button type="button" onClick={event=>event.currentTarget.ownerDocument.getElementById(`${id}-observations`)?.focus()}>Jump to visit notes</button>
+            <button type="button" onClick={event=>event.currentTarget.ownerDocument.getElementById(`${id}-issue`)?.focus()}>Jump to visit issue</button>
+            <p>These fields are part of the visit report; this does not send an incident alert.</p>
+          </div>}
           {visit.status==='Confirmed' ? <p>Request an in-progress status for the assigned visit. This records no actual attendance or worked time.</p>
             : mode==='review' && visit.status==='Completed' ? <>
               <p>Review the latest exact version in the history above before deciding. This draft reviews version {draftReviewVersion.current}. The current report shown is version {latest?.version}, content revision {latest?.revision}, report stream revision {context.report?.reportRevision}.</p>
