@@ -18,3 +18,19 @@ test('draft SQL preserves original readers and writers, canonical report authori
  for(const fragment of ["visit.status is distinct from 'Completed'","original.worker_id is distinct from visit.worker_id","original.actor_id is distinct from auth.uid()","e.actor_id=auth.uid()","original.client_id is distinct from visit.client_id","p_report_revision is null","from public,anon,authenticated","result_count>1000","octet_length(response::text)>500000"])assert(sql.includes(fragment),fragment);
  assert(!/create or replace|grant execute|update public|delete from|alter table/i.test(sql));
 });
+
+test('already-used history client rechecks revocation and downgrade on the next authorized read',async()=>{
+ for(const scenario of [
+  {initial:'staff',next:'staff',active:false,code:'forbidden'},
+  {initial:'manager',next:'staff',active:true,code:'conflict'},
+  {initial:'owner',next:'manager',active:true,code:'conflict'},
+ ]){
+  let provider=fixture({role:scenario.initial});
+  const client=createCompletedTaskHistoryClient((path,options)=>handleAdmin('operations',new Request(env.ADMIN_ORIGIN+path,{...options,headers:{...options.headers,cookie:'__Host-ech-access=fictional'}}),env,provider.fetcher),id(1),scenario.initial);
+  assert.deepEqual(await client(id(2),3,1,new AbortController().signal),snapshot(scenario.initial));
+  assert.equal(provider.calls.length,1);
+  provider=fixture({role:scenario.next,active:scenario.active});
+  await assert.rejects(client(id(2),3,1,new AbortController().signal),{code:scenario.code});
+  assert.equal(provider.calls.length,0,'changed canonical authority must fail before history RPC');
+ }
+});
