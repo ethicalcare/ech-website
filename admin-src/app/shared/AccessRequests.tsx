@@ -201,28 +201,41 @@ export function AccessRequests({ requests, reload, owner, fetcher, renderHistory
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const busy = useRef(false);
+  const outcomeUnknown = useRef(false);
   const notice = useRef<HTMLParagraphElement>(null);
   useEffect(() => { if (error || message) notice.current?.focus(); }, [error, message]);
 
   async function commit(retained: RetainedReview) {
     if (busy.current) return;
     busy.current = true;
+    const previouslyUnknown = outcomeUnknown.current;
+    outcomeUnknown.current = true;
     setOperation(retained);
     setKnownFailure(false);
     setPending(true);
     setError('');
     setMessage('');
     const { body, email } = retained;
+    let receiptVerified = false;
     try {
       const value = await accountApi(fetcher, 'access-requests', body);
       const row = await verifyAccessDecisionReceipt(value, body, email);
+      receiptVerified = true;
+      outcomeUnknown.current = false;
       setOperation(undefined);
       setRoles(current => { const next = { ...current }; delete next[row.userId]; return next; });
       await reload();
       setMessage(`${body.command.type === 'approve' ? 'Approval' : body.command.type === 'revoke' ? 'Revocation' : 'Denial'} recorded. Check the refreshed account status for current access.${body.command.type === 'approve' ? ' If approval is still current, the person must sign in again.' : ''}`);
     } catch (failure) {
-      setKnownFailure(failure instanceof SharedError && ['conflict', 'invalid_request'].includes(failure.code));
-      setError(failure instanceof Error ? failure.message : 'The account decision could not be verified.');
+      if (receiptVerified) {
+        setError('The decision was recorded, but current account status could not be refreshed. Refresh the list before making another decision.');
+        return;
+      }
+      // A later rejection cannot establish whether an earlier unconfirmed request saved.
+      const definitive = !previouslyUnknown && failure instanceof SharedError && ['conflict', 'invalid_request'].includes(failure.code);
+      outcomeUnknown.current = !definitive;
+      setKnownFailure(definitive);
+      setError(previouslyUnknown ? 'The earlier decision outcome is still unknown. Check current account status and retain this exact request for receipt verification.' : failure instanceof Error ? failure.message : 'The account decision could not be verified.');
     } finally {
       busy.current = false;
       setPending(false);
