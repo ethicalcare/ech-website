@@ -34,8 +34,8 @@ test('opening Accounts refreshes stale lists immediately, without duplicate or h
   globalThis.window = {setInterval(){return 1;},clearInterval(){}};
   Date.now = () => now;
   let finish;
-  const fetcher = async (_url, options) => {calls++; signals.push(options.signal); await new Promise(resolve => {finish=resolve;}); return new Response(JSON.stringify({schema:1,items:[]}), {status:200,headers:{'content-type':'application/json'}});};
-  const render = open => {cursor=0; effects=[]; const value=useAccountRequests(fetcher,'owner-scope',open); effects.forEach(fn=>fn()); return value;};
+  const fetcher = async (_url, options) => {calls++; const requestNumber=calls; signals.push(options.signal); await new Promise(resolve => {finish=resolve;}); return new Response(JSON.stringify({schema:1,items:[{userId:'10000000-0000-4000-8000-000000000001',email:`read${requestNumber}@example.test`,displayName:'Fictional account',state:'pending',role:null,revision:requestNumber,requestedAt:'2026-11-17T12:00:00Z',decidedAt:null}]}), {status:200,headers:{'content-type':'application/json'}});};
+  const render = (open, scope = 'owner-scope') => {cursor=0; effects=[]; const value=useAccountRequests(fetcher,scope,open); effects.forEach(fn=>fn()); return value;};
   const settle = async () => {finish(); await new Promise(resolve=>setImmediate(resolve));};
   try {
     render(false); assert.equal(calls,1); await settle();
@@ -53,6 +53,18 @@ test('opening Accounts refreshes stale lists immediately, without duplicate or h
     assert.equal(render(true).state.status,'ready','new post-write response is published');
     render(false); now += 60_001; document.visibilityState='hidden';
     render(true); assert.equal(calls,3,'hidden tab does not issue a new request');
+    document.visibilityState='visible';
+    render(false).reload(); assert.equal(calls,4);
+    const priorScopeFinish=finish;
+    assert.equal(render(false,'new-owner-scope').state.status,'loading');
+    assert.equal(calls,5,'new scope starts immediately without waiting for aborted old transport');
+    assert.equal(signals[3].aborted,true);
+    await settle();
+    assert.equal(render(false,'new-owner-scope').state.status,'ready');
+    priorScopeFinish();await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(render(false,'new-owner-scope').state.status,'ready','late old-scope response cannot replace new snapshot');
+    assert.equal(render(false,'new-owner-scope').state.rows[0].email,'read5@example.test');
+    assert.equal(calls,5,'settling old transport does not schedule another read');
   } finally {
     slots.forEach(slot=>slot?.cleanup?.());
     Date.now=original.now; globalThis.document=original.document; globalThis.window=original.window;

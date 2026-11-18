@@ -115,9 +115,9 @@ export function useAccountRequests(fetcher: typeof fetch, scope: string, panelOp
     if (!scope) return;
     let active = true;
     lastChecked.current = 0;
-    const previous = inFlight.current;
-    if (previous) void previous.finally(() => { if (active) void reload(); });
-    else void reload();
+    // A prior scope may have an aborted transport that has not settled yet.
+    // Start this scope immediately; reload cancels and supersedes the old read.
+    void reload();
     const onVisible = () => {
       if (!active) return;
       if (document.visibilityState !== 'visible') {
