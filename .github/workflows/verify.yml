@@ -13,3 +13,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Install Chromium for fictional phone check
+        run: ./node_modules/.bin/playwright-core install --with-deps --only-shell chromium
+        timeout-minutes: 8
+      - name: Check selected visit at phone width (fictional data)
+        run: npm run test:browser:phone
+        timeout-minutes: 3
