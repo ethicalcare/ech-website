@@ -13,10 +13,10 @@ export type ProfileWorkspaceApi = {
 };
 // The host supplies a filtered authenticated snapshot. All staff fields share
 // one submission, so onboarding never requires approval between form sections.
-export function StaffProfileWorkspace({initialProfile,mode,api,initialSubmissions=[],pendingReview=false}:{initialProfile:CompleteProfile;mode:'staff_submission'|'admin_direct';api:ProfileWorkspaceApi;initialSubmissions?:ProfileSubmission[];pendingReview?:boolean}){
- return <Workspace key={initialProfile.id+':'+mode} initialProfile={initialProfile} mode={mode} api={api} initialSubmissions={initialSubmissions} pendingReview={pendingReview}/>;
+export function StaffProfileWorkspace({initialProfile,mode,api,initialSubmissions=[],pendingReview=false,photoEnabled=true}:{initialProfile:CompleteProfile;mode:'staff_submission'|'admin_direct';api:ProfileWorkspaceApi;initialSubmissions?:ProfileSubmission[];pendingReview?:boolean;photoEnabled?:boolean}){
+ return <Workspace key={initialProfile.id+':'+mode} initialProfile={initialProfile} mode={mode} api={api} initialSubmissions={initialSubmissions} pendingReview={pendingReview} photoEnabled={photoEnabled}/>;
 }
-function Workspace({initialProfile,mode,api,initialSubmissions,pendingReview}:{initialProfile:CompleteProfile;mode:'staff_submission'|'admin_direct';api:ProfileWorkspaceApi;initialSubmissions:ProfileSubmission[];pendingReview:boolean}){
+function Workspace({initialProfile,mode,api,initialSubmissions,pendingReview,photoEnabled}:{initialProfile:CompleteProfile;mode:'staff_submission'|'admin_direct';api:ProfileWorkspaceApi;initialSubmissions:ProfileSubmission[];pendingReview:boolean;photoEnabled:boolean}){
  const [profile,setProfile]=useState(initialProfile);const [draft,setDraft]=useState(initialProfile);const [submissions,setSubmissions]=useState(initialSubmissions);
  const [credentialName,setCredentialName]=useState('');const [expires,setExpires]=useState('');const [hasExpiry,setHasExpiry]=useState(false);
  const [photo,setPhoto]=useState<File|null>();const [busy,setBusy]=useState(false);const [notice,setNotice]=useState('');const [submitted,setSubmitted]=useState(mode==='staff_submission'&&pendingReview);
@@ -28,9 +28,10 @@ function Workspace({initialProfile,mode,api,initialSubmissions,pendingReview}:{i
   const changes:Record<string,unknown>={};for(const key of ['workerType','availability','vacationStart','vacationEnd'] as const)if(draft[key]!==profile[key])changes[key]=draft[key];
   const clean=(rows:ProfileCredential[])=>rows.map(({id,name,expiresOn})=>({id,name,expiresOn}));if(JSON.stringify(clean(draft.credentials))!==JSON.stringify(clean(profile.credentials)))changes.credentials=clean(draft.credentials);
   if(admin&&draft.management)for(const key of ['payGrade','hourlyRate','performance'] as const)if(draft.management[key]!==profile.management?.[key])changes[key]=draft.management[key];
-  if(!Object.keys(changes).length&&photo===undefined){setNotice('No changes to save.');return;}
+  const savePhoto=photoEnabled?photo:undefined;
+  if(!Object.keys(changes).length&&savePhoto===undefined){setNotice('No changes to save.');return;}
   setBusy(true);setNotice('');try{
-   if(photo!==undefined)changes.photo=photo===null?null:await api.uploadPhoto(photo);
+   if(savePhoto!==undefined)changes.photo=savePhoto===null?null:await api.uploadPhoto(savePhoto);
    const result=await api.save({id:profile.id,expectedRevision:profile.revision,changes});
    if(admin){if(result.status!=='saved')throw Error('Unconfirmed save');await refresh();setPhoto(undefined);setNotice('Profile saved.');}
    else{if(result.status!=='pending_review'||!result.submissionId)throw Error('Unconfirmed submission');setSubmitted(true);setNotice('Submitted for admin approval. Your approved information has not changed.');}
@@ -45,8 +46,8 @@ function Workspace({initialProfile,mode,api,initialSubmissions,pendingReview}:{i
   <label>Availability<textarea aria-label="Availability" maxLength={2000} value={draft.availability} onChange={e=>setDraft({...draft,availability:e.target.value})}/></label>
   <label>Vacation start<input aria-label="Vacation start" type="date" value={draft.vacationStart} onChange={e=>setDraft({...draft,vacationStart:e.target.value})}/></label>
   <label>Vacation end<input aria-label="Vacation end" type="date" value={draft.vacationEnd} onChange={e=>setDraft({...draft,vacationEnd:e.target.value})}/></label>
-  <h3>Photo (optional)</h3>{profile.photoUrl&&photo!==null&&<img src={profile.photoUrl} alt="Staff profile" width="128" height="128" referrerPolicy="no-referrer"/>}
-  <label>Choose photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const file=e.target.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024){setNotice('Choose a JPEG, PNG or WebP photo under 5 MB.');return;}setPhoto(file);}}/></label>{photo&&<p>Selected: {photo.name}</p>}{(profile.photo||photo)&&<button type="button" onClick={()=>setPhoto(null)}>Remove photo</button>}
+  {photoEnabled?<><h3>Photo (optional)</h3>{profile.photoUrl&&photo!==null&&<img src={profile.photoUrl} alt="Staff profile" width="128" height="128" referrerPolicy="no-referrer"/>}
+  <label>Choose photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const file=e.target.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024){setNotice('Choose a JPEG, PNG or WebP photo under 5 MB.');return;}setPhoto(file);}}/></label>{photo&&<p>Selected: {photo.name}</p>}{(profile.photo||photo)&&<button type="button" onClick={()=>setPhoto(null)}>Remove photo</button>}</>:<p>Staff profile photos are not available yet.</p>}
   <h3>Credentials</h3>{draft.credentials.map(c=><div key={c.id}><strong>{c.name}</strong><label>Credential expiry<input type="date" value={c.expiresOn||''} onChange={e=>setDraft({...draft,credentials:draft.credentials.map(row=>row.id===c.id?{...row,expiresOn:e.target.value||null}:row)})}/></label><p>{c.verifiedBy&&c.verifiedAt?`Verified by ${c.verifiedBy} on ${c.verifiedAt}`:'Not verified'}</p></div>)}
   <label>Credential name<input aria-label="Credential name" maxLength={200} value={credentialName} onChange={e=>setCredentialName(e.target.value)}/></label>
   <label><input type="checkbox" checked={hasExpiry} onChange={e=>setHasExpiry(e.target.checked)}/>This credential expires</label>{hasExpiry&&<label>New credential expiry<input type="date" value={expires} onChange={e=>setExpires(e.target.value)}/></label>}

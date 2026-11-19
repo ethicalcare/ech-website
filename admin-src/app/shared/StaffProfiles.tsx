@@ -74,6 +74,6 @@ export function StaffProfiles({session,fetcher=fetch}:{session:Session;fetcher?:
   <label>Choose staff<select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Select staff member</option>{people.map(person=><option key={person.userId} value={person.userId}>{person.displayName}{pendingFor(person)?' · Pending review':''}</option>)}</select></label>
  </>}
  {error&&<p role="status">{error}</p>}{missing&&manager&&<button disabled={busy} onClick={async()=>{setBusy(true);try{const result=await call('staff-profile',{action:'initialize',id:selected});setSnapshot(result);setMissing(false);setError('');}catch(e){setError(e instanceof Error?e.message:'Profile could not be created.');}finally{setBusy(false);}}}>Create staff profile</button>}
- {snapshot&&snapshot.profile.id===selected&&<StaffProfileWorkspace key={selected} initialProfile={profile(snapshot)} mode={manager?'admin_direct':'staff_submission'} api={api} initialSubmissions={pending()} pendingReview={Boolean(snapshot.pending)}/>}
+ {snapshot&&snapshot.profile.id===selected&&<StaffProfileWorkspace key={selected} initialProfile={profile(snapshot)} mode={manager?'admin_direct':'staff_submission'} api={api} initialSubmissions={pending()} pendingReview={Boolean(snapshot.pending)} photoEnabled={false}/>}
  </>}</section>;
 }

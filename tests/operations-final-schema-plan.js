@@ -5,7 +5,7 @@ export const schemaManifest = JSON.parse(readFileSync(new URL('./operations-sche
 export function schemaSources() {
   assert.equal(schemaManifest.schema,1);
   assert.equal(schemaManifest.executionAuthorized,false);
-  assert.equal(schemaManifest.migrations.length,33);
+  assert.equal(schemaManifest.migrations.length,34);
   return schemaManifest.migrations.map(entry=>{
     assert.match(entry.file,/^migrations\/\d{8,14}_[a-z_]+\.sql$/u);
     const sql=readFileSync(new URL('../'+entry.file,import.meta.url),'utf8');
