@@ -18,11 +18,11 @@ import {createScheduleClient,type ScheduleSnapshot} from './schedule-client';
 
 // The keyed child owns every request and all protected state. Changing account,
 // role or negotiated features destroys it rather than reusing prior rows.
-export function SharedScheduleRead({session,fetcher=fetch,active=true}:{session:Session|null;fetcher?:typeof fetch;active?:boolean}){
+export function SharedScheduleRead({session,fetcher=fetch,active=true,todayOnly=false}:{session:Session|null;fetcher?:typeof fetch;active?:boolean;todayOnly?:boolean}){
  if(!session?.authenticated || !operationsFeatures(session).reads || !session.principal.operationalRole)return null;
- return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} attendanceEnabled={operationsFeatures(session).visitAttendance===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} planPick={operationsFeatures(session).scheduleTaskPlanPick===true} planRecover={operationsFeatures(session).scheduleTaskPlanRecover===true} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
+ return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} attendanceEnabled={operationsFeatures(session).visitAttendance===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} todayOnly={todayOnly&&session.principal.operationalRole==='staff'} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} planPick={operationsFeatures(session).scheduleTaskPlanPick===true} planRecover={operationsFeatures(session).scheduleTaskPlanRecover===true} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
 }
-function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled,planPick,planRecover}:{planPick:boolean;planRecover:boolean;scope:string;tasksEnabled:boolean;attendanceEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
+function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,active,todayOnly,schedulingEnabled,actionsEnabled,recurrenceEnabled,planPick,planRecover}:{planPick:boolean;planRecover:boolean;scope:string;tasksEnabled:boolean;attendanceEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;todayOnly:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
  const visitButtons=useRef(new Map<string,HTMLButtonElement>());
  const currentVisitButton=useRef<HTMLButtonElement|null>(null);
  const [focusedShift,setFocusedShift]=useState(false);
@@ -32,7 +32,7 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
  const attentionOrigin=useRef<HTMLButtonElement|null>(null),returnElement=useRef<HTMLButtonElement|null>(null);
  const scheduleHeading=useRef<HTMLHeadingElement|null>(null);
  const [staffFilter,setStaffFilter]=useState<ScheduleStaffSelection>({ids:null,unassigned:true,query:''});
- const [coverage,setCoverage]=useState<CalendarCoverage>('full');
+ const [coverage,setCoverage]=useState<CalendarCoverage>(todayOnly?'day':'full');
  const [view,setView]=useState<CalendarView>('week');
  const [day,setDay]=useState(()=>scheduleDay(new Date().toISOString()));
  const [createOpen,setCreateOpen]=useState(false),[creationHeld,setCreationHeld]=useState(false);
@@ -61,7 +61,9 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
  const [state,setState]=useState<{request:string;snapshot?:ScheduleSnapshot;error?:string}>({request:''});
  const client=useMemo(()=>createScheduleClient(fetcher,role,actor),[fetcher,role,actor]);
  const request=day+':'+coverage+':'+reload;
+ const mayLoad=!todayOnly||active;
  useEffect(()=>{
+  if(!mayLoad)return;
   const controller=new AbortController();let current=true;
   setState({request});
   let window;try{window=focusedCalendarWindow(day,coverage);}catch{setState({request,error:'Choose a valid date.'});return()=>{current=false;controller.abort();};}
@@ -69,7 +71,7 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
    if(current&&!controller.signal.aborted)setState({request,snapshot});
   }).catch(()=>{if(current&&!controller.signal.aborted)setState({request,error:'Schedule could not be verified. Reload to try again.'});});
   return()=>{current=false;controller.abort();};
- },[client,day,coverage,reload,request]);
+ },[client,day,coverage,reload,request,mayLoad]);
  const visible=state.request===request?state:undefined;
  const data=visible?.snapshot;
  const selectedVisit=data?.visits.find(visit=>visit.id===selected?.id&&visit.revision===selected.revision);
@@ -84,6 +86,36 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
   .sort((a,b)=>Number(b.status==='In progress')-Number(a.status==='In progress')||Number(b.end>now)-Number(a.end>now)||Date.parse(a.start)-Date.parse(b.start))[0]:undefined;
  const showingFocusedShift=focusedShift&&!!selectedVisit;
  const staff=new Map(data?.staff.map(row=>[row.id,row.name]));
+ const visitPanel=selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} attendanceEnabled={attendanceEnabled} actor={actor} role={role} staff={data?.staff} clientName={clients.get(selectedVisit.clientId)} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>;
+ if(todayOnly){
+   const assigned=(data?.visits??[]).filter(visit=>visit.workerId===actor&&visitsOnDay([visit],day).length>0)
+    .sort((left,right)=>Date.parse(left.start)-Date.parse(right.start)||left.id.localeCompare(right.id));
+   return <section className="panel dashboard-card" aria-label="Shared schedule">
+     <h2 ref={scheduleHeading} tabIndex={-1}>Assigned visits</h2>
+     {(!selectedVisit&&!leave.pending&&!leave.retained)&&<section aria-label="My day" className="staff-active-shift">
+       <h3>My day</h3>
+       <p>Times shown in Vancouver time.</p>
+       {!visible?.error&&!data&&<p role="status">Loading your assigned visits…</p>}
+       {visible?.error&&<p role="alert">Your assigned visits could not be verified. Reload to try again.</p>}
+       {(data||visible?.error)&&<button type="button" onClick={()=>{setDay(scheduleDay(new Date().toISOString()));setReload(value=>value+1);}}>Reload assigned visits</button>}
+       {data&&assigned.length===0&&<p>No assigned visits to work on today.</p>}
+       {data&&assigned.map(visit=>{
+         const name=clients.get(visit.clientId)??'Assigned client';
+         return <div key={visit.id} className="task-row">
+           <p><strong>{name}</strong> · {visit.service}</p>
+           <p>{scheduleLabel(visit.start)} to {scheduleLabel(visit.end)} · {visit.status}</p>
+           <button type="button" ref={button=>{if(button)visitButtons.current.set(visit.id,button);else visitButtons.current.delete(visit.id);}}
+             onClick={event=>{if(canLeave()){origin.current=visit.id;attentionOrigin.current=event.currentTarget;setLeave({dirty:false,pending:false});setSelected({id:visit.id,revision:visit.revision});}}}
+             aria-label={myVisit?.id===visit.id?'Open current visit':'Open assigned visit for '+name}>
+             {myVisit?.id===visit.id?'Open current visit':'Open visit'}
+           </button>
+         </div>;
+       })}
+     </section>}
+     {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior visit details are hidden until its result is verified.</p>}
+     {visitPanel}
+   </section>;
+ }
  return <section className="panel dashboard-card" aria-label="Shared schedule">
   <h2 ref={scheduleHeading} tabIndex={-1}>Shared visit schedule</h2><p>{scheduleCapabilityCopy(role,{scheduleCommands:schedulingEnabled,visitActions:actionsEnabled,taskResults:tasksEnabled})} Times shown in Vancouver time.</p>
   {role==='staff'&&active&&day===today&&data&&!leave.pending&&!leave.retained&&!showingFocusedShift&&<section aria-label="My day" className="staff-active-shift">
@@ -118,6 +150,6 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
   </section>}
   {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior schedule rows and visit details are hidden until its result is verified.</p>}
   {selectedVisit&&!showingFocusedShift&&!shownVisits.some(visit=>visit.id===selectedVisit.id)&&<p>The selected visit is outside the current staff filter or calendar view. Its details and drafts remain open.</p>}
-  {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} attendanceEnabled={attendanceEnabled} actor={actor} role={role} staff={data?.staff} clientName={clients.get(selectedVisit.clientId)} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
+  {visitPanel}
  </section>;
 }
