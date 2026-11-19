@@ -47,9 +47,11 @@ export function createScheduleCreateClient(fetcher:typeof fetch,actor:string,rol
       assertWire(isScheduleSources(value,membershipRevision));return value.sources;
     },
     async reconcile(command:ScheduleCreation,signal:AbortSignal,currentRevision=command.membershipRevision) {
-      if(!isScheduleCreation(command,taskPlan.options)||!taskPlan.matches(command))throw new SharedError('invalid_request','The retained creation request is invalid.');
+      const recovery=taskPlan.options.recoverTaskPlans===true;
+      const wire=recovery?{allowTaskPlan:true}:taskPlan.options;
+      if(!isScheduleCreation(command,wire)||!recovery&&!taskPlan.matches(command))throw new SharedError('invalid_request','The retained creation request is invalid.');
       const frozen=structuredClone(command),saved=await drafts.inspect(frozen,currentRevision,signal),result=saved?.result;
-      if(!isScheduleCreationResult(result,frozen,taskPlan.options))throw unknown();
+      if(!isScheduleCreationResult(result,frozen,wire))throw unknown();
       return readCreationReview(result.receipt.operationId,[result.visit],
         id=>schedule.loadVisit(id,currentRevision,signal),signal);
     },

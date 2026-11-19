@@ -39,9 +39,11 @@ export function createScheduleRecurrenceClient(fetcher:typeof fetch,actor:string
       const value=await send(signal);assertWire(value&&Object.keys(value).sort().join(',')==='enabled,membershipRevision,schema'&&value.schema===1&&typeof value.enabled==='boolean'&&Number.isSafeInteger(value.membershipRevision)&&value.membershipRevision>0);return value;
     },
     async reconcile(request:ScheduleRecurrence,signal:AbortSignal,currentRevision=request.membershipRevision) {
-      if(!isScheduleRecurrence(request,taskPlan.options)||!taskPlan.matches(request))throw new SharedError('invalid_request','The retained recurring request is invalid.');
+      const recovery=taskPlan.options.recoverTaskPlans===true;
+      const wire=recovery?{allowTaskPlan:true}:taskPlan.options;
+      if(!isScheduleRecurrence(request,wire)||!recovery&&!taskPlan.matches(request))throw new SharedError('invalid_request','The retained recurring request is invalid.');
       const frozen=structuredClone(request),saved=await drafts.inspect(structuredClone(frozen),currentRevision,signal),result=saved?.result;
-      if(!saved||!['committed','resolved'].includes(saved.state)||!isCreationDraftResult({schema:1,draft:saved},taskPlan.options)
+      if(!saved||!['committed','resolved'].includes(saved.state)||!isCreationDraftResult({schema:1,draft:saved},wire)
         ||!sameCreationDraftRequest(saved.request,frozen))throw unknown();
       return readCreationReview(result.receipt.operationId,result.visits,
         id=>schedule.loadVisit(id,currentRevision,signal),signal);

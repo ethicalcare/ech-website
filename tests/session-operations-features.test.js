@@ -33,13 +33,21 @@ test('old client session envelope unchanged; explicit version1 negotiates authen
   if(path==='/rest/v1/rpc/ech_session_active')return Response.json(valid);
   assert.fail('Unexpected provider request');
  };
- const load=(version,cookie=true)=>handleAdmin('session',new Request(config.ADMIN_ORIGIN+'/api/admin/session',{headers:{
-  ...(cookie?{cookie:'__Host-ech-access=fictional-token'}:{}),...(version===undefined?{}:{'X-ECH-Operations-Features':version})}}),{...config,...flags},provider);
+ const load=(version,cookie=true,plans)=>handleAdmin('session',new Request(config.ADMIN_ORIGIN+'/api/admin/session',{headers:{
+  ...(cookie?{cookie:'__Host-ech-access=fictional-token'}:{}),...(version===undefined?{}:{'X-ECH-Operations-Features':version}),...(plans===undefined?{}:{'X-ECH-Task-Plan-Features':plans})}}),
+  {...config,...flags,ECH_HOSTED_TASK_PLAN_READ:'true',ECH_HOSTED_SCHEDULE_TASK_PLANS:'true'},provider);
  for(const version of [undefined,'0','3','true','1, 1']){
   const r=await load(version);assert.equal(r.status,200);
   const body=await r.json();assert.deepEqual(Object.keys(body).sort(),['authenticated','capabilities','principal']);assert.doesNotThrow(()=>parseSession(body));
  }
  let r=await load('1'),body=await r.json();assert.equal(r.headers.get('Cache-Control'),'no-store');assert.deepEqual(body.operationsFeatures,all);assert.doesNotThrow(()=>parseSession(body));
+ let v2=await (await load('2')).json();assert.deepEqual(v2.operationsFeatures,{...all,taskResults:false});
+ for(const version of ['true','0','1, 1'])assert.deepEqual((await (await load('2',true,version)).json()).operationsFeatures,v2.operationsFeatures);
+ assert.deepEqual((await (await load('1',true,'1')).json()).operationsFeatures,all);
+ r=await load('2',true,'1');body=await r.json();assert.equal(r.headers.get('Cache-Control'),'no-store');
+ assert.deepEqual(body.operationsFeatures,{...v2.operationsFeatures,scheduleTaskPlanPick:true,scheduleTaskPlanRecover:true});
+ assert.doesNotThrow(()=>parseSession(body));
+ assert.notEqual(operationsFeatureScope(body),operationsFeatureScope(v2));
  role=null;body=await (await load('1')).json();assert.deepEqual(body.operationsFeatures,off);assert.doesNotThrow(()=>parseSession(body));
  role='manager';active=false;assert.equal((await load('1')).status,403);
  active=true;valid=false;body=await (await load('1')).json();assert.equal(body.authenticated,false);assert.equal(Object.hasOwn(body,'operationsFeatures'),false);
@@ -52,6 +60,11 @@ test('new parser accepts legacy sessions but rejects malformed/inconsistent nego
  }
  assert.throws(()=>parseSession({...session('staff'),operationsFeatures:all}),{code:'invalid_response'});
  assert.throws(()=>parseSession({...session(null),operationsFeatures:{...off,reads:true}}),{code:'invalid_response'});
+ for(const fields of [{scheduleTaskPlanPick:true},{scheduleTaskPlanRecover:true},
+  {scheduleTaskPlanPick:true,scheduleTaskPlanRecover:false},{scheduleTaskPlanPick:'true',scheduleTaskPlanRecover:true}])
+  assert.throws(()=>parseSession({...old,operationsFeatures:{...all,...fields}}),{code:'invalid_response'});
+ assert.throws(()=>parseSession({...session('staff'),operationsFeatures:{...all,scheduleRecurrence:false,
+  scheduleTaskPlanPick:true,scheduleTaskPlanRecover:true}}),{code:'invalid_response'});
  const anonymous={authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:null}};
  assert.throws(()=>parseSession({...anonymous,operationsFeatures:off}),{code:'invalid_response'});
  assert.deepEqual(operationsFeatures(parseSession({...old,operationsFeatures:all})),all);
@@ -61,7 +74,7 @@ test('new parser accepts legacy sessions but rejects malformed/inconsistent nego
 test('session client explicitly negotiates features and remains compatible with old servers',async()=>{
  for(const body of [session(),{...session(),operationsFeatures:all}]){
   const client=createSessionClient(async(url,options)=>{
-   assert.equal(url,'/api/admin/session');assert.equal(options.headers['X-ECH-Operations-Features'],'2');
+   assert.equal(url,'/api/admin/session');assert.equal(options.headers['X-ECH-Operations-Features'],'2');assert.equal(options.headers['X-ECH-Task-Plan-Features'],'1');
    assert.equal(options.credentials,'same-origin');assert.equal(options.cache,'no-store');
    return Response.json(body);
   });

@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { SharedError } from './live-model';
 import type { ScheduleIdentity, ScheduleVisit } from './schedule-client';
 import type { ScheduleSource, ScheduleCreation, ScheduleCreateClient } from './schedule-create-client';
@@ -6,7 +6,37 @@ import { reportUtcTime, reportLocalTime } from './visit-time';
 import type { ScheduleRecurrence } from './schedule-recurrence-client';
 import { CreationReceiptError, sameCreationReview, sameCreationVisit, creationStaffLabel, type CreationReview } from './schedule-creation-review';
 import { recurrenceIntervals } from '../../../lib/operations/schedule-recurrence-wire.js';
+import {isTaskPlanRead} from '../../../lib/operations/task-plan-read-wire.js';
+import {TaskPlanReview,type ReviewedPlanSelection} from './TaskPlanReview';
+import type {createTaskPlanReadClient} from './task-plan-read-client';
 import './shared-schedule-commands.css';
+
+type TaskPlans={recovery:ScheduleCreateClient;pick?:{read:ReturnType<typeof createTaskPlanReadClient>;create:(token:string)=>ScheduleCreateClient}};
+type SelectionSource=Omit<ReviewedPlanSelection,'planToken'>;
+type PlanAttempt={key:string;state:'idle'|'loading'|'selection'|'failed'|'verified-empty'}|{key:string;state:'selected';selection:ReviewedPlanSelection};
+const planSourceKey=(source:SelectionSource)=>JSON.stringify([source.clientId,source.instructionsVersion,source.membershipRevision]);
+const waitingForPlan=(attempt:PlanAttempt|null)=>!!attempt&&['loading','selection','failed'].includes(attempt.state);
+function PlanPicker({source,pick,onSelect,onError,onRead,onReview}:{source:SelectionSource;pick:NonNullable<TaskPlans['pick']>;onRead:()=>void;onReview:(hasPlan:boolean)=>void;onSelect:(selection:ReviewedPlanSelection)=>void;onError:(failure:unknown)=>void}){
+  const operation=useRef<AbortController|null>(null);
+  const [review,setReview]=useState<{value:unknown}|null>(null);
+  const [loading,setLoading]=useState(false);
+  useEffect(()=>()=>operation.current?.abort(),[]);
+  async function read(){
+    operation.current?.abort();const request=new AbortController();operation.current=request;
+    onRead();setLoading(true);setReview(null);
+    try{
+      const value=await pick.read(source.clientId,source.instructionsVersion,source.membershipRevision,request.signal);
+      if(request.signal.aborted)return;
+      if(!isTaskPlanRead(value,source.clientId,source.instructionsVersion,source.membershipRevision))
+        throw new SharedError('invalid_response','The current care-task plan could not be verified. Retry before scheduling this visit.');
+      onReview(!!(value as {planToken?:string|null}).planToken);
+      setReview({value});
+    }catch(error){if(!request.signal.aborted)onError(error);}
+    finally{if(!request.signal.aborted)setLoading(false);}
+  }
+  return <><button type="button" disabled={loading} onClick={()=>void read()}>{loading?'Checking saved care-task plan…':'Review saved care-task plan'}</button>
+    {review&&<TaskPlanReview source={source} response={review.value} onSelect={onSelect}/>}</>;
+}
 
 const emptyDraft={sourceId:'',workerId:'',start:'',end:'',repeat:'none',count:'2'};
 const recurrenceDate=new Intl.DateTimeFormat('en-CA',{timeZone:'UTC',month:'short',day:'numeric',year:'numeric'});
@@ -21,8 +51,18 @@ function recurrenceReviewLabel(start:string,end:string) {
   return `${date(localStart)}, ${clock(localStart)}–${localStart.slice(0,10)===localEnd.slice(0,10)?'':date(localEnd)+', '}${clock(localEnd)} · Vancouver`;
 }
 
-export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,allowRecurrence=false,onScopeFailure,onConfirmed,onPendingChange}:{client:ScheduleCreateClient;staff:ScheduleIdentity[];active?:boolean;allowRecurrence?:boolean;selectedTaskPlan?:{clientId:string;membershipRevision:number;instructionsVersion:number;planToken:string}|null;
+export function SharedScheduleCreate({client,staff,selectedTaskPlan:providedPlan,taskPlans,active=true,allowRecurrence=false,onScopeFailure,onConfirmed,onPendingChange}:{client:ScheduleCreateClient;staff:ScheduleIdentity[];taskPlans?:TaskPlans;active?:boolean;allowRecurrence?:boolean;selectedTaskPlan?:{clientId:string;membershipRevision:number;instructionsVersion:number;planToken:string}|null;
   onScopeFailure:(code:string)=>void;onConfirmed:(visit:ScheduleVisit)=>void;onPendingChange:(pending:boolean)=>void}) {
+  const planAttemptRef=useRef<PlanAttempt|null>(null);
+  const [planAttempt,setRenderedPlanAttempt]=useState<PlanAttempt|null>(null);
+  const setPlanAttempt=(attempt:PlanAttempt|null)=>{planAttemptRef.current=attempt;setRenderedPlanAttempt(attempt);};
+  const invalidatePlanReview=()=>{
+    const attempt=planAttemptRef.current;
+    if(attempt&&attempt.state!=='idle')setPlanAttempt({key:attempt.key,state:'failed'});
+  };
+  const selectedTaskPlan=taskPlans?(planAttempt?.state==='selected'?planAttempt.selection:null):providedPlan;
+  const pendingClient=useRef<ScheduleCreateClient|null>(null);
+  const recoveredPlan=useRef(false);
   const [access,setAccess]=useState<{enabled:boolean;membershipRevision:number}|null>(null),[sources,setSources]=useState<ScheduleSource[]|null>(null);
   const [draft,setDraft]=useState(emptyDraft),[pending,setPending]=useState<ScheduleCreation|ScheduleRecurrence|null>(null);
   const [reviewSource,setReviewSource]=useState<{clientId:string;clientName:string}|null>(null);
@@ -38,25 +78,26 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
   function fail(failure:unknown) {
     setError(true);setMessage(failure instanceof SharedError?failure.message:'Current scheduling access could not be verified. Your draft is retained.');
     if(failure instanceof SharedError && ['unauthenticated','scope_changed','conflict','forbidden'].includes(failure.code)) {
-      setReview(null);setReviewSource(null);setSources(null);setPending(null);setDraft(emptyDraft);setDirty(false);setAccess(null);
+      setReview(null);setReviewSource(null);setSources(null);setPending(null);setPlanAttempt(null);pendingClient.current=null;recoveredPlan.current=false;setDraft(emptyDraft);setDirty(false);setAccess(null);
       callbacks.current.onScopeFailure(failure.code);
     }
   }
   async function load() {
     if(!active)return;
     controller.current?.abort();const request=new AbortController();controller.current=request;const current=++generation.current;
-    setBusy(true);setSources(null);setError(false);
+    setBusy(true);setSources(null);invalidatePlanReview();setError(false);
     try {
       const next=await client.availability(request.signal);
       if(membership.current!==null && next.membershipRevision!==membership.current)throw new SharedError('scope_changed','Account access changed. Reopen the workspace.');
       if(!next.enabled){if(!request.signal.aborted && current===generation.current){setAccess(next);setSources([]);}return;}
       const recurring=allowRecurrence?await client.recurrence.availability(request.signal):{enabled:false,membershipRevision:next.membershipRevision};
       if(recurring.membershipRevision!==next.membershipRevision)throw new SharedError('scope_changed','Account access changed. Reopen the workspace.');
-      const recovered=await client.drafts.recover(next.membershipRevision,request.signal);
+      const recoverClient=taskPlans?.recovery??client;
+      const recovered=await recoverClient.drafts.recover(next.membershipRevision,request.signal);
       if(request.signal.aborted || current!==generation.current)return;
       membership.current=next.membershipRevision;setAccess(next);setRecurrenceEnabled(recurring.enabled);
-      if(recovered){setPending(recovered.request);setReceiptState(recovered.state==='committed'?'committed':'unknown');setDirty(false);setRejected(false);setMessage('Recovered the outstanding exact creation request from the shared service. Review its receipt or cancel the reservation before starting another visit.');return;}
-      setPending(null);setReceiptState('unresolved');setRejected(false);
+      if(recovered){pendingClient.current=recoverClient;recoveredPlan.current=!!taskPlans&&Object.hasOwn(recovered.request.command,'taskPlanToken');setPending(recovered.request);setReceiptState(recovered.state==='committed'?'committed':'unknown');setDirty(false);setRejected(false);setMessage('Recovered the outstanding exact creation request from the shared service. Review its receipt or cancel the reservation before starting another visit.');return;}
+      pendingClient.current=null;recoveredPlan.current=false;setPending(null);setReceiptState('unresolved');setRejected(false);
       const values=await client.sources(next.membershipRevision,request.signal);
       if(request.signal.aborted || current!==generation.current)return;
       membership.current=next.membershipRevision;setAccess(next);setRecurrenceEnabled(recurring.enabled);setSources(values);setDraft(old=>({...old,sourceId:''}));
@@ -68,19 +109,20 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
   // Returning to an open form invalidates the selectable source snapshot. Retain
   // the exact request after a possible write, and require an explicit receipt retry.
   useLayoutEffect(()=>{
-    const hide=()=>{generation.current++;controller.current?.abort();setBusy(false);setSources(null);setReview(null);setReviewSource(null);setResolved(false);if(inFlight.current)setReceiptState(old=>old==='committed'?old:'unknown');inFlight.current=false;setError(false);setMessage('Source details are hidden until current access is rechecked. If a request was sent, retry that exact request to check its outcome.');};
+    const hide=()=>{generation.current++;controller.current?.abort();setBusy(false);setSources(null);invalidatePlanReview();setReview(null);setReviewSource(null);setResolved(false);if(inFlight.current)setReceiptState(old=>old==='committed'?old:'unknown');inFlight.current=false;setError(false);setMessage('Source details are hidden until current access is rechecked. If a request was sent, retry that exact request to check its outcome.');};
     const onVisibility=()=>{if(document.visibilityState!=='visible')hide();};
     if(!active)hide();
     window.addEventListener('blur',hide);document.addEventListener('visibilitychange',onVisibility);
     return()=>{window.removeEventListener('blur',hide);document.removeEventListener('visibilitychange',onVisibility);};
   },[active]);
   async function execute(command:ScheduleCreation|ScheduleRecurrence) {
-    if(!active || !allowRecurrence&&command.command.type==='createSeries')return;
+    if(!active || recoveredPlan.current || !allowRecurrence&&command.command.type==='createSeries')return;
+    const requestClient=pendingClient.current??client;
     controller.current?.abort();const request=new AbortController();controller.current=request;const current=++generation.current;
     inFlight.current=true;setReview(null);setResolved(false);setBusy(true);setSources(null);setError(false);setRejected(false);setMessage('Checking the creation receipt and current shared visit…');
     try {
       const series=command.command.type==='createSeries';
-      const result=series?await client.recurrence.commit(command as ScheduleRecurrence,request.signal):await client.commit(command as ScheduleCreation,request.signal);
+      const result=series?await requestClient.recurrence.commit(command as ScheduleRecurrence,request.signal):await requestClient.commit(command as ScheduleCreation,request.signal);
       if(request.signal.aborted || current!==generation.current)return;
       const visits='visits' in result?result.visits:[result.visit];
       setReviewSource({clientId:command.command.source.clientId,clientName:command.command.source.clientName});
@@ -104,16 +146,17 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
     inFlight.current=true;const previous=review;setReview(null);setSources(null);setRejected(false);setBusy(true);setError(false);
     setMessage('Rechecking the exact receipt and every current visit…');
     try {
-      const next=pending.command.type==='createSeries'
-        ?await client.recurrence.reconcile(pending as ScheduleRecurrence,request.signal,access?.membershipRevision)
-        :await client.reconcile(pending as ScheduleCreation,request.signal,access?.membershipRevision);
+      const requestClient=pendingClient.current??client;
+    const next=pending.command.type==='createSeries'
+        ?await requestClient.recurrence.reconcile(pending as ScheduleRecurrence,request.signal,access?.membershipRevision)
+        :await requestClient.reconcile(pending as ScheduleCreation,request.signal,access?.membershipRevision);
       if(request.signal.aborted || current!==generation.current)return;
       setReviewSource({clientId:pending.command.source.clientId,clientName:pending.command.source.clientName});setReview(next);setReceiptState('committed');
       if(acknowledge && previous && sameCreationReview(previous,next)) {
-        const terminal=await client.drafts.resolve(pending,request.signal);
+        const terminal=await requestClient.drafts.resolve(pending,request.signal);
         if(terminal?.state!=='resolved')throw new SharedError('write_unconfirmed','Receipt resolution could not be confirmed. Recover the outstanding request before starting another.');
         if(request.signal.aborted || current!==generation.current)return;
-        setPending(null);setDirty(false);setDraft(emptyDraft);setResolved(true);setReceiptState('unresolved');
+        setPending(null);setPlanAttempt(null);setDirty(false);setDraft(emptyDraft);setResolved(true);setReceiptState('unresolved');
         setMessage('Creation receipt resolved. The original creation is recorded; the current outcomes below were rechecked. No additional visits were created.');
         callbacks.current.onConfirmed(next.visits[0].current);
       }else setMessage(acknowledge?'The schedule changed during review. Review the updated current outcomes and acknowledge again.':'Creation receipt verified. Review each original and current outcome before acknowledging this request.');
@@ -127,11 +170,11 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
     if(!active||!pending||busy)return;
     controller.current?.abort();const request=new AbortController();controller.current=request;const current=++generation.current;setBusy(true);setError(false);setReview(null);
     try{
-      const result=await client.drafts.cancel(pending,request.signal);
+      const result=await (pendingClient.current??client).drafts.cancel(pending,request.signal);
       if(request.signal.aborted||current!==generation.current)return;
       if(result?.state==='committed'||result?.state==='resolved'){setReceiptState('committed');setRejected(false);setMessage('Creation committed before cancellation. Review the recorded creation and current visits before resolving it.');return;}
       if(result?.state!=='cancelled')throw new SharedError('write_unconfirmed','Cancellation could not be confirmed. Recover this request before starting another.');
-      setPending(null);setReceiptState('unresolved');setRejected(false);setDraft(emptyDraft);setDirty(false);setMessage('Creation reservation cancelled. Delayed attempts using that request are fenced from creating visits.');
+      setPending(null);setPlanAttempt(null);setReceiptState('unresolved');setRejected(false);setDraft(emptyDraft);setDirty(false);setMessage('Creation reservation cancelled. Delayed attempts using that request are fenced from creating visits.');
       await load();
     }catch(failure){if(!request.signal.aborted&&current===generation.current)fail(failure);}
     finally{if(current===generation.current&&!request.signal.aborted)setBusy(false);}
@@ -145,7 +188,14 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
     // Keep the first exact request instead of replacing it with another operation.
     event.preventDefault();if(!active||inFlight.current||busy||pending||!access?.enabled||!sources)return;
     const source=sources.find(s=>s.clientId===draft.sourceId);if(!source){fail(new SharedError('invalid_request','Select a current reviewed scheduling source.'));return;}
-    if(selectedTaskPlan && (source.clientId!==selectedTaskPlan.clientId || source.instructionsVersion!==selectedTaskPlan.instructionsVersion || access.membershipRevision!==selectedTaskPlan.membershipRevision || source.service!=='Home support')){fail(new SharedError('invalid_request','The selected task plan belongs to a different client or instruction version. Review the current plan before scheduling.'));return;}
+    const currentAttempt=taskPlans?planAttemptRef.current:null;
+    if(currentAttempt&&(currentAttempt.key!==planSourceKey({...source,membershipRevision:access.membershipRevision})||waitingForPlan(currentAttempt))){
+      setError(true);setMessage('Finish reviewing the current care-task plan before scheduling this visit.');return;
+    }
+    const currentPlan=taskPlans?(currentAttempt?.state==='selected'?currentAttempt.selection:null):providedPlan;
+    if(currentPlan && (source.clientId!==currentPlan.clientId || source.instructionsVersion!==currentPlan.instructionsVersion || access.membershipRevision!==currentPlan.membershipRevision || source.service!=='Home support')){fail(new SharedError('invalid_request','The selected task plan belongs to a different client or instruction version. Review the current plan before scheduling.'));return;}
+    const chosenClient=taskPlans?.pick&&currentPlan?taskPlans.pick.create(currentPlan.planToken):client;
+    recoveredPlan.current=false;
     let start:string,end:string;
     try{start=reportUtcTime(draft.start);end=reportUtcTime(draft.end);if(start>=end)throw new RangeError('The visit end must be after its start.');}
     catch(failure){setError(true);setMessage(failure instanceof Error?failure.message:'Check the Vancouver times.');return;}
@@ -155,16 +205,19 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
         const localStart=reportLocalTime(start),localEnd=reportLocalTime(end),cadence=draft.repeat as 'daily'|'weekly',count=Number(draft.count);
         const occurrences=recurrenceIntervals(localStart,localEnd,cadence,count).map((times:{start:string;end:string})=>({...times,operationId:crypto.randomUUID(),visitId:crypto.randomUUID()}));
         const command:ScheduleRecurrence={schema:1,operationId:crypto.randomUUID(),membershipRevision:access.membershipRevision,
-          command:{type:'createSeries',clientId:source.clientId,service:source.service,workerId:draft.workerId||null,source:structuredClone(source),...(selectedTaskPlan?{taskPlanToken:selectedTaskPlan.planToken}:{}),timeZone:'America/Vancouver',localStart,localEnd,cadence,count,occurrences}};
-        setPending(command);void execute(command);
+          command:{type:'createSeries',clientId:source.clientId,service:source.service,workerId:draft.workerId||null,source:structuredClone(source),...(currentPlan?{taskPlanToken:currentPlan.planToken}:{}),timeZone:'America/Vancouver',localStart,localEnd,cadence,count,occurrences}};
+        pendingClient.current=chosenClient;setPending(command);void execute(command);
       }catch(failure){setError(true);setMessage(failure instanceof Error?failure.message:'Review each Vancouver occurrence.');}
       return;
     }
     const command:ScheduleCreation={schema:1,operationId:crypto.randomUUID(),visitId:crypto.randomUUID(),visitRevision:0,membershipRevision:access.membershipRevision,
-      command:{type:'create',clientId:source.clientId,service:source.service,workerId:draft.workerId||null,start,end,source:structuredClone(source),...(selectedTaskPlan?{taskPlanToken:selectedTaskPlan.planToken}:{})}};
-    setPending(command);void execute(command);
+      command:{type:'create',clientId:source.clientId,service:source.service,workerId:draft.workerId||null,start,end,source:structuredClone(source),...(currentPlan?{taskPlanToken:currentPlan.planToken}:{})}};
+    pendingClient.current=chosenClient;setPending(command);void execute(command);
   }
   const selected=sources?.find(s=>s.clientId===draft.sourceId);
+  const pickerSource=selected?.service==='Home support'&&access?
+    {clientId:selected.clientId,instructionsVersion:selected.instructionsVersion,membershipRevision:access.membershipRevision}:null;
+  const pickerKey=pickerSource&&planSourceKey(pickerSource);
   let preview:{start:string;end:string}[]=[],previewError='';
   if(draft.repeat!=='none'&&draft.start&&draft.end)try{preview=recurrenceIntervals(reportLocalTime(reportUtcTime(draft.start)),reportLocalTime(reportUtcTime(draft.end)),draft.repeat,Number(draft.count));}catch(failure){previewError=failure instanceof Error?failure.message:'Check recurrence times.';}
 
@@ -193,8 +246,9 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
     </section>}
     {busy && pending && <button type="button" onClick={stopCheck}>Stop check and retain request</button>}
     {pending && <div>{pending.command.type==='createSeries'&&!allowRecurrence&&<p>Recurring creation retries are not enabled here. Review or cancel this recovered reservation before starting a single visit.</p>}<p>Confirmed reservations are retained by the shared service across refreshes and reopening. Recover this request before starting another visit.</p>
-      <button type="button" disabled={busy||pending.command.type==='createSeries'&&!allowRecurrence} onClick={()=>void execute(pending)}>Retry exact creation request</button>
-      {receiptState==='committed' && <button type="button" disabled={busy} onClick={()=>void inspectReceipt()}>Review recorded creation and current visits</button>}
+      <button type="button" disabled={busy||recoveredPlan.current||pending.command.type==='createSeries'&&!allowRecurrence} onClick={()=>void execute(pending)}>Retry exact creation request</button>
+      {recoveredPlan.current&&<p>To avoid replacing a saved plan after reopening, review the exact existing creation or cancel its reservation; this form will not resend it as a new creation.</p>}
+      {(receiptState==='committed'||recoveredPlan.current) && <button type="button" disabled={busy} onClick={()=>void inspectReceipt()}>Review recorded creation and current visits</button>}
       {receiptState==='unknown' && <p>The outcome is still unknown. Only the exact retained request can establish whether creation was recorded.</p>}
       <button type="button" disabled={busy} onClick={()=>void cancelReservation()}>Cancel creation reservation</button>
       <button type="button" disabled={busy} onClick={()=>void load()}>Recover outstanding creation</button>
@@ -203,16 +257,33 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
     {access && !access.enabled && <p>Read-only. New shared visits are not enabled here.</p>}
     {!sources && !pending && !busy && !review && <><p>Source details are hidden until current manager access is rechecked. Your draft stays in this open form.</p><button type="button" onClick={()=>void load()}>Reload reviewed sources</button></>}
     {access?.enabled && sources && !pending && <>
-      <p>Choose existing recorded client and service readiness. This form shows saved instruction version metadata; instruction content is not available here. Source approval and instruction authoring are maintained outside this workspace.</p>
+      <p>Choose existing recorded client and service readiness. This form shows saved instruction version metadata. Where available, review the saved care-task plan separately. Source approval and instruction authoring are maintained outside this workspace.</p>
       {!sources.length?<p>No current reviewed sources are available. A database owner must resolve readiness, saved instructions, service rules or linked inquiry changes before creation.</p>
         :<form onSubmit={submit} onChange={()=>setDirty(true)}><fieldset disabled={busy}>
           <legend>Review source and visit times</legend>
-          <label htmlFor={`${id}-source`}>Reviewed client and service</label><select id={`${id}-source`} required value={draft.sourceId} onChange={event=>setDraft(old=>({...old,sourceId:event.target.value}))}>
+          <label htmlFor={`${id}-source`}>Reviewed client and service</label><select id={`${id}-source`} required value={draft.sourceId} onChange={event=>{
+            const source=sources.find(row=>row.clientId===event.target.value);
+            const previous=planAttemptRef.current;
+            const nextKey=source&&planSourceKey({...source,membershipRevision:access.membershipRevision});
+            if(previous&&nextKey&&previous.key!==nextKey)setPlanAttempt({key:nextKey,state:'idle'});
+            setDraft(old=>({...old,sourceId:event.target.value}));
+          }}>
             <option value="">Choose a reviewed source</option>{sources.map(source=><option key={source.clientId} value={source.clientId}>{source.clientName} · {source.service} · {source.area}</option>)}</select>
           {selected && <div aria-label="Selected scheduling source"><p>{selected.clientName} · {selected.service} · {selected.area}</p>
             <p>Recorded readiness: <time dateTime={selected.confirmedAt}>{selected.confirmedAt.slice(0,16).replace('T',' ')+' UTC'}</time>.</p>
             <p>Saved instructions version {selected.instructionsVersion} · <time dateTime={selected.instructionsSavedAt}>{selected.instructionsSavedAt.slice(0,16).replace('T',' ')+' UTC'}</time>. Contents are not shown.</p>
             <p>{selected.inquiryId?`Linked inquiry · current revision ${selected.inquiryRevision}.`:'No inquiry is linked to this readiness record.'}</p></div>}
+          {taskPlans?.pick&&pickerSource&&pickerKey&&<PlanPicker key={pickerKey}
+            source={pickerSource} pick={taskPlans.pick}
+            onRead={()=>{setPlanAttempt({key:pickerKey,state:'loading'});setError(false);setMessage('');}}
+            onReview={hasPlan=>{if(planAttemptRef.current?.key===pickerKey&&planAttemptRef.current.state==='loading')
+              setPlanAttempt({key:pickerKey,state:hasPlan?'selection':'verified-empty'});}}
+            onSelect={selection=>{if(planAttemptRef.current?.key===pickerKey&&planAttemptRef.current.state==='selection'){
+              setPlanAttempt({key:pickerKey,state:'selected',selection});setDirty(true);setError(false);setMessage('');
+            }}}
+            onError={failure=>{if(planAttemptRef.current?.key===pickerKey&&planAttemptRef.current.state==='loading'){
+              setPlanAttempt({key:pickerKey,state:'failed'});fail(failure);
+            }}}/>}
           <p>Enter visit times in Vancouver. The server checks the selected source and current dispatch rules again in the creation transaction.</p>
           <label htmlFor={`${id}-start`}>New visit start · Vancouver</label><input id={`${id}-start`} type="datetime-local" step="0.001" required value={draft.start} onChange={event=>setDraft(old=>({...old,start:event.target.value}))}/>
           <label htmlFor={`${id}-end`}>New visit end · Vancouver</label><input id={`${id}-end`} type="datetime-local" step="0.001" required value={draft.end} onChange={event=>setDraft(old=>({...old,end:event.target.value}))}/>
@@ -228,7 +299,7 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan,active=true,
               {preview.length>0 && <ol aria-label="Recurring visit review">{preview.map((v,i)=><li key={i}>{recurrenceReviewLabel(v.start,v.end)}</li>)}</ol>}
             </>}
           </>}
-          <button type="submit" disabled={draft.repeat!=='none'&&(!recurrenceEnabled||preview.length!==Number(draft.count))}>{draft.repeat==='none'?'Create shared visit':`Create ${draft.count} recurring visits`}</button>
+          <button type="submit" disabled={waitingForPlan(planAttempt)||draft.repeat!=='none'&&(!recurrenceEnabled||preview.length!==Number(draft.count))}>{draft.repeat==='none'?'Create shared visit':`Create ${draft.count} recurring visits`}</button>
         </fieldset></form>}
       <button type="button" disabled={busy} onClick={()=>void load()}>Refresh reviewed sources</button>
     </>}
