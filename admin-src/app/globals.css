@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './shared/staff-profile-workspace.css';
 
 :root {
   color-scheme: light;

@@ -8,7 +8,7 @@ import {create,act} from 'react-test-renderer';
 const require=createRequire(import.meta.url);
 const bundle=await build({entryPoints:[fileURLToPath(new URL('../admin-src/app/shared/MobileNavigation.tsx',import.meta.url))],bundle:true,write:false,platform:'node',format:'esm',jsx:'automatic',loader:{'.css':'empty'},plugins:[{name:'external-react',setup(b){b.onResolve({filter:/^react(?:\/.*)?$/},args=>({path:pathToFileURL(require.resolve(args.path)).href,external:true}));}}]});
 const {MobileNavigation}=await import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
-const titles={daily:'Today',leads:'Care Inquiries',partners:'Referral Partners',followups:'Follow-ups',operations:'Operations',overview:'Overview',assessments:'Assessments'};
+const titles={daily:'Today',leads:'Care Inquiries',partners:'Referral Partners',followups:'Follow-ups',operations:'Operations',overview:'Overview',assessments:'Assessments','staff-profiles':'Staff Profiles'};
 test('mobile menu closes on selection, preserves current Accounts and restricts shared sections',async()=>{
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;
  const oldWindow=globalThis.window,oldDocument=globalThis.document;
@@ -24,6 +24,14 @@ test('mobile menu closes on selection, preserves current Accounts and restricts 
  await act(async()=>root.update(React.createElement(MobileNavigation,{...props,accountsOpen:true,sharedSchedule:true})));
  await act(async()=>button('Accounts').props.onClick());assert.equal(accounts,0);
  assert.equal(button('Team & settings'),undefined);assert.ok(button('Schedule'));
+ await act(async()=>root.update(React.createElement(MobileNavigation,{...props,staffProfilesLabel:'Staff Profiles',sharedSchedule:true})));
+ assert.equal(root.root.findByProps({'aria-label':'Teams & Settings'}).findAllByType('button').length,2);
+ await act(async()=>open());await act(async()=>button('Staff Profiles').props.onClick());
+ assert.deepEqual(routes,[['operations','team'],['staff-profiles']]);assert.equal(modal.open,false);
+ await act(async()=>root.update(React.createElement(MobileNavigation,{...props,view:'staff-profiles',staffProfilesLabel:'My Staff Profile',manageAccounts:false,sharedSchedule:true,titles:{...titles,'staff-profiles':'My Staff Profile'}})));
+ assert.equal(button('My Staff Profile').props['aria-current'],'page');assert.equal(button('Accounts'),undefined);
+ await act(async()=>root.update(React.createElement(MobileNavigation,{...props,staffProfilesLabel:null,manageAccounts:false})));
+ assert.equal(button('Staff Profiles'),undefined);
  await act(async()=>open());await act(async()=>window.dispatchEvent(new Event('popstate')));assert.equal(modal.open,false);
  await act(async()=>open());await act(async()=>root.root.findByType('dialog').props.onCancel());assert.equal(root.root.findByProps({className:'mobile-navigation-trigger'}).props['aria-expanded'],false);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=oldWindow;globalThis.document=oldDocument;}

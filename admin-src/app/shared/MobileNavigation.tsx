@@ -4,7 +4,7 @@ import './mobile-navigation.css';
 
 type Props = {
   view: DashboardView; section: OperationsSection; accountsOpen: boolean;
-  sharedSchedule: boolean; manageAccounts: boolean;
+  sharedSchedule: boolean; manageAccounts: boolean; staffProfilesLabel?: string | null;
   titles: Record<DashboardView, string>;
   onNavigate: (view: DashboardView, section?: OperationsSection) => void;
   onAccounts: () => void;
@@ -46,8 +46,14 @@ export function MobileNavigation(props: Props) {
       <header><h2 id="mobile-navigation-title">Workspace menu</h2><button type="button" autoFocus onClick={close} aria-label="Close menu">×</button></header>
       <nav aria-label="Mobile workspace navigation">
         <h3>Dashboard</h3>
-        {Object.entries(props.titles).filter(([id])=>id!=='operations').map(([id,label])=><button type="button" key={id} aria-current={!props.accountsOpen&&props.view===id?'page':undefined} onClick={()=>{close();props.onNavigate(id as DashboardView);}}>{label}</button>)}
-        {props.manageAccounts&&<button type="button" aria-current={props.accountsOpen?'page':undefined} onClick={()=>{close();if(!props.accountsOpen)props.onAccounts();}}>Accounts</button>}
+        {Object.entries(props.titles).filter(([id])=>id!=='operations'&&id!=='staff-profiles').map(([id,label])=><button type="button" key={id} aria-current={!props.accountsOpen&&props.view===id?'page':undefined} onClick={()=>{close();props.onNavigate(id as DashboardView);}}>{label}</button>)}
+        {(props.staffProfilesLabel||props.manageAccounts)&&<section aria-label="Teams & Settings">
+          <h3>Teams &amp; Settings</h3>
+          {props.staffProfilesLabel&&<button type="button" aria-current={!props.accountsOpen&&props.view==='staff-profiles'?'page':undefined}
+            onClick={()=>{close();props.onNavigate('staff-profiles');}}>{props.staffProfilesLabel}</button>}
+          {props.manageAccounts&&<button type="button" aria-current={props.accountsOpen?'page':undefined}
+            onClick={()=>{close();if(!props.accountsOpen)props.onAccounts();}}>Accounts</button>}
+        </section>}
         <h3>Operations</h3>
         {(props.sharedSchedule?namedSections.slice(0,1):namedSections).map(([id,label])=><button type="button" key={id} aria-current={!props.accountsOpen&&props.view==='operations'&&(props.sharedSchedule?'visits':props.section)===id?'page':undefined} onClick={()=>{close();props.onNavigate('operations',id);}}>{label}</button>)}
       </nav>
