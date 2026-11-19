@@ -18,8 +18,8 @@ select ech_staff_profile_store_write('11111111-1111-4111-8111-111111111111',4,'s
 set fixture.actor='22222222-2222-4222-8222-222222222222';
 select ech_staff_profile_store_write('11111111-1111-4111-8111-111111111111',5,'approved',null,'44444444-4444-4444-8444-444444444444');
 do $$begin
- if (select public_fields#>>'{credentials,0,verifiedBy}' from ech_staff_profiles)<>'22222222-2222-4222-8222-222222222222' then raise exception 'Lost unchanged verification';end if;
- if (select public_fields->>'availability' from ech_staff_profiles)<>'Monday' then raise exception 'Lost saved availability';end if;
+ if (select public_fields#>>'{credentials,0,verifiedBy}' from ech_staff_profiles) IS DISTINCT FROM '22222222-2222-4222-8222-222222222222' then raise exception 'Lost unchanged verification';end if;
+ if (select public_fields->>'availability' from ech_staff_profiles) IS DISTINCT FROM 'Monday' then raise exception 'Lost saved availability';end if;
  if exists(select from ech_staff_profile_pending) then raise exception 'Pending not cleared';end if;
 end$$;
 select 'staff profile storage workflow passed' as result;
