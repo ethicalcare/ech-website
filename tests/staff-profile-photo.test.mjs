@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {staffProfilePhoto} from '../lib/admin/staff-profile-photo.js';
+import {onRequest as hostedStaffProfilePhoto} from '../functions/api/admin/staff-profile-photo.js';
 const id='11111111-1111-4111-8111-111111111111';
 const current={member:{active:true,user_id:id,operational_role:'staff'},config:{base:'https://example.test',key:'fixture'},token:'fixture'};
 test('profile photo upload returns owned object metadata and saved photo is readable',async()=>{
@@ -10,4 +11,13 @@ test('profile photo upload returns owned object metadata and saved photo is read
  assert.ok(metadata.objectKey.startsWith(id+'/'));assert.equal(metadata.contentType,'image/png');assert.equal(uploaded.options.headers['x-upsert'],'false');
  profile={...profile,photo:metadata};const view=await staffProfilePhoto(current,new Request(request.url),{ECH_STAFF_PHOTO_BUCKET:'staff-photos'},fetcher);
  assert.equal(view.headers.get('content-type'),'image/png');assert.equal((await view.arrayBuffer()).byteLength,8);
+});
+
+test('hosted upload is denied before profile or storage access',async()=>{
+ const request=new Request('https://fixture.invalid/api/admin/staff-profile-photo?id='+id,{method:'POST',body:'unused'});
+ const env=new Proxy({},{get(){assert.fail('Upload must not access hosted configuration or storage');}});
+ const response=await hostedStaffProfilePhoto({request,env});
+ assert.equal(response.status,405);assert.equal(response.headers.get('allow'),'GET');
+ assert.equal(response.headers.get('cache-control'),'no-store');
+ assert.equal((await response.json()).error.code,'disabled');
 });

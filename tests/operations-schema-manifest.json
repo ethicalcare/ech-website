@@ -133,6 +133,10 @@
     {
       "file": "migrations/20261118221000_operations_visit_attendance.sql",
       "sha256": "31193840831325f3f9463e2fe8f0125e6093a7e8257b17d7c22978ae057e81fd"
+    },
+    {
+      "file": "migrations/20261119000100_staff_profile_authenticated_boundary.sql",
+      "sha256": "41d1219e8e7ca3848f3f1a73ebcc2a3c75dc2c91fc3a349769fc5cc1704f183c"
     }
   ]
 }
