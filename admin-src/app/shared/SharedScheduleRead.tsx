@@ -8,6 +8,7 @@ import './shared-schedule-calendar.css';
 import {scheduleDay,scheduleLabel} from './schedule-window';
 import {useCallback,useEffect,useMemo,useState,useRef,useLayoutEffect} from 'react';
 import {SharedScheduleCreate} from './SharedScheduleCreate';
+import {createTaskPlanReadClient} from './task-plan-read-client';
 import {createScheduleCreateClient} from './schedule-create-client';
 import {SharedVisitRead} from './SharedVisitRead';
 import type {VisitLeaveState} from './SharedVisitActions';
@@ -19,9 +20,9 @@ import {createScheduleClient,type ScheduleSnapshot} from './schedule-client';
 // role or negotiated features destroys it rather than reusing prior rows.
 export function SharedScheduleRead({session,fetcher=fetch,active=true}:{session:Session|null;fetcher?:typeof fetch;active?:boolean}){
  if(!session?.authenticated || !operationsFeatures(session).reads || !session.principal.operationalRole)return null;
- return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} attendanceEnabled={operationsFeatures(session).visitAttendance===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
+ return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} attendanceEnabled={operationsFeatures(session).visitAttendance===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} planPick={operationsFeatures(session).scheduleTaskPlanPick===true} planRecover={operationsFeatures(session).scheduleTaskPlanRecover===true} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
 }
-function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled}:{scope:string;tasksEnabled:boolean;attendanceEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
+function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,active,schedulingEnabled,actionsEnabled,recurrenceEnabled,planPick,planRecover}:{planPick:boolean;planRecover:boolean;scope:string;tasksEnabled:boolean;attendanceEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
  const visitButtons=useRef(new Map<string,HTMLButtonElement>());
  const currentVisitButton=useRef<HTMLButtonElement|null>(null);
  const [focusedShift,setFocusedShift]=useState(false);
@@ -37,6 +38,16 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
  const [createOpen,setCreateOpen]=useState(false),[creationHeld,setCreationHeld]=useState(false);
  const [creationStaff,setCreationStaff]=useState<import('./schedule-client').ScheduleIdentity[]>([]);
  const createClient=useMemo(()=>role==='staff'?null:createScheduleCreateClient(fetcher,actor,role),[fetcher,actor,role]);
+ const planContext=useMemo(()=>{
+  if(role==='staff'||!planRecover)return undefined;
+  return {
+   recovery:createScheduleCreateClient(fetcher,actor,role,{recoverTaskPlans:true}),
+   pick:planPick?{
+    read:createTaskPlanReadClient(fetcher,actor,role),
+    create:(token:string)=>createScheduleCreateClient(fetcher,actor,role,{allowTaskPlan:true,taskPlanToken:token}),
+   }:undefined,
+  };
+ },[fetcher,actor,role,planRecover,planPick]);
  const creationConfirmed=useCallback(()=>setReload(value=>value+1),[]);
  const [leave,setLeave]=useState<VisitLeaveState>({dirty:false,pending:false});
  const canLeave=()=>!leave.pending&&(!(leave.dirty||leave.retained)||window.confirm('Discard the unsaved visit draft and retained request?'));
@@ -86,7 +97,7 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
   <CalendarAdjacentButtons day={day} view={view} disabled={leave.pending||createOpen} onNavigate={next=>{if(next!==day&&canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(next);}}}/><div role="group" aria-label="Calendar view">{(['day','week','month'] as const).map(mode=><button key={mode} type="button" aria-pressed={view===mode} disabled={coverage==='day'&&mode!=='day'||coverage==='week'&&mode==='month'} onClick={()=>setView(mode)}>{mode[0].toUpperCase()+mode.slice(1)}</button>)}<button type="button" disabled={leave.pending||createOpen} onClick={()=>{const today=scheduleDay(new Date().toISOString());if(today!==day&&canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(today);}}}>Today</button></div>
   <button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setReload(value=>value+1);}}}>Reload schedule</button>
   {createClient&&schedulingEnabled&&!createOpen&&<button type="button" disabled={!data||leave.pending} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCreationStaff(data?.staff??[]);setCreateOpen(true);}}}>New shared visit</button>}
-  {createOpen&&createClient&&<><button type="button" onClick={()=>{if(!creationHeld||window.confirm('Close this creation form? Unsubmitted edits will be lost. Reserved requests must be recovered when you reopen.')){setCreateOpen(false);setCreationHeld(false);}}}>Close creation form</button><SharedScheduleCreate client={createClient} allowRecurrence={recurrenceEnabled} staff={creationStaff} active={active} onConfirmed={creationConfirmed} onScopeFailure={invalidate} onPendingChange={setCreationHeld}/></>}
+  {createOpen&&createClient&&<><button type="button" onClick={()=>{if(!creationHeld||window.confirm('Close this creation form? Unsubmitted edits will be lost. Reserved requests must be recovered when you reopen.')){setCreateOpen(false);setCreationHeld(false);}}}>Close creation form</button><SharedScheduleCreate client={createClient} taskPlans={planContext} allowRecurrence={recurrenceEnabled} staff={creationStaff} active={active} onConfirmed={creationConfirmed} onScopeFailure={invalidate} onPendingChange={setCreationHeld}/></>}
   {!visible?.error&&!data&&<p role="status">Loading schedule…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
   {visible?.error&&<div role="group" aria-label="Try a smaller calendar range"><p>A smaller date range may be easier to verify. No partial results are shown.</p>{coverage!=='day'&&<button type="button" onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCoverage('day');setView('day');}}}>Load selected day only</button>}{coverage==='full'&&<button type="button" onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCoverage('week');setView('week');}}}>Load selected week only</button>}</div>}
