@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {isDeepStrictEqual} from 'node:util';
 import test from 'node:test';
 import {chromium} from 'playwright-core';
 
@@ -31,7 +32,7 @@ const detailFor = id => ({visitId:id,revision:1,fields:{
 const list = {schema:1,mode:'shared',items:[],nextCursor:null};
 
 async function withPhoneFixture({
-  signedIn=session,fixtureVisits=visits,now='2026-01-15T20:00:00.000Z',denied=()=>false,existingBrowser,
+  signedIn=session,fixtureVisits=visits,now='2026-01-15T20:00:00.000Z',denied=()=>false,existingBrowser,reportFixture,
 },run){
     const assets = new Map(await Promise.all([
       ['/admin/','index.html','text/html'],['/admin/admin.js','admin.js','text/javascript'],
@@ -52,7 +53,13 @@ async function withPhoneFixture({
           unexpected.push({origin:url.origin,path:url.pathname,method:request.method()});
           await route.abort('blockedbyclient');
         };
-        if(url.origin!==origin||request.method()!=='GET')return reject();
+        if(url.origin!==origin)return reject();
+        if(url.pathname==='/api/admin/operations'&&reportFixture){
+          if(request.headers()['x-ech-schedule-actor']!==signedIn.principal.id||request.headers()['x-ech-schedule-role']!=='staff')return reject();
+          const response=reportFixture(request,url);
+          if(response)return route.fulfill(response);
+        }
+        if(request.method()!=='GET')return reject();
         const asset = assets.get(url.pathname);
         if(asset&&(!url.search||url.pathname+url.search===entry))return route.fulfill(asset);
         const json = value=>route.fulfill({json:value});
@@ -214,5 +221,88 @@ test('assigned worker opens approved visit details from My day at phone width',
         assert.equal(await otherSchedule.getByRole('region',{name:'Selected visit details',exact:true}).count(),0);
         assert.deepEqual(otherReads,[]);
       });
+    });
+  });
+
+test('active shift shortcuts focus the report fields and an exact fictional report is read back at phone width',
+  {timeout:45_000},async()=>{
+    const signedIn={
+      ...session,principal:{...session.principal,id:staff,email:'fictional.worker@ech-fixture.invalid',operationalRole:'staff'},
+      capabilities:['leads.read_assigned'],operationsFeatures:{...session.operationsFeatures,visitActions:true},
+    };
+    const activeVisit={...visits[0],status:'In progress'};
+    const command={
+      type:'submit',outcome:'completed',summary:'Completed fictional meal preparation.',
+      issue:'Fictional supply reminder.',observations:'Fictional preferences were followed.',
+      actualStart:'2026-01-15T18:10:00.000Z',actualEnd:'2026-01-15T19:00:00.000Z',
+      completedTasks:['Fictional meal preparation'],
+    };
+    const recordedAt='2026-01-15T19:01:00.000Z';
+    let submissions=0,receiptReadbacks=0,savedReport=null;
+    function reportFixture(request,url){
+      const headers=request.headers();
+      if(request.method()==='POST'&&url.search===''&&submissions===0&&
+        headers['content-type']==='application/json'&&headers['x-ech-visit-features']==='1'){
+        let body;
+        try{body=request.postDataJSON();}catch{return;}
+        const operationId=body?.operationId;
+        if(typeof operationId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(operationId)
+          ||!isDeepStrictEqual(body,{schema:1,operationId,visitId:activeVisit.id,visitRevision:1,
+            reportRevision:0,membershipRevision:7,command}))return;
+        submissions++;
+        const {type,outcome,summary,issue,observations,actualStart,actualEnd,completedTasks}=body.command;
+        savedReport={schema:1,visitId:activeVisit.id,visitRevision:2,reportRevision:1,reviews:[],versions:[{
+          revision:1,version:0,sourceRevision:null,actorId:staff,actorRole:'staff',recordedAt,
+          outcome,summary,issue,observations,actualStart,actualEnd,completedTasks,reason:null,
+        }]};
+        return {json:{schema:1,operationId,visitId:activeVisit.id,visitRevision:2,
+          reportRevision:1,reportVersion:0,action:type,recordedAt}};
+      }
+      if(request.method()!=='GET')return;
+      const q=url.searchParams;
+      if(url.search==='?commands=1'&&headers['x-ech-visit-features']==='1')
+        return {json:{schema:1,enabled:true,membershipRevision:7}};
+      if(q.size===2&&q.get('visit')===activeVisit.id&&q.get('revision')==='2'&&savedReport)
+        return {json:{...detailFor(activeVisit.id),revision:2}};
+      if(q.get('report')!==activeVisit.id||headers['x-ech-report-features']!=='2')return;
+      if(q.size===2&&q.get('revision')==='1'&&!savedReport)
+        return {json:{schema:1,visitId:activeVisit.id,visitRevision:1,reportRevision:0,versions:[],reviews:[]}};
+      if(savedReport&&q.get('revision')==='2'){
+        if(q.size===3&&q.get('reportRevision')==='1'){
+          receiptReadbacks++;return {json:savedReport};
+        }
+        if(q.size===2)return {json:savedReport};
+      }
+    }
+
+    await withPhoneFixture({signedIn,fixtureVisits:[activeVisit],now:'2026-01-15T19:05:00.000Z',
+      reportFixture},async({page})=>{
+      const myDay=page.getByRole('region',{name:'My day',exact:true});
+      await myDay.getByRole('button',{name:'Open current visit',exact:true}).tap();
+      const panel=page.getByRole('region',{name:'Selected visit details',exact:true});
+      const observations=panel.getByLabel('Factual observations',{exact:true});
+      const issue=panel.getByLabel('Issue text',{exact:true});
+      await panel.getByRole('button',{name:'Jump to visit notes',exact:true}).tap();
+      assert.equal(await observations.evaluate(e=>e===document.activeElement),true);
+      await observations.fill(command.observations);
+      await panel.getByRole('button',{name:'Jump to visit issue',exact:true}).tap();
+      assert.equal(await issue.evaluate(e=>e===document.activeElement),true);
+      await issue.fill(command.issue);
+      assert.equal(submissions,0,'shortcuts only focus the report fields');
+      await panel.getByLabel('Outcome reported',{exact:true}).selectOption(command.outcome);
+      await panel.getByLabel(/^Factual summary/).fill(command.summary);
+      await panel.getByLabel('Completed tasks · one per line, at most 50',{exact:true}).fill(command.completedTasks[0]);
+      await panel.getByLabel('Actual start · Vancouver',{exact:true}).fill('2026-01-15T10:10');
+      await panel.getByLabel('Actual end · Vancouver',{exact:true}).fill('2026-01-15T11:00');
+      await panel.getByRole('button',{name:'Submit report',exact:true}).tap();
+      await panel.getByRole('region',{name:'Selected visit assignment',exact:true})
+        .getByText('Completed',{exact:true}).waitFor();
+      assert.equal(submissions,1);
+      assert.equal(receiptReadbacks,1);
+      await panel.getByRole('button',{name:'View report history',exact:true}).tap();
+      const history=panel.getByRole('region',{name:'Visit report and review history',exact:true});
+      await history.getByText(command.summary,{exact:true}).first().waitFor();
+      for(const written of [command.issue,command.observations,command.completedTasks[0]])
+        assert.ok(await history.getByText(written,{exact:true}).count()>0);
     });
   });
