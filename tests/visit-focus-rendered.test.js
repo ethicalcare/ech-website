@@ -61,3 +61,41 @@ test('calendar marks exactly one selected date, identifies its count and dates e
   for(const view of ['Day','Week','Month']){await act(async()=>button(view).props.onClick());const selected=root.root.findAll(n=>n.type==='section'&&n.props['aria-current']==='date');assert.equal(selected.length,1);assert.equal(selected[0].props['aria-label'],`${day} · 0 visible visits`);const heading=selected[0].findByType('h3').children.join(''),empty=selected[0].findByType('p').children.join('');assert(heading.includes('Selected day'));assert(heading.includes(day));assert(empty.includes(`No visible visits on ${day}`));}
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=saved;}
 });
+
+test('selected visit details identify the exact client already visible in the calendar',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const oldWindow=globalThis.window;
+ globalThis.window=Object.assign(new EventTarget(),{confirm:()=>true});
+ let root,blockedId=null;
+ const actor='10000000-0000-4000-8000-000000000001';
+ const ada='20000000-0000-4000-8000-000000000001',bee='20000000-0000-4000-8000-000000000002';
+ const session={authenticated:true,principal:{id:actor,operationalRole:'manager'},capabilities:[],operationsFeatures:{reads:true,scheduleCommands:false,scheduleRecurrence:false,visitActions:false}};
+ const fetcher=async url=>{
+  if(url.includes('?visit=')){
+   const id=new URL(url,'https://fixture.invalid').searchParams.get('visit');
+   if(id===blockedId)return Response.json({error:{code:'forbidden'}},{status:403});
+   return Response.json({visitId:id,revision:1,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'});
+  }
+  const start=fixtureVisitStart(url),end=new Date(Date.parse(start)+3600000).toISOString();
+  return Response.json({schema:1,mode:'shared',clients:[{id:ada,name:'Fictional Ada'},{id:bee,name:'Fictional Bee'}],staff:[{id:actor,name:'Scoped worker'}],
+   visits:[ada,bee].map(id=>({id,clientId:id,workerId:actor,service:'Home support',start,end,status:'Assigned',revision:1}))});
+ };
+ const select=name=>root.root.findAllByType('button').find(b=>b.props['aria-label']?.startsWith('View visit details for '+name+','));
+ const assignment=()=>root.root.findAllByType('section').find(n=>n.props['aria-label']==='Selected visit assignment');
+ try{
+  const render=(active=true)=>React.createElement(SharedScheduleRead,{session,fetcher,active});
+  await act(async()=>{root=create(render());});
+  await act(async()=>select('Fictional Ada').props.onClick());
+  const client=()=>assignment()?.findAllByType('dd')[0]?.children.join('');
+  assert.equal(client(),'Fictional Ada');
+  await act(async()=>select('Fictional Bee').props.onClick());
+  assert.equal(client(),'Fictional Bee');
+  assert.equal(assignment()?.findAllByType('dd').some(row=>row.children.includes('Fictional Ada')),false);
+  await act(async()=>root.update(render(false)));
+  assert.equal(assignment(),undefined);
+  blockedId=ada;
+  await act(async()=>root.update(render()));
+  await act(async()=>select('Fictional Ada').props.onClick());
+  assert.equal(assignment(),undefined,'failed detail authorization must not show the calendar client inside the detail panel');
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=oldWindow;}
+});

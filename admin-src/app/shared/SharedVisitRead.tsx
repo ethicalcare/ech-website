@@ -14,7 +14,7 @@ import {createVisitDetailClient,type VisitDetail} from './visit-detail-client';
 import type {ScheduleIdentity,ScheduleVisit} from './schedule-client';
 
 // Parent keys this view by account/role/feature scope and visit revision.
-export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerificationFailure,active=true,staff=[],schedulingEnabled=false,actionsEnabled=false,onConfirmed,onLeaveStateChange,tasksEnabled=false,attendanceEnabled=false,scope=""}:{tasksEnabled?:boolean;attendanceEnabled?:boolean;scope?:string;actor:string;role:'owner'|'manager'|'staff';visit:ScheduleVisit;fetcher:typeof fetch;onClose:()=>void;onVerificationFailure?:()=>void;active?:boolean;staff?:ScheduleIdentity[];schedulingEnabled?:boolean;actionsEnabled?:boolean;onConfirmed?:(visit:ScheduleVisit)=>void;onLeaveStateChange?:(state:VisitLeaveState)=>void}){
+export function SharedVisitRead({actor,role,visit,clientName,fetcher,onClose,onVerificationFailure,active=true,staff=[],schedulingEnabled=false,actionsEnabled=false,onConfirmed,onLeaveStateChange,tasksEnabled=false,attendanceEnabled=false,scope=""}:{tasksEnabled?:boolean;attendanceEnabled?:boolean;scope?:string;actor:string;role:'owner'|'manager'|'staff';visit:ScheduleVisit;clientName?:string;fetcher:typeof fetch;onClose:()=>void;onVerificationFailure?:()=>void;active?:boolean;staff?:ScheduleIdentity[];schedulingEnabled?:boolean;actionsEnabled?:boolean;onConfirmed?:(visit:ScheduleVisit)=>void;onLeaveStateChange?:(state:VisitLeaveState)=>void}){
  const loadCompletedHistory=useMemo(()=>createCompletedTaskHistoryClient(fetcher,actor,role),[fetcher,actor,role]);
  const heading=useRef<HTMLHeadingElement|null>(null);
  const focused=useRef(false);
@@ -54,6 +54,7 @@ export function SharedVisitRead({actor,role,visit,fetcher,onClose,onVerification
   {visible?.error&&<p role="alert">{visible.error}</p>}
   {showDetails&&<>
    {active&&<section aria-label="Selected visit assignment"><h4>Scheduled visit responsibility</h4><dl>
+    <dt>Client</dt><dd>{clientName??'Name unavailable'}</dd>
     <dt>Assigned worker</dt><dd>{visit.workerId===null?'Unassigned':staff.find(person=>person.id===visit.workerId)?.name||'Assigned worker name unavailable'}</dd>
     <dt>Scheduled service</dt><dd>{visit.service}</dd>
     <dt>Scheduled time · Vancouver</dt><dd><time dateTime={visit.start}>{scheduleLabel(visit.start)}</time> – <time dateTime={visit.end}>{scheduleLabel(visit.end)}</time></dd>

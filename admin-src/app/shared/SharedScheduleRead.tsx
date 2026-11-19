@@ -118,6 +118,6 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
   </section>}
   {(leave.pending||leave.retained)&&<p role="status">A visit request is retained. Prior schedule rows and visit details are hidden until its result is verified.</p>}
   {selectedVisit&&!showingFocusedShift&&!shownVisits.some(visit=>visit.id===selectedVisit.id)&&<p>The selected visit is outside the current staff filter or calendar view. Its details and drafts remain open.</p>}
-  {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} attendanceEnabled={attendanceEnabled} actor={actor} role={role} staff={data?.staff} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
+  {selectedVisit&&<SharedVisitRead key={selectedVisit.id} scope={scope} tasksEnabled={tasksEnabled} attendanceEnabled={attendanceEnabled} actor={actor} role={role} staff={data?.staff} clientName={clients.get(selectedVisit.clientId)} visit={selectedVisit} fetcher={fetcher} onClose={close} onVerificationFailure={invalidate} active={active} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={confirmed} onLeaveStateChange={setLeave}/>}
  </section>;
 }
