@@ -8,6 +8,7 @@ import './shared-schedule-calendar.css';
 import {scheduleDay,scheduleLabel} from './schedule-window';
 import {useCallback,useEffect,useMemo,useState,useRef,useLayoutEffect} from 'react';
 import {SharedScheduleCreate} from './SharedScheduleCreate';
+import {StaffMeetingDraft} from './StaffMeetingDraft';
 import {createTaskPlanReadClient} from './task-plan-read-client';
 import {createScheduleCreateClient} from './schedule-create-client';
 import {SharedVisitRead} from './SharedVisitRead';
@@ -35,7 +36,8 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
  const [coverage,setCoverage]=useState<CalendarCoverage>(todayOnly?'day':'full');
  const [view,setView]=useState<CalendarView>('week');
  const [day,setDay]=useState(()=>scheduleDay(new Date().toISOString()));
- const [createOpen,setCreateOpen]=useState(false),[creationHeld,setCreationHeld]=useState(false);
+ const [creationKind,setCreationKind]=useState<'care'|'meeting'|null>(null),[creationHeld,setCreationHeld]=useState(false);
+ const createOpen=creationKind!==null;
  const [creationStaff,setCreationStaff]=useState<import('./schedule-client').ScheduleIdentity[]>([]);
  const createClient=useMemo(()=>role==='staff'?null:createScheduleCreateClient(fetcher,actor,role),[fetcher,actor,role]);
  const planContext=useMemo(()=>{
@@ -52,7 +54,7 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
  const [leave,setLeave]=useState<VisitLeaveState>({dirty:false,pending:false});
  const canLeave=()=>!leave.pending&&(!(leave.dirty||leave.retained)||window.confirm('Discard the unsaved visit draft and retained request?'));
  const close=()=>{if(canLeave()){setFocusedShift(false);returnToShift.current=focusedShift;returnFocus.current=origin.current;returnElement.current=focusedShift?null:attentionOrigin.current;setSelected(null);setLeave({dirty:false,pending:false});}};
- const invalidate=useCallback(()=>{setFocusedShift(false);setCreateOpen(false);setCreationHeld(false);setSelected(null);setLeave({dirty:false,pending:false});setReload(value=>value+1);},[]);
+ const invalidate=useCallback(()=>{setFocusedShift(false);setCreationKind(null);setCreationHeld(false);setSelected(null);setLeave({dirty:false,pending:false});setReload(value=>value+1);},[]);
  const confirmed=useCallback((visit:import('./schedule-client').ScheduleVisit)=>{setState(current=>current.snapshot?{...current,snapshot:{...current.snapshot,visits:current.snapshot.visits.map(row=>row.id===visit.id?visit:row)}}:current);setSelected({id:visit.id,revision:visit.revision});},[]);
  useEffect(()=>{if(typeof window==='undefined')return;const warn=(event:BeforeUnloadEvent)=>{if(creationHeld||leave.dirty||leave.pending||leave.retained){event.preventDefault();event.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[leave,creationHeld]);
  const [selected,setSelected]=useState<{id:string;revision:number}|null>(null);
@@ -128,8 +130,14 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
   <label>Calendar date (Vancouver)<input type="date" value={day} disabled={leave.pending||createOpen} onChange={event=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(event.currentTarget.value);}}}/></label>
   <CalendarAdjacentButtons day={day} view={view} disabled={leave.pending||createOpen} onNavigate={next=>{if(next!==day&&canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(next);}}}/><div role="group" aria-label="Calendar view">{(['day','week','month'] as const).map(mode=><button key={mode} type="button" aria-pressed={view===mode} disabled={coverage==='day'&&mode!=='day'||coverage==='week'&&mode==='month'} onClick={()=>setView(mode)}>{mode[0].toUpperCase()+mode.slice(1)}</button>)}<button type="button" disabled={leave.pending||createOpen} onClick={()=>{const today=scheduleDay(new Date().toISOString());if(today!==day&&canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setDay(today);}}}>Today</button></div>
   <button type="button" disabled={leave.pending||createOpen} onClick={()=>{if(canLeave()){setLeave({dirty:false,pending:false});setSelected(null);setReload(value=>value+1);}}}>Reload schedule</button>
-  {createClient&&schedulingEnabled&&!createOpen&&<button type="button" disabled={!data||leave.pending} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCreationStaff(data?.staff??[]);setCreateOpen(true);}}}>New shared visit</button>}
-  {createOpen&&createClient&&<><button type="button" onClick={()=>{if(!creationHeld||window.confirm('Close this creation form? Unsubmitted edits will be lost. Reserved requests must be recovered when you reopen.')){setCreateOpen(false);setCreationHeld(false);}}}>Close creation form</button><SharedScheduleCreate client={createClient} taskPlans={planContext} allowRecurrence={recurrenceEnabled} staff={creationStaff} active={active} onConfirmed={creationConfirmed} onScopeFailure={invalidate} onPendingChange={setCreationHeld}/></>}
+  {createClient&&schedulingEnabled&&!createOpen&&<div role="group" aria-label="Calendar appointment types">
+    <div><span>Care visit</span>
+    <button type="button" disabled={!data||leave.pending} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCreationStaff(data?.staff??[]);setCreationKind('care');}}}>New shared visit</button>
+    </div>
+    <button type="button" disabled={!data||leave.pending} onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCreationStaff(data?.staff??[]);setCreationKind('meeting');}}}>New staff meeting draft</button>
+  </div>}
+  {createClient&&creationKind==='care'&&<><button type="button" onClick={()=>{if(!creationHeld||window.confirm('Close this creation form? Unsubmitted edits will be lost. Reserved requests must be recovered when you reopen.')){setCreationKind(null);setCreationHeld(false);}}}>Close creation form</button><SharedScheduleCreate client={createClient} taskPlans={planContext} allowRecurrence={recurrenceEnabled} staff={creationStaff} active={active} onConfirmed={creationConfirmed} onScopeFailure={invalidate} onPendingChange={setCreationHeld}/></>}
+  {createClient&&creationKind==='meeting'&&<><button type="button" onClick={()=>{if(!creationHeld||window.confirm('Close this meeting draft? Unsubmitted edits will be lost.')){setCreationKind(null);setCreationHeld(false);}}}>Close meeting draft</button><StaffMeetingDraft staff={creationStaff} active={active} onDirtyChange={setCreationHeld}/></>}
   {!visible?.error&&!data&&<p role="status">Loading schedule…</p>}
   {visible?.error&&<p role="alert">{visible.error}</p>}
   {visible?.error&&<div role="group" aria-label="Try a smaller calendar range"><p>A smaller date range may be easier to verify. No partial results are shown.</p>{coverage!=='day'&&<button type="button" onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCoverage('day');setView('day');}}}>Load selected day only</button>}{coverage==='full'&&<button type="button" onClick={()=>{if(canLeave()){setSelected(null);setLeave({dirty:false,pending:false});setCoverage('week');setView('week');}}}>Load selected week only</button>}</div>}

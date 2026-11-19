@@ -390,3 +390,42 @@ test('Staff Profiles opens from Teams & Settings and pairs vacation dates only a
       assert.ok(phone.documentWidth<=phone.viewportWidth+1,'the page does not scroll horizontally');
     });
   });
+
+test('staff meetings are locally checked drafts and never become care visits on the shared calendar',
+  {timeout:60_000},async()=>{
+    const signedIn={...session,operationsFeatures:{...session.operationsFeatures,scheduleCommands:true}};
+    await withPhoneFixture({signedIn},async({page,detailReads})=>{
+      const schedule=page.getByRole('region',{name:'Shared schedule',exact:true});
+      const calendar=schedule.getByRole('region',{name:'Visit calendar',exact:true});
+      const care=calendar.getByRole('button',{name:/^View visit details for Fictional Ada,/u});
+      const meeting=schedule.getByRole('button',{name:'New staff meeting draft',exact:true});
+      await care.first().waitFor();
+      await schedule.getByRole('button',{name:'New shared visit',exact:true}).waitFor();
+      await schedule.getByRole('group',{name:'Calendar appointment types',exact:true})
+        .getByText('Care visit',{exact:true}).waitFor();
+      const before=await calendar.getByRole('button',{name:/^View visit details for /u}).count();
+
+      await meeting.tap();
+      const draft=schedule.getByRole('region',{name:'Staff meeting draft',exact:true});
+      await draft.getByRole('heading',{name:'Staff meeting draft',exact:true}).waitFor();
+      assert.equal(await draft.getByLabel('Reviewed client and service',{exact:true}).count(),0);
+      assert.equal(await draft.getByRole('button',{name:/^Create shared visit$/u}).count(),0);
+      await draft.getByLabel('Meeting title',{exact:true}).fill('Fictional team meeting');
+      await draft.getByLabel('Meeting location',{exact:true}).fill('Fictional office');
+      await draft.getByLabel('Meeting start · Vancouver',{exact:true}).fill('2026-01-15T09:00');
+      await draft.getByLabel('Meeting end · Vancouver',{exact:true}).fill('2026-01-15T08:59');
+      const check=draft.getByRole('button',{name:'Check meeting draft',exact:true});
+      await check.tap();
+      await draft.getByText('The meeting end must be after its start.',{exact:true}).waitFor();
+      await draft.getByLabel('Meeting end · Vancouver',{exact:true}).fill('2026-01-15T09:30');
+      await check.tap();
+      await draft.getByText('Meeting draft checked. Nothing was saved.',{exact:true}).waitFor();
+      assert.deepEqual(detailReads,[],'meeting draft does not read any client visit');
+      page.once('dialog',dialog=>dialog.accept());
+      await schedule.getByRole('button',{name:'Close meeting draft',exact:true}).tap();
+      await schedule.getByRole('button',{name:'New shared visit',exact:true}).waitFor();
+      await care.first().waitFor();
+      assert.equal(await calendar.getByRole('button',{name:/^View visit details for /u}).count(),before);
+      assert.equal(await calendar.getByText('Fictional team meeting',{exact:true}).count(),0);
+    });
+  });
