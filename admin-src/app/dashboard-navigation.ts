@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 
-const views = ['daily', 'operations', 'overview', 'leads', 'partners', 'followups', 'assessments'] as const;
+const views = ['daily', 'operations', 'overview', 'leads', 'partners', 'followups', 'assessments', 'staff-profiles'] as const;
 export type DashboardView = typeof views[number];
 export const namedSections = [['visits', 'Schedule'], ['clients', 'Clients & instructions'], ['care', 'Internal care records'], ['team', 'Team & settings'], ['review', 'Review & work time']] as const;
 export type OperationsSection = typeof namedSections[number][0];

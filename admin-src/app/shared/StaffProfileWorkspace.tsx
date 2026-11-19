@@ -37,23 +37,46 @@ function Workspace({initialProfile,mode,api,initialSubmissions,pendingReview,pho
    else{if(result.status!=='pending_review'||!result.submissionId)throw Error('Unconfirmed submission');setSubmitted(true);setNotice('Submitted for admin approval. Your approved information has not changed.');}
   }catch{setNotice('Could not confirm the change. Your entered details are still here.');}finally{setBusy(false);}
  }
- return <section aria-label="Staff profile"><h1>Staff Profile Page</h1><h2>{profile.name}</h2>
+ return <section className="staff-profile-workspace" aria-label="Staff profile"><h1>Staff Profile Page</h1><h2>{profile.name}</h2>
  {submitted&&<p role="status">Your profile submission is awaiting admin approval.</p>}
  {admin&&pendingReview&&<p>There is a staff submission awaiting approval. Saving this form directly replaces that pending submission with your edits. Review the submitted details below first.</p>}
- <form onSubmit={save} aria-label="Staff profile form"><fieldset disabled={busy||submitted}>
+ <form className="staff-profile-form" onSubmit={save} aria-label="Staff profile form"><fieldset className="staff-profile-form-fields" disabled={busy||submitted}>
   <legend>Profile details</legend>
-  <label>Worker type<select aria-label="Worker type" value={draft.workerType} onChange={e=>setDraft({...draft,workerType:e.target.value as StaffProfile['workerType']})}><option value="">Not recorded</option><option value="care_aide">Care aide</option><option value="lpn">LPN</option><option value="rn">RN</option></select></label>
-  <label>Availability<textarea aria-label="Availability" maxLength={2000} value={draft.availability} onChange={e=>setDraft({...draft,availability:e.target.value})}/></label>
-  <label>Vacation start<input aria-label="Vacation start" type="date" value={draft.vacationStart} onChange={e=>setDraft({...draft,vacationStart:e.target.value})}/></label>
-  <label>Vacation end<input aria-label="Vacation end" type="date" value={draft.vacationEnd} onChange={e=>setDraft({...draft,vacationEnd:e.target.value})}/></label>
+  <label className="staff-profile-short">Worker type<select aria-label="Worker type" value={draft.workerType} onChange={e=>setDraft({...draft,workerType:e.target.value as StaffProfile['workerType']})}><option value="">Not recorded</option><option value="care_aide">Care aide</option><option value="lpn">LPN</option><option value="rn">RN</option></select></label>
+  <label className="staff-profile-long">Availability<textarea aria-label="Availability" maxLength={2000} value={draft.availability} onChange={e=>setDraft({...draft,availability:e.target.value})}/></label>
+  <div className="staff-profile-pair" role="group" aria-label="Vacation dates">
+   <label>Vacation start<input aria-label="Vacation start" type="date" value={draft.vacationStart} onChange={e=>setDraft({...draft,vacationStart:e.target.value})}/></label>
+   <label>Vacation end<input aria-label="Vacation end" type="date" value={draft.vacationEnd} onChange={e=>setDraft({...draft,vacationEnd:e.target.value})}/></label>
+  </div>
   {photoEnabled?<><h3>Photo (optional)</h3>{profile.photoUrl&&photo!==null&&<img src={profile.photoUrl} alt="Staff profile" width="128" height="128" referrerPolicy="no-referrer"/>}
   <label>Choose photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const file=e.target.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>5*1024*1024){setNotice('Choose a JPEG, PNG or WebP photo under 5 MB.');return;}setPhoto(file);}}/></label>{photo&&<p>Selected: {photo.name}</p>}{(profile.photo||photo)&&<button type="button" onClick={()=>setPhoto(null)}>Remove photo</button>}</>:<p>Staff profile photos are not available yet.</p>}
-  <h3>Credentials</h3>{draft.credentials.map(c=><div key={c.id}><strong>{c.name}</strong><label>Credential expiry<input type="date" value={c.expiresOn||''} onChange={e=>setDraft({...draft,credentials:draft.credentials.map(row=>row.id===c.id?{...row,expiresOn:e.target.value||null}:row)})}/></label><p>{c.verifiedBy&&c.verifiedAt?`Verified by ${c.verifiedBy} on ${c.verifiedAt}`:'Not verified'}</p></div>)}
-  <label>Credential name<input aria-label="Credential name" maxLength={200} value={credentialName} onChange={e=>setCredentialName(e.target.value)}/></label>
-  <label><input type="checkbox" checked={hasExpiry} onChange={e=>setHasExpiry(e.target.checked)}/>This credential expires</label>{hasExpiry&&<label>New credential expiry<input type="date" value={expires} onChange={e=>setExpires(e.target.value)}/></label>}
-  <button type="button" onClick={addCredential}>Add credential to form</button>
-  {admin&&draft.management&&<section aria-label="Management-only information"><h3>Management-only information</h3>{(['payGrade','hourlyRate','performance'] as const).map(key=><label key={key}>{({payGrade:'Pay grade',hourlyRate:'Hourly rate',performance:'Performance notes'})[key]}<input aria-label={key} value={draft.management![key]} onChange={e=>setDraft({...draft,management:{...draft.management!,[key]:e.target.value}})}/></label>)}</section>}
-  <button type="submit">{busy?'Saving…':admin?'Save profile':'Submit profile for approval'}</button><button type="button" onClick={()=>{setDraft(profile);setPhoto(undefined);setNotice('');}}>Cancel changes</button>
+  <section className="staff-profile-group" aria-label="Credentials">
+   <h3>Credentials</h3>
+   {draft.credentials.length>0&&<ul className="staff-profile-credential-list">{draft.credentials.map(c=><li className="staff-profile-pair staff-profile-credential" key={c.id}>
+    <div><strong>{c.name}</strong><p>{c.verifiedBy&&c.verifiedAt?`Verified by ${c.verifiedBy} on ${c.verifiedAt}`:'Not verified'}</p></div>
+    <label>Credential expiry<input type="date" value={c.expiresOn||''} onChange={e=>setDraft({...draft,credentials:draft.credentials.map(row=>row.id===c.id?{...row,expiresOn:e.target.value||null}:row)})}/></label>
+   </li>)}</ul>}
+   <div className="staff-profile-pair">
+    <label>Credential name<input aria-label="Credential name" maxLength={200} value={credentialName} onChange={e=>setCredentialName(e.target.value)}/></label>
+    <div className="staff-profile-expiry">
+     <label className="staff-profile-check"><input type="checkbox" checked={hasExpiry} onChange={e=>setHasExpiry(e.target.checked)}/>This credential expires</label>
+     {hasExpiry&&<label>New credential expiry<input aria-label="New credential expiry" type="date" value={expires} onChange={e=>setExpires(e.target.value)}/></label>}
+    </div>
+   </div>
+   <button type="button" onClick={addCredential}>Add credential to form</button>
+  </section>
+  {admin&&draft.management&&<section className="staff-profile-group" aria-label="Management-only information">
+   <h3>Management-only information</h3>
+   <div className="staff-profile-pair">
+    <label>Pay grade<input aria-label="payGrade" value={draft.management.payGrade} onChange={e=>setDraft({...draft,management:{...draft.management!,payGrade:e.target.value}})}/></label>
+    <label>Hourly rate<input aria-label="hourlyRate" value={draft.management.hourlyRate} onChange={e=>setDraft({...draft,management:{...draft.management!,hourlyRate:e.target.value}})}/></label>
+   </div>
+   <label className="staff-profile-long">Performance notes<textarea aria-label="performance" maxLength={2000} value={draft.management.performance} onChange={e=>setDraft({...draft,management:{...draft.management!,performance:e.target.value}})}/></label>
+  </section>}
+  <div className="staff-profile-actions">
+   <button type="submit">{busy?'Saving…':admin?'Save profile':'Submit profile for approval'}</button>
+   <button type="button" onClick={()=>{setDraft(profile);setPhoto(undefined);setNotice('');}}>Cancel changes</button>
+  </div>
  </fieldset></form>
  {notice&&<p role="status">{notice}</p>}
  {admin&&<><section aria-label="Verify credentials"><h3>Verify saved credentials</h3>{submissions.length>0&&<p>Approve the pending profile submission or save your edits before verifying credentials.</p>}{profile.credentials.filter(c=>!c.verifiedAt).map(c=><button key={c.id} disabled={busy||submissions.length>0} onClick={async()=>{setBusy(true);try{await api.verify(c.id);await refresh();setNotice('Credential verified.');}catch{setNotice('Verification could not be confirmed.');}finally{setBusy(false);}}}>Verify {c.name}</button>)}</section><StaffProfileReview submissions={submissions} onApprove={async id=>{await api.approve(id);await refresh();}}/></>}

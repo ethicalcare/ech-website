@@ -42,14 +42,16 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
   const accountsHeading = useRef<HTMLHeadingElement>(null);
   const accountsToggle = useRef<HTMLButtonElement>(null);
   const manageAccounts = can(session, 'users.manage');
+  const staffProfilesLabel = manageAccounts ? 'Staff Profiles'
+    : session?.authenticated && session.principal.operationalRole === 'staff' ? 'My Staff Profile' : null;
   const accessScope = session?.authenticated && can(session, 'access.review')
     ? session.principal.id : '';
   const accountsOpen = manageAccounts && showAccounts;
   const accountRequests = useAccountRequests(fetcher, accessScope, accountsOpen);
   const waiting = accountRequests.state.rows?.filter(row => row.state === 'pending').length;
   useEffect(() => {
-    if (accountsOpen) accountsHeading.current?.focus();
-  }, [accountsOpen]);
+    if (accountsOpen || navigation.view === 'staff-profiles') accountsHeading.current?.focus();
+  }, [accountsOpen, navigation.view]);
   function toggleAccounts() {
     if (accountsOpen) {
       setShowAccounts(false);
@@ -121,7 +123,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
   useEffect(() => { if (selected?.id) { const frame=requestAnimationFrame(()=>window.scrollTo(0,0)); return()=>cancelAnimationFrame(frame); } }, [selected?.id]);
   function changeView(next: DashboardView, section?: OperationsSection) { setShowAccounts(false); setSelected(undefined); setCreating(undefined); setAddingPartner(false); if (section) navigation.setOperationsSection(section); else navigation.setView(next); }
   function closeRecord() { setSelected(undefined); setCreating(undefined); navigation.closeContact(); }
-  const titles: Record<DashboardView,string> = {daily:'Today',leads:'Care Inquiries',partners:'Referral Partners',followups:'Follow-ups',operations:'Operations',overview:'Overview',assessments:'Assessments'};
+  const titles: Record<DashboardView,string> = {daily:'Today',leads:'Care Inquiries',partners:'Referral Partners',followups:'Follow-ups',operations:'Operations',overview:'Overview',assessments:'Assessments','staff-profiles':staffProfilesLabel??'Staff Profiles'};
   const pageTitle = session?.authenticated ? `${accountsOpen ? 'Accounts' : titles[navigation.view]} | ECH Admin` : 'Team sign-in | Ethical Care at Home';
   useEffect(()=>{document.title=pageTitle;},[pageTitle]);
   const recordView = ['daily','leads','partners','followups'].includes(navigation.view);
@@ -130,8 +132,14 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
    {session?.authenticated && <a className="skip-link" href="#workspace-content">Skip to workspace</a>}
    {session?.authenticated && <aside className="sidebar">
     <button className="brand" type="button" onClick={() => changeView('overview')}><img className="ech-brand-logo" src={echLogo} alt="Ethical Care at Home" /><span className="brand-workspace">Team workspace</span></button>
-    <nav aria-label="Care Intake Hub navigation">{([['daily','calendar-days','Today'],['leads','inbox','Care Inquiries'],['partners','handshake','Referral Partners'],['followups','list-checks','Follow-ups'],['operations','settings-2','Operations'],['overview','layout-dashboard','Overview'],['assessments','clipboard-list','Assessments']] as [DashboardView,IconName,string][]).map(([next,icon,label]) => <div className="named-nav-group" key={next}><button aria-current={!accountsOpen && navigation.view === next ? 'page' : undefined} className={`nav-item ${!accountsOpen && navigation.view === next ? 'active' : ''}`} type="button" onClick={() => changeView(next)} key={next}><Icon name={icon} />{label}{next === 'leads' && operating && <span className="nav-count">{inquiries.length}{cursors.inquiry ? '+' : ''}</span>}</button>{next === 'operations' && navigation.view === 'operations' && !accountsOpen && !sharedSchedule && <div className="named-operations-nav" aria-label="Fictional Operations sections">{namedSections.map(([id,label])=><button key={id} type="button" aria-current={operationsSection === id ? 'page' : undefined} onClick={()=>changeView('operations', id)}>{label}</button>)}</div>}</div>)}{manageAccounts && <button type="button" className={`nav-item ${accountsOpen ? 'active' : ''}`} aria-current={accountsOpen ? 'page' : undefined} onClick={toggleAccounts}><Icon name="users"/>Accounts</button>}</nav>
-    <MobileNavigation view={navigation.view} section={operationsSection} accountsOpen={accountsOpen} sharedSchedule={sharedSchedule} manageAccounts={manageAccounts} titles={titles} onNavigate={changeView} onAccounts={toggleAccounts} />
+    <nav aria-label="Care Intake Hub navigation">{([['daily','calendar-days','Today'],['leads','inbox','Care Inquiries'],['partners','handshake','Referral Partners'],['followups','list-checks','Follow-ups'],['operations','settings-2','Operations'],['overview','layout-dashboard','Overview'],['assessments','clipboard-list','Assessments']] as [DashboardView,IconName,string][]).map(([next,icon,label]) => <div className="named-nav-group" key={next}><button aria-current={!accountsOpen && navigation.view === next ? 'page' : undefined} className={`nav-item ${!accountsOpen && navigation.view === next ? 'active' : ''}`} type="button" onClick={() => changeView(next)} key={next}><Icon name={icon} />{label}{next === 'leads' && operating && <span className="nav-count">{inquiries.length}{cursors.inquiry ? '+' : ''}</span>}</button>{next === 'operations' && navigation.view === 'operations' && !accountsOpen && !sharedSchedule && <div className="named-operations-nav" aria-label="Fictional Operations sections">{namedSections.map(([id,label])=><button key={id} type="button" aria-current={operationsSection === id ? 'page' : undefined} onClick={()=>changeView('operations', id)}>{label}</button>)}</div>}</div>)}{(staffProfilesLabel || manageAccounts) && <div className="named-nav-group">
+      <p className="eyebrow">Teams &amp; Settings</p>
+      {staffProfilesLabel && <button type="button" className={`nav-item ${!accountsOpen && navigation.view==='staff-profiles' ? 'active' : ''}`}
+        aria-current={!accountsOpen && navigation.view==='staff-profiles' ? 'page' : undefined}
+        onClick={()=>changeView('staff-profiles')}><Icon name="users"/>{staffProfilesLabel}</button>}
+      {manageAccounts && <button type="button" className={`nav-item ${accountsOpen ? 'active' : ''}`} aria-current={accountsOpen ? 'page' : undefined} onClick={toggleAccounts}><Icon name="users"/>Accounts</button>}
+    </div>}</nav>
+    <MobileNavigation view={navigation.view} section={operationsSection} accountsOpen={accountsOpen} sharedSchedule={sharedSchedule} manageAccounts={manageAccounts} staffProfilesLabel={staffProfilesLabel} titles={titles} onNavigate={changeView} onAccounts={toggleAccounts} />
     <button className="quick-intake-button" type="button" disabled={!can(session,'leads.create')} onClick={() => { changeView('leads'); setCreating(crypto.randomUUID()); }}><Icon name="plus" />Record new inquiry</button>
     <div className="sidebar-footer">{session?.authenticated && <details className="account-menu"><summary aria-label="My account"><span className="account-avatar" aria-hidden="true">{session.principal.email.slice(0,1).toUpperCase()}</span><span className="account-identity"><strong>My account</strong><small>{session.principal.email}</small></span><span aria-hidden="true">⌃</span></summary><div className="account-actions"><p>Signed in as <strong>{session.principal.email}</strong></p><p className="account-save-note">{navigation.view === 'operations' && !accountsOpen ? sharedSchedule ? scheduleCapabilityCopy(session.principal.operationalRole,operationsFeatures(session)) : 'Fictional Operations changes save on this device for this account only.' : 'Inquiries, referral partners and account changes save to the shared ECH system.'}</p><button type="button" disabled={checking} onClick={() => refresh()}>Refresh account and records</button><button type="button" disabled={checking} onClick={logout}>Sign out</button>{!operating && <p>This account has no operational record access.</p>}</div></details>}<small className="workspace-safety">Contact details only. No clinical notes.</small></div>
    </aside>}
@@ -150,13 +158,17 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     {!session && !checking && <section className="panel dashboard-card"><p>Account access could not be verified.</p><button type="button" onClick={() => refresh()}>Reload account status</button></section>}
     {session?.authenticated === false && <SignIn session={session} client={client} onVerified={refresh} />}
 
-    {session?.authenticated && <StaffProfiles key={session.principal.id} session={session} fetcher={fetcher}/> }
+    {session?.authenticated && !accountsOpen && navigation.view==='staff-profiles' && (
+      staffProfilesLabel
+        ? <StaffProfiles key={session.principal.id+':'+manageAccounts} session={session} fetcher={fetcher}/>
+        : <section className="panel dashboard-card"><p>Staff profiles are not available for this account.</p></section>
+    )}
     {session?.authenticated && manageAccounts && <div id="accounts-workspace" hidden={!accountsOpen}>
      <AdminTools key={actor + ':' + can(session, 'backup.export') + ':' + accessScope} session={session} accountDecisionHistoryEnabled={can(session, 'account.history')}
       onChanged={() => refresh()} requests={accountRequests.state} reloadRequests={accountRequests.reload}
       fetcher={fetcher} visible={accountsOpen} />
     </div>}
-    <div hidden={accountsOpen}>
+    <div hidden={accountsOpen || navigation.view==='staff-profiles'}>
     {session?.authenticated && operating && <>
      {navigation.view === 'overview' && <section className="hero-card"><div><p className="eyebrow">Your shared workspace</p><h2>Keep every next step clear.</h2><p>Review incoming care inquiries, maintain referral relationships and follow up with the right person.</p><div className="hero-actions"><button className="primary-button" type="button" onClick={() => changeView('leads')}>Review care inquiries</button><button className="secondary-button" type="button" onClick={() => changeView('partners')}>View referral partners</button></div></div><div className="flow"><span><b>1</b>Receive</span><i>→</i><span><b>2</b>Follow up</span><i>→</i><span><b>3</b>Record next step</span></div></section>}
      {navigation.view === 'daily' && !details && <section className="day-brief" aria-label="Today at ECH"><div><p className="eyebrow">Your daily workspace</p><h2>Your day, in focus.</h2><p>Keep conversations moving and make the next step clear.</p></div><div className="day-date"><Icon name="calendar-days" /><span><strong>{new Intl.DateTimeFormat('en-CA',{weekday:'long',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(companyDate()+'T12:00:00Z'))}</strong><small>Vancouver calendar day</small></span></div></section>}

@@ -32,7 +32,7 @@ const detailFor = id => ({visitId:id,revision:1,fields:{
 const list = {schema:1,mode:'shared',items:[],nextCursor:null};
 
 async function withPhoneFixture({
-  signedIn=session,fixtureVisits=visits,now='2026-01-15T20:00:00.000Z',denied=()=>false,existingBrowser,reportFixture,
+  signedIn=session,fixtureVisits=visits,now='2026-01-15T20:00:00.000Z',denied=()=>false,existingBrowser,reportFixture,staffProfileFixture,
 },run){
     const assets = new Map(await Promise.all([
       ['/admin/','index.html','text/html'],['/admin/admin.js','admin.js','text/javascript'],
@@ -65,6 +65,10 @@ async function withPhoneFixture({
         const json = value=>route.fulfill({json:value});
         if(url.pathname==='/favicon.ico'&&!url.search)return route.fulfill({status:204});
         if(url.pathname==='/api/admin/session'&&!url.search)return json(signedIn);
+        if(staffProfileFixture){
+          const result=staffProfileFixture(url);
+          if(result!==undefined)return json(result);
+        }
         if(['/api/admin/inquiries','/api/admin/partners'].includes(url.pathname)&&url.search==='?limit=20')return json(list);
         if(url.pathname!=='/api/admin/operations')return reject();
         if(request.headers()['x-ech-schedule-actor']!==signedIn.principal.id||request.headers()['x-ech-schedule-role']!==signedIn.principal.operationalRole)
@@ -304,5 +308,53 @@ test('active shift shortcuts focus the report fields and an exact fictional repo
       await history.getByText(command.summary,{exact:true}).first().waitFor();
       for(const written of [command.issue,command.observations,command.completedTasks[0]])
         assert.ok(await history.getByText(written,{exact:true}).count()>0);
+    });
+  });
+
+test('Staff Profiles opens from Teams & Settings and pairs vacation dates only at wide widths',
+  {timeout:65_000},async()=>{
+    const signedIn={...session,principal:{...session.principal,applicationAdmin:true},
+      capabilities:[...session.capabilities,'users.manage','backup.export']};
+    const staffProfileFixture=url=>{
+      if(url.pathname==='/api/admin/memberships'&&!url.search)
+        return {schema:1,items:[{userId:staff,displayName:'Fictional worker',active:true,
+          operationalRole:'staff',technicalAdmin:false,applicationAdmin:false}]};
+      if(url.pathname!=='/api/admin/staff-profile'||url.searchParams.get('id')!==staff)return;
+      if(url.searchParams.size===2&&url.searchParams.get('view')==='pending')return {schema:1,pending:false};
+      if(url.searchParams.size===1)return {schema:1,profile:{
+        id:staff,revision:1,name:'Fictional worker',workerType:'care_aide',availability:'Weekdays',
+        vacationStart:'2026-02-03',vacationEnd:'2026-02-05',credentials:[],
+        management:{payGrade:'',hourlyRate:'',performance:''},
+      },pending:null};
+    };
+    await withPhoneFixture({signedIn,fixtureVisits:[],staffProfileFixture},async({page})=>{
+      await page.setViewportSize({width:1440,height:900});
+      await page.getByRole('button',{name:'Staff Profiles',exact:true}).click();
+      await page.getByRole('region',{name:'Staff profile list'})
+        .getByRole('button',{name:'Fictional worker',exact:true}).click();
+      const form=page.getByRole('form',{name:'Staff profile form'});
+      await form.getByLabel('Availability',{exact:true}).waitFor();
+      const bounds=async()=>form.evaluate(el=>{
+        const rect=label=>el.querySelector(`[aria-label="${label}"]`).getBoundingClientRect().toJSON();
+        return {first:rect('Vacation start'),last:rect('Vacation end'),availability:rect('Availability'),
+          panel:el.getBoundingClientRect().toJSON(),scrollWidth:el.scrollWidth,clientWidth:el.clientWidth,
+          documentWidth:document.documentElement.scrollWidth,viewportWidth:document.documentElement.clientWidth};
+      });
+      const desktop=await bounds();
+      assert.ok(Math.abs(desktop.first.top-desktop.last.top)<2,'desktop dates align on the same row');
+      assert.ok(desktop.last.left>=desktop.first.right+8,'desktop dates have separate columns');
+      assert.ok(desktop.availability.width>desktop.first.width*1.5,'availability remains a full-width field');
+      assert.ok(desktop.panel.width<=930,'desktop editor avoids the former full-screen width');
+      await page.setViewportSize({width:390,height:660});
+      // Wait for the same labeled controls to reflow after the viewport change.
+      await page.waitForFunction(()=>{
+        const first=document.querySelector('[aria-label="Vacation start"]')?.getBoundingClientRect();
+        const last=document.querySelector('[aria-label="Vacation end"]')?.getBoundingClientRect();
+        return first&&last&&last.top>first.bottom;
+      });
+      const phone=await bounds();
+      assert.ok(Math.abs(phone.first.left-phone.last.left)<2,'phone dates stack in the same column');
+      assert.ok(phone.scrollWidth<=phone.clientWidth+1,'the editor does not scroll horizontally');
+      assert.ok(phone.documentWidth<=phone.viewportWidth+1,'the page does not scroll horizontally');
     });
   });

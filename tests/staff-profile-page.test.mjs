@@ -49,9 +49,12 @@ test('staff submission remains pending without replacing approved readback',asyn
  }finally{await act(async()=>root.unmount());}
 });
 
-test('management sees a pending profile before opening it and approval clears the flag',async()=>{
+async function loadStaffProfiles(){
  const pendingBundle=await build({entryPoints:[new URL('../admin-src/app/shared/StaffProfiles.tsx',import.meta.url).pathname],bundle:true,write:false,platform:'node',format:'esm',jsx:'automatic',plugins:[{name:'react',setup(b){b.onResolve({filter:/^react(?:\/.*)?$/},a=>({path:pathToFileURL(require.resolve(a.path)).href,external:true}));}}]});
- const {StaffProfiles}=await import('data:text/javascript;base64,'+Buffer.from(pendingBundle.outputFiles[0].text).toString('base64'));
+ return import('data:text/javascript;base64,'+Buffer.from(pendingBundle.outputFiles[0].text).toString('base64'));
+}
+test('management opens an eligible staff name and returns to the refreshed pending roster',async()=>{
+ const {StaffProfiles}=await loadStaffProfiles();
  const worker='11111111-1111-4111-8111-111111111111',privileged='22222222-2222-4222-8222-222222222222',submission='33333333-3333-4333-8333-333333333333';
  const session={authenticated:true,principal:{id:'44444444-4444-4444-8444-444444444444',operationalRole:'manager',applicationAdmin:true,technicalAdmin:false},capabilities:['users.manage']};
  let pending={id:submission,submittedAt:'2026-11-19T10:00:00Z',changes:{availability:'Tuesday'}};let root;
@@ -71,19 +74,42 @@ test('management sees a pending profile before opening it and approval clears th
   return Response.json({schema:1,profile:{id:worker,name:'Fictional worker',revision:pending?1:2,workerType:'care_aide',availability:pending?'Weekdays':'Tuesday',vacationStart:'',vacationEnd:'',credentials:[]},pending});
  };
  const button=text=>root.root.findAllByType('button').find(item=>item.props.children===text);
- const option=()=>root.root.findAllByType('option').find(item=>item.props.value===worker).children.join('');
+ const rosterRow=()=>root.root.findByProps({className:'task-row'});
  const settle=async()=>act(async()=>{await new Promise(resolve=>setImmediate(resolve));});
  await act(async()=>{root=create(React.createElement(StaffProfiles,{session,fetcher}));});
  try{
-  await act(async()=>button('Staff Profiles').props.onClick());await settle();
-  assert.equal(option(),'Fictional worker · Pending review');
+  await settle();
+  assert.equal(rosterRow().findByType('strong').children.join(''),'Fictional worker');
+  assert.equal(rosterRow().findByType('span').children.join(''),'Pending review');
+  assert.doesNotMatch(JSON.stringify(root.toJSON()),/Protected account/);
   assert.match(JSON.stringify(root.toJSON()),/1 staff profile submission needs review/);
   assert.deepEqual(summaryReads,[worker]);assert.deepEqual(posts,[]);
-  await act(async()=>root.root.findByType('select').props.onChange({target:{value:worker}}));await settle();
+  await act(async()=>rosterRow().props.onClick());await settle();
+  assert.match(JSON.stringify(root.toJSON()),/Selected staff profile|Fictional worker/);
   await act(async()=>button('Approve profile changes').props.onClick());await settle();
   assert.deepEqual(posts,[{action:'approve',id:worker,submissionId:submission}]);
-  assert.equal(option(),'Fictional worker');
+  await act(async()=>button('Back to staff list').props.onClick());
+  assert.equal(rosterRow().findAllByType('span').length,0);
   assert.match(JSON.stringify(root.toJSON()),/No staff profile submissions need review/);
   assert.deepEqual(summaryReads,[worker]);
+ }finally{await act(async()=>root.unmount());}
+});
+
+test('ordinary staff sees only their own profile without reading the management roster',async()=>{
+ const {StaffProfiles}=await loadStaffProfiles();
+ const worker='11111111-1111-4111-8111-111111111111',reads=[];
+ const session={authenticated:true,principal:{id:worker,operationalRole:'staff',applicationAdmin:false,technicalAdmin:false},capabilities:[]};
+ const fetcher=async(url,options)=>{
+  assert.equal(options.method,'GET');reads.push(url);
+  assert.equal(url,'/api/admin/staff-profile?id='+worker);
+  return Response.json({schema:1,profile:{id:worker,name:'Own fictional profile',revision:1,workerType:'care_aide',availability:'Weekdays',vacationStart:'',vacationEnd:'',credentials:[]},pending:null});
+ };
+ let root;
+ await act(async()=>{root=create(React.createElement(StaffProfiles,{session,fetcher}));});
+ try{
+  await act(async()=>{await new Promise(resolve=>setImmediate(resolve));});
+  assert.match(JSON.stringify(root.toJSON()),/My Staff Profile|Own fictional profile/);
+  assert.doesNotMatch(JSON.stringify(root.toJSON()),/Staff members|Back to staff list|Refresh pending status/);
+  assert.deepEqual(reads,['/api/admin/staff-profile?id='+worker]);
  }finally{await act(async()=>root.unmount());}
 });
