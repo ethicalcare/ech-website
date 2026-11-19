@@ -55,6 +55,7 @@ export function useDashboardNavigation() {
       if (read(window.location.search).view === 'operations') navigate('operations', null, true, next);
     },
     setView: (next: DashboardView) => navigate(next, null),
+    replaceView: (next: DashboardView) => navigate(next, null, true),
     openContact: (id: string) => navigate(view, id),
     clearContact: () => navigate(view, null, true),
     closeContact: () => {

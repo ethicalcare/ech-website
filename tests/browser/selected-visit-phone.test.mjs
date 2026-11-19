@@ -32,7 +32,7 @@ const detailFor = id => ({visitId:id,revision:1,fields:{
 const list = {schema:1,mode:'shared',items:[],nextCursor:null};
 
 async function withPhoneFixture({
-  signedIn=session,fixtureVisits=visits,now='2026-01-15T20:00:00.000Z',denied=()=>false,existingBrowser,reportFixture,staffProfileFixture,
+  signedIn=session,fixtureVisits=visits,now='2026-01-15T20:00:00.000Z',denied=()=>false,existingBrowser,reportFixture,staffProfileFixture,entryPath=entry,
 },run){
     const assets = new Map(await Promise.all([
       ['/admin/','index.html','text/html'],['/admin/admin.js','admin.js','text/javascript'],
@@ -61,7 +61,7 @@ async function withPhoneFixture({
         }
         if(request.method()!=='GET')return reject();
         const asset = assets.get(url.pathname);
-        if(asset&&(!url.search||url.pathname+url.search===entry))return route.fulfill(asset);
+        if(asset&&(!url.search||url.pathname+url.search===entryPath))return route.fulfill(asset);
         const json = value=>route.fulfill({json:value});
         if(url.pathname==='/favicon.ico'&&!url.search)return route.fulfill({status:204});
         if(url.pathname==='/api/admin/session'&&!url.search)return json(signedIn);
@@ -69,8 +69,10 @@ async function withPhoneFixture({
           const result=staffProfileFixture(url);
           if(result!==undefined)return json(result);
         }
+        const staffSession=signedIn.principal.operationalRole==='staff'&&!signedIn.principal.applicationAdmin&&!signedIn.principal.technicalAdmin;
+        if(staffSession&&['/api/admin/inquiries','/api/admin/partners','/api/admin/assignees','/api/admin/access-requests','/api/admin/memberships'].includes(url.pathname))return reject();
         if(['/api/admin/inquiries','/api/admin/partners'].includes(url.pathname)&&url.search==='?limit=20')return json(list);
-        if(url.pathname!=='/api/admin/operations')return reject();
+        if(url.pathname!=='/api/admin/operations'||(staffSession&&!signedIn.operationsFeatures?.reads))return reject();
         if(request.headers()['x-ech-schedule-actor']!==signedIn.principal.id||request.headers()['x-ech-schedule-role']!==signedIn.principal.operationalRole)
           return reject();
         const q=url.searchParams;
@@ -91,7 +93,7 @@ async function withPhoneFixture({
       page.setDefaultTimeout(10_000);
       page.on('pageerror',error=>pageErrors.push(error.message));
       await page.clock.setFixedTime(new Date(now));
-      await page.goto(origin+entry,{waitUntil:'domcontentloaded'});
+      await page.goto(origin+entryPath,{waitUntil:'domcontentloaded'});
       await run({page,detailReads,browser});
       assert.deepEqual(unexpected,[],'only exact fictional fixture routes are used');
       assert.deepEqual(pageErrors,[]);
@@ -167,7 +169,10 @@ test('assigned worker opens approved visit details from My day at phone width',
     const assigned=visits[0];
     let denyDetail=false;
     await withPhoneFixture({signedIn,fixtureVisits:[assigned],now:'2026-01-15T18:30:00.000Z',
-      denied:()=>denyDetail},async({page,detailReads,browser})=>{
+      denied:()=>denyDetail,staffProfileFixture:url=>{
+        if(url.pathname==='/api/admin/staff-profile'&&url.search==='?id='+staff)
+          return {schema:1,profile:{id:staff,name:'Fictional worker',revision:1,workerType:'care_aide',credentials:[]},pending:null};
+      }},async({page,detailReads,browser})=>{
       const schedule=page.getByRole('region',{name:'Shared schedule',exact:true});
       const myDay=schedule.getByRole('region',{name:'My day',exact:true});
       const current=myDay.getByRole('button',{name:'Open current visit',exact:true});
@@ -177,12 +182,15 @@ test('assigned worker opens approved visit details from My day at phone width',
       const expected=detailFor(assigned.id).fields;
 
       await myDay.getByText('Fictional Ada',{exact:true}).waitFor();
-      assert.equal(await calendar.isVisible(),true);
+      await page.getByRole('heading',{name:'Your day in focus.',exact:true}).waitFor();
+      assert.equal(new URL(page.url()).searchParams.get('view'),'daily');
+      assert.equal(await calendar.count(),0);
+      assert.equal(await page.getByRole('button',{name:'Record new inquiry',exact:true}).count(),0);
       assert.equal(await schedule.getByText('Fictional Bee',{exact:true}).count(),0);
       await current.tap();
       await panel.getByText('Fictional Ada',{exact:true}).waitFor();
       assert.equal(await heading.evaluate(e=>e===document.activeElement),true);
-      assert.equal(await calendar.isVisible(),false,'current visit hides the calendar');
+      assert.equal(await myDay.isVisible(),false,'current visit hides the roster until close');
       for(const value of [expected.address,expected.entry,expected.preferences,expected.contact.name,'Phone not provided'])
         assert.equal(await panel.getByText(value,{exact:true}).count(),1);
       assert.equal(await panel.getByText('Contact authority is unknown. Do not infer consent or decision-making authority.',{exact:true}).count(),1);
@@ -191,7 +199,7 @@ test('assigned worker opens approved visit details from My day at phone width',
       await panel.getByRole('button',{name:'Close visit details',exact:true}).press('Enter');
       await panel.waitFor({state:'hidden'});
       assert.equal(await current.evaluate(e=>e===document.activeElement),true,'Close returns focus to My day');
-      assert.equal(await calendar.isVisible(),true);
+      assert.equal(await myDay.isVisible(),true);
       assert.deepEqual(detailReads,[assigned.id]);
 
       // This mocks a denial to check client behavior, not backend authorization.
@@ -211,6 +219,17 @@ test('assigned worker opens approved visit details from My day at phone width',
       await panel.waitFor({state:'hidden'});
       assert.equal(await current.evaluate(e=>e===document.activeElement),true);
 
+      const header=page.locator('.topbar');
+      await header.locator('summary[aria-label="My account"]').tap();
+      await header.getByRole('button',{name:'Sign out',exact:true}).waitFor();
+      await header.getByRole('button',{name:'My Staff Profile',exact:true}).tap();
+      const profile=page.getByRole('region',{name:'My Staff Profile',exact:true});
+      await profile.getByText('Fictional worker',{exact:true}).waitFor();
+      assert.equal(await myDay.isVisible(),false);
+      await profile.getByRole('button',{name:'Back to Today',exact:true}).tap();
+      await current.waitFor();
+      assert.equal(new URL(page.url()).searchParams.get('view'),'daily');
+
       const other={
         ...signedIn,principal:{...signedIn.principal,id:'10000000-0000-4000-8000-000000000003',
           email:'fictional.other@ech-fixture.invalid'},
@@ -224,6 +243,19 @@ test('assigned worker opens approved visit details from My day at phone width',
         assert.equal(await otherSchedule.getByText('Fictional Ada',{exact:true}).count(),0);
         assert.equal(await otherSchedule.getByRole('region',{name:'Selected visit details',exact:true}).count(),0);
         assert.deepEqual(otherReads,[]);
+      });
+      await withPhoneFixture({signedIn:{...signedIn,operationsFeatures:{...signedIn.operationsFeatures,reads:false}},fixtureVisits:[],
+        entryPath:'/admin/?view=partners&contact=fictional-excluded',existingBrowser:browser},async({page:unavailablePage})=>{
+        await unavailablePage.getByText('Your assigned care visits aren’t available in this workspace yet.',{exact:true}).waitFor();
+        const location=new URL(unavailablePage.url());
+        assert.equal(location.searchParams.get('view'),'daily');
+        assert.equal(location.searchParams.has('contact'),false);
+        assert.equal(await unavailablePage.getByRole('region',{name:'My day',exact:true}).count(),0);
+        assert.equal(await unavailablePage.getByText('No assigned visits to work on today.',{exact:true}).count(),0);
+        await unavailablePage.getByRole('button',{name:/^Menu/}).tap();
+        const menu=unavailablePage.getByRole('dialog');
+        await menu.getByRole('button',{name:'My Staff Profile',exact:true}).waitFor();
+        assert.equal(await menu.getByRole('button',{name:/^Care Inquiries$|^Referral Partners$|^Follow-ups$|^Overview$|^Accounts$/}).count(),0);
       });
     });
   });

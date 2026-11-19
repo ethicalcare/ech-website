@@ -37,3 +37,9 @@
  .shared-admin.named-shell .main-content{padding:16px;}
  .shared-admin.named-shell .account-actions{bottom:auto;top:calc(100% + 8px);}
 }
+
+/* The account menu opens below the header beside the theme switch. */
+.shared-admin.named-shell .topbar-actions .account-menu>summary{min-height:44px;padding:6px 10px;cursor:pointer;}
+.shared-admin.named-shell .topbar-actions .account-identity{display:block;}
+.shared-admin.named-shell .topbar-actions .account-identity small{display:none;}
+.shared-admin.named-shell .topbar-actions .account-actions{top:calc(100% + 8px);bottom:auto;left:auto;right:0;}

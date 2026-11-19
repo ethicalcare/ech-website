@@ -7,7 +7,7 @@ type PendingResult={actor:string;loading:boolean;rows:StaffOption[];statuses:Map
 const pendingCheckLimit=24, pendingCheckConcurrency=4;
 const mayCheckPending=(person:StaffOption)=>!person.applicationAdmin&&!person.technicalAdmin&&!person.delegatedUserAdmin;
 type Snapshot={profile:CompleteProfile;pending:null|{id:string;submittedAt:string;changes?:Record<string,unknown>}};
-export function StaffProfiles({session,fetcher=fetch}:{session:Session;fetcher?:typeof fetch}){
+export function StaffProfiles({session,fetcher=fetch,onBackToToday}:{session:Session;fetcher?:typeof fetch;onBackToToday?:()=>void}){
  const manager=can(session,'users.manage');const ownId=session.authenticated?session.principal.id:'';
  const scope=session.authenticated?JSON.stringify([ownId,session.principal.operationalRole,session.principal.applicationAdmin,session.principal.technicalAdmin,session.principal.delegatedUserAdmin]):'';
  const available=manager||session.authenticated&&session.principal.operationalRole==='staff';
@@ -92,7 +92,8 @@ export function StaffProfiles({session,fetcher=fetch}:{session:Session;fetcher?:
    {discoveryView&&!discoveryView.loading&&!discoveryView.incomplete&&people.length===0&&<p>No eligible staff profiles to display.</p>}
  </section>;
  return <section className="panel dashboard-card" aria-label={manager?'Selected staff profile':'My Staff Profile'}>
-   {manager&&<button type="button" onClick={()=>chooseMember('')}>Back to staff list</button>}
+   {manager?<button type="button" onClick={()=>chooseMember('')}>Back to staff list</button>
+     :onBackToToday&&<button type="button" onClick={onBackToToday}>Back to Today</button>}
    {error&&<p role="status">{error}</p>}
    {!snapshot&&!error&&<p role="status">Loading staff profile…</p>}
    {missing&&manager&&<button disabled={busy} onClick={async()=>{setBusy(true);try{const result=await call('staff-profile',{action:'initialize',id:selected});setSnapshot(result);setMissing(false);setError('');}catch(e){setError(e instanceof Error?e.message:'Profile could not be created.');}finally{setBusy(false);}}}>Create staff profile</button>}
