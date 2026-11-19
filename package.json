@@ -14,11 +14,13 @@
     "audit": "node scripts/audit-site.mjs",
     "check": "npm run verify && npm run audit",
     "dev": "node scripts/serve.mjs",
+    "test:browser:phone": "node --test tests/browser/selected-visit-phone.test.mjs",
     "build:admin": "node scripts/build-admin.mjs admin-src node_modules",
     "build:release": "npm run build && node scripts/check-release.mjs --output"
   },
   "devDependencies": {
     "esbuild": "0.27.3",
+    "playwright-core": "1.62.1",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-test-renderer": "19.2.6"
