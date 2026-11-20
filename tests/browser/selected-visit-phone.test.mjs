@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import test from 'node:test';
 import {chromium} from 'playwright-core';
@@ -32,7 +33,7 @@ const detailFor = id => ({visitId:id,revision:1,fields:{
 const list = {schema:1,mode:'shared',items:[],nextCursor:null};
 
 async function withPhoneFixture({
-  signedIn=session,fixtureVisits=visits,now='2026-01-15T20:00:00.000Z',denied=()=>false,existingBrowser,reportFixture,staffProfileFixture,entryPath=entry,
+  signedIn=session,fixtureVisits=visits,now='2026-01-15T20:00:00.000Z',denied=()=>false,existingBrowser,reportFixture,staffProfileFixture,partnerFixture,entryPath=entry,
 },run){
     const assets = new Map(await Promise.all([
       ['/admin/','index.html','text/html'],['/admin/admin.js','admin.js','text/javascript'],
@@ -54,6 +55,8 @@ async function withPhoneFixture({
           await route.abort('blockedbyclient');
         };
         if(url.origin!==origin)return reject();
+        const partnerResponse=partnerFixture?.(request,url);
+        if(partnerResponse)return route.fulfill(partnerResponse);
         if(url.pathname==='/api/admin/operations'&&reportFixture){
           if(request.headers()['x-ech-schedule-actor']!==signedIn.principal.id||request.headers()['x-ech-schedule-role']!==signedIn.principal.operationalRole)return reject();
           const response=reportFixture(request,url);
@@ -462,3 +465,77 @@ test('staff meetings are locally checked drafts and never become care visits on 
       assert.equal(await calendar.getByText('Fictional team meeting',{exact:true}).count(),0);
     });
   });
+
+test('saving working partner notes does not log contact or alter follow-up and originals', {timeout:45_000}, async()=>{
+  const partnerId='40000000-0000-4000-8000-000000000001';
+  const at='2026-01-15T20:00:00.000Z';
+  const original='Fictional board research stays as imported.';
+  const brief='Fictional imported outreach brief stays unchanged.';
+  const notes='Description\nFictional support organization\n\nInternal notes\nAsk about the service area.';
+  const entryPath='/admin/?view=partners';
+  const signedIn={...session,capabilities:[...session.capabilities,'leads.update_all']};
+  const initial={
+    id:partnerId,revision:2,organization:'Fictional Partner Organization',category:'Community support',geography:'Fictional service area',
+    contactRoute:'fictional.partner@ech-fixture.invalid',stage:'Conversation underway',ownerId:null,
+    nextAction:'Confirm fictional service area',nextDate:'2026-01-19',notes:'Fictional initial working notes.',
+    openingAsk:'Ask about options',materials:'None',lastTouch:'2026-01-12',callScript:'Fictional original script',contacted:true,
+    sprint:'Top 15',people:[],createdAt:at,updatedAt:at,
+    source:{sourceVariants:[{values:[...Array(13).fill(''),original]}],brief:{title:'Fictional original brief',text:brief}},
+  };
+  let current=initial, event, detailReads=0, updates=0;
+  const collection=()=>({schema:1,mode:'shared',items:[current],nextCursor:null});
+  function partnerFixture(request,url){
+    if(url.pathname==='/api/admin/history'&&request.method()==='GET'
+      &&url.search==='?recordType=partner&id='+partnerId+'&cursor=0&limit=20'){
+      return {json:{items:event?[event]:[],nextCursor:null}};
+    }
+    if(url.pathname!=='/api/admin/partners')return;
+    if(request.method()==='GET'&&url.search==='?limit=20')return {json:collection()};
+    if(request.method()==='GET'&&url.search==='?id='+partnerId){detailReads++;return {json:collection()};}
+    if(request.method()!=='POST'||url.search||updates!==0||request.headers()['content-type']!=='application/json')return;
+    let payload;
+    try{payload=request.postDataJSON();}catch{return;}
+    const operationId=payload?.operationId;
+    if(typeof operationId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(operationId)
+      ||!isDeepStrictEqual(payload,{schema:1,operationId,expectedRevision:2,command:{type:'update',id:partnerId,fields:{notes}}}))return;
+    updates++;
+    current={...current,notes,revision:3};
+    event={id:'50000000-0000-4000-8000-000000000001',operationId,recordType:'partner',recordId:partnerId,
+      actorId:manager,actorLabel:'Fictional manager',at,action:'update',revision:3,details:{changedFields:['notes']}};
+    return {json:{schema:1,mode:'shared',record:current,
+      receipt:{operationId,expectedRevision:2,revision:3,commandFingerprint:createHash('sha256').update(request.postData()).digest('hex')}}};
+  }
+  await withPhoneFixture({signedIn,entryPath,partnerFixture},async({page})=>{
+    const open=async()=>{
+      await page.getByRole('button',{name:/Fictional Partner Organization/u}).tap();
+      await page.getByRole('heading',{name:'Fictional Partner Organization',exact:true}).waitFor();
+    };
+    await open();
+    const working=page.getByLabel('Working description and internal notes',{exact:true});
+    assert.equal(await working.inputValue(),initial.notes);
+    await working.fill(notes);
+    await page.getByRole('button',{name:'Save description and notes',exact:true}).tap();
+    await page.getByText('Saved and confirmed by the server.',{exact:true}).waitFor();
+    assert.equal(updates,1);
+
+    // A fresh dashboard navigation must load the value from the fictional server,
+    // not from RecordEditor's preserved in-memory draft.
+    await page.goto(origin+entryPath,{waitUntil:'domcontentloaded'});
+    await open();
+    assert.equal(await working.inputValue(),notes);
+    assert.ok(detailReads>=2,'the partner was read again after reopening');
+    assert.equal(await page.getByLabel('Contact has been made',{exact:true}).isChecked(),initial.contacted);
+    assert.equal(await page.getByLabel('Relationship stage',{exact:true}).inputValue(),initial.stage);
+    assert.equal(await page.getByLabel('Next action',{exact:true}).inputValue(),initial.nextAction);
+    assert.equal(await page.getByLabel('Follow-up / next meeting date',{exact:true}).inputValue(),initial.nextDate);
+    assert.equal(await page.getByLabel('Last logged touch date',{exact:true}).inputValue(),initial.lastTouch);
+    await page.getByText('Partner updated',{exact:true}).waitFor();
+    assert.equal(await page.getByText('Activity recorded',{exact:true}).count(),0);
+    const source=page.getByRole('region',{name:'Research and source information',exact:true});
+    await source.getByText('Read notes from the original lists',{exact:true}).tap();
+    await source.getByText(original,{exact:true}).waitFor();
+    await source.getByText('Research and outreach draft',{exact:true}).tap();
+    await source.getByText(brief,{exact:true}).waitFor();
+    assert.equal(updates,1);
+  });
+});
