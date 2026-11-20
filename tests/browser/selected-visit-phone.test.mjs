@@ -511,11 +511,16 @@ test('saving working partner notes does not log contact or alter follow-up and o
       await page.getByRole('heading',{name:'Fictional Partner Organization',exact:true}).waitFor();
     };
     await open();
-    const working=page.getByLabel('Working description and internal notes',{exact:true});
+    const recordEditor=page.locator('article.shared-record-editor');
+    const workingForm=recordEditor.locator('form').filter({has:page.getByRole('heading',{name:'Partner description and internal notes',exact:true})});
+    await workingForm.getByText('Working description and internal notes',{exact:true}).waitFor();
+    // A controlled textarea may contribute its nonempty text to Playwright's
+    // label-text matcher. Use the actual labeled editor control inside this form.
+    const working=workingForm.locator('label > textarea[data-field="notes"]');
     assert.equal(await working.inputValue(),initial.notes);
     await working.fill(notes);
-    await page.getByRole('button',{name:'Save description and notes',exact:true}).tap();
-    await page.getByText('Saved and confirmed by the server.',{exact:true}).waitFor();
+    await workingForm.getByRole('button',{name:'Save description and notes',exact:true}).tap();
+    await recordEditor.getByText('Saved and confirmed by the server.',{exact:true}).waitFor();
     assert.equal(updates,1);
 
     // A fresh dashboard navigation must load the value from the fictional server,
