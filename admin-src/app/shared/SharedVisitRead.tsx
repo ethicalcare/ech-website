@@ -9,6 +9,7 @@ import type {VisitLeaveState} from './SharedVisitActions';
 import {createCompletedTaskHistoryClient} from './completed-task-history-client';
 import {SharedVisitReport} from './SharedVisitReport';
 import {createVisitReportClient} from './visit-report-client';
+import {createWorkHoursClient} from './work-hours-client';
 import {useEffect,useMemo,useState,useRef,useLayoutEffect} from 'react';
 import {createVisitDetailClient,type VisitDetail} from './visit-detail-client';
 import type {ScheduleIdentity,ScheduleVisit} from './schedule-client';
@@ -28,6 +29,10 @@ export function SharedVisitRead({actor,role,visit,clientName,fetcher,onClose,onV
  const saved=useCallback((current:ScheduleVisit)=>onConfirmed?.(current),[onConfirmed]);
  const [reportOpen,setReportOpen]=useState(false);
  const [reportVersion,setReportVersion]=useState<number|null>(null);
+ // A disposable preview runner opts its HTML into hours testing. This only
+ // controls display; the separately injected server port checks all authority.
+ const workHours=useMemo(()=>typeof document!=='undefined'&&document.documentElement.dataset.echWorkHoursPreview==='true'
+  ?createWorkHoursClient(fetcher,actor,role):undefined,[fetcher,actor,role]);
  const loadReport=useMemo(()=>createVisitReportClient(fetcher,actor,role),[fetcher,actor,role]);
  const [retry,setRetry]=useState(0);
  const key=JSON.stringify([actor,role,visit.id,visit.revision,retry,active]);
@@ -65,7 +70,7 @@ export function SharedVisitRead({actor,role,visit,clientName,fetcher,onClose,onV
    {attendanceEnabled&&<VisitAttendance key={key} visit={visit} actor={actor} role={role} fetcher={fetcher}/>}
    <p>Contact authority is unknown. Do not infer consent or decision-making authority.</p><p>Allergy status is unknown. Absence of information does not mean no allergies.</p>
    <button type="button" aria-expanded={reportOpen} onClick={()=>setReportOpen(value=>!value)}>{reportOpen?'Hide report history':'View report history'}</button>
-   {reportOpen&&<SharedVisitReport key={key} visitId={visit.id} visitRevision={visit.revision} load={loadReport} loadCompletedHistory={visit.status==='Completed'?loadCompletedHistory:undefined} onVerificationFailure={()=>{setState({key,error:"Visit access could not be verified. Reload the schedule."});setReportOpen(false);setReportVersion(null);onVerificationFailure?.();}} selectedVersion={reportVersion} onSelectedVersionChange={setReportVersion}/>}
+   {reportOpen&&<SharedVisitReport key={key} workHours={visit.status==='Completed'?workHours:undefined} careReviewTarget={visit.status==='Completed'&&actionsEnabled&&(role==='owner'||role==='manager')?'care-report-actions-'+visit.id:undefined} visitId={visit.id} visitRevision={visit.revision} load={loadReport} loadCompletedHistory={visit.status==='Completed'?loadCompletedHistory:undefined} onVerificationFailure={()=>{setState({key,error:"Visit access could not be verified. Reload the schedule."});setReportOpen(false);setReportVersion(null);onVerificationFailure?.();}} selectedVersion={reportVersion} onSelectedVersionChange={setReportVersion}/>}
   </>}
   {(detail||leave.dirty||leave.pending||leave.retained)&&<StaffVisitWorkflow visit={visit} actor={actor} role={role} staff={staff} fetcher={fetcher} active={active&&!taskLeave.dirty&&!taskLeave.pending} schedulingEnabled={schedulingEnabled} actionsEnabled={actionsEnabled} onConfirmed={saved} onReconciled={reconciled} onReconciliationFailure={reconciliationFailed} onScopeFailure={scopeFailed} onLeaveStateChange={leaveChanged}/>}
   {(detail||leave.dirty||leave.pending||leave.retained)&&tasksEnabled&&<VisitTaskWorkflow enabled scope={scope} actor={actor} role={role} visit={visit} fetcher={fetcher} active={active&&!!detail} blocked={!!(workflowLeave.dirty||workflowLeave.pending||workflowLeave.retained)} onLeave={setTaskLeave} onFailure={scopeFailed}/>}

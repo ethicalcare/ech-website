@@ -6,14 +6,18 @@ import { SharedError } from './live-model';
 import { taskEventLocalTime as formatVancouverInstant } from './visit-task-timeline';
 import type { LoadVisitReport, VisitReport } from './visit-report-client';
 import './shared-visit-report.css';
+import {SharedVisitWorkHours} from './SharedVisitWorkHours';
+import type {HoursClient} from './work-hours-client';
 import { SharedVisitNoteTimeline } from './SharedVisitNoteTimeline';
 
 type State = { status: 'loading' | 'paused' } | { status: 'ready'; report: VisitReport } | { status: 'error' };
 const versionLabel = (version: number) => version === 0 ? 'Original report · version 0' : `Correction ${version} · version ${version}`;
 const outcomeLabel = { completed: 'Completed', 'follow-up': 'Follow-up needed', 'not-completed': 'Not completed' };
 
-export function SharedVisitReport({ visitId, visitRevision, load, loadCompletedHistory, onVerificationFailure, selectedVersion, onSelectedVersionChange }: {
+export function SharedVisitReport({ visitId, visitRevision, load, loadCompletedHistory, workHours, careReviewTarget, onVerificationFailure, selectedVersion, onSelectedVersionChange }: {
   loadCompletedHistory?:(visitId:string,visitRevision:number,reportRevision:number,signal:AbortSignal)=>Promise<CompletedTaskHistory>;
+  workHours?:HoursClient;
+  careReviewTarget?:string;
   visitId: string; visitRevision: number; load: LoadVisitReport; onVerificationFailure: (code: string) => void;
   selectedVersion: number | null; onSelectedVersionChange: (version: number) => void;
 }) {
@@ -152,6 +156,15 @@ export function SharedVisitReport({ visitId, visitRevision, load, loadCompletedH
         </>}
         {report.versions.length > 0 && (report.completedTaskHistoryEnabled===true && loadCompletedHistory ? <SharedDailyCareLog key={`${visitId}:${visitRevision}:${report.reportRevision}`} report={report} load={loadCompletedHistory} onFailure={()=>failure.current('unavailable')}/> : <SharedVisitNoteTimeline report={report} />)}
         <p>A report review does not verify attendance, approve work time, resolve an issue or grant clinical authority.</p>
+        {careReviewTarget && content && latestVersion?.revision===content.revision && <button type="button" onClick={()=>{
+          const target=document.getElementById(careReviewTarget);
+          target?.focus();
+          target?.scrollIntoView?.({block:'start'});
+        }}>Go to care report actions</button>}
+        {workHours && content && latestVersion?.revision===content.revision && <SharedVisitWorkHours
+          key={`${visitId}:${visitRevision}:${report.reportRevision}:${content.revision}`}
+          binding={{visitId,visitRevision,reportRevision:report.reportRevision,contentRevision:content.revision}}
+          client={workHours}/>}
       </>}
     </div>
   </section>;

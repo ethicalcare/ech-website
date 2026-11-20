@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": { "deploymentEnabled": { "ech/integrate-dashboard-report-actions-20261120": false } },
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "dist",

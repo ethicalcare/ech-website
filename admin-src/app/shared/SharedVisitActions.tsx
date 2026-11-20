@@ -14,16 +14,16 @@ type Comparison = {visit:ScheduleVisit;reportRevision:number|null};
 const sameVisit = (left:ScheduleVisit,right:ScheduleVisit) => (['id','clientId','workerId','service','status','start','end','revision'] as const).every(key=>left[key]===right[key]);
 const samePurpose = (left:ScheduleVisit,right:ScheduleVisit) => (['id','clientId','workerId','service','status'] as const).every(key=>left[key]===right[key]);
 type Mode = 'submit'|'correct'|'review';
-const empty = {summary:'',issue:'',actualStart:'',actualEnd:'',actualStartOriginal:'',actualEndOriginal:'',tasks:'',observations:'',reason:'',note:'',outcome:'',decision:'accepted',noteEventAt:'',noteEventOriginal:''};
+const empty = {summary:'',issue:'',actualStart:'',actualEnd:'',actualStartOriginal:'',actualEndOriginal:'',tasks:'',observations:'',reason:'',note:'',outcome:'',noteEventAt:'',noteEventOriginal:''};
 const hasDraft = (draft:typeof empty) => Object.keys(empty).some(field=>draft[field as keyof typeof empty]!==empty[field as keyof typeof empty]);
 type SavedDraft = {draft:typeof empty;visit:ScheduleVisit;reportRevision:number|null;reviewVersion:number|null};
-export function SharedVisitActions({visit,active,client,loadDetail,loadReport,loadCurrentVisit,onConfirmed,onReconciled,onReconciliationFailure,onScopeFailure,onLeaveStateChange,noteEventTimeEnabled=false,reconciliationEnabled=true}: {
+export function SharedVisitActions({visit,active,client,loadDetail,loadReport,loadCurrentVisit,onConfirmed,onReconciled,onReconciliationFailure,onScopeFailure,onLeaveStateChange,noteEventTimeEnabled=false,reconciliationEnabled=true,headingId}: {
   visit:ScheduleVisit;active:boolean;client:VisitActionsClient;loadDetail:(id:string,revision:number,signal:AbortSignal)=>Promise<VisitDetail>;
   loadCurrentVisit:(id:string,membershipRevision:number,signal:AbortSignal)=>Promise<ScheduleVisit>;
   onReconciled:(visit:ScheduleVisit)=>void;
   onReconciliationFailure?:()=>void;
   loadReport:LoadVisitReport;onConfirmed:(visit:ScheduleVisit)=>void;onScopeFailure:(code:string)=>void;
-  onLeaveStateChange:(state:VisitLeaveState)=>void;noteEventTimeEnabled?:boolean;reconciliationEnabled?:boolean;
+  onLeaveStateChange:(state:VisitLeaveState)=>void;noteEventTimeEnabled?:boolean;reconciliationEnabled?:boolean;headingId?:string;
 }) {
   const [context,setContext] = useState<Context|null>(null);
   const [verifiedAccess,setVerifiedAccess] = useState<VisitActionAccess|null>(null);
@@ -105,7 +105,7 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
       const result=await client.commit(action,request.signal,requestVisit.current??visit,loadDetail,loadReport);
       if (request.signal.aborted || generation!==current.current) return;
       unresolved.current=false;requestVisit.current=null;draftReviewVersion.current=null;setHideDraft(false);
-      setPending(null);setDraft(empty);setMode('submit');setMessage(`Confirmed ${result.receipt.action} · receipt ${result.receipt.operationId}. Current visit and report access rechecked.`);
+      setPending(null);setDraft(empty);setMode('submit');setMessage(action.command.type==='review' ? (action.command.decision==='accepted'?'Report approved.':'Report returned.') : `Confirmed ${result.receipt.action} · receipt ${result.receipt.operationId}. Current visit and report access rechecked.`);
       setContext(old=>old?{...old,report:result.report}:old);
       setError(false);confirmed.current(result.visit);
     } catch(error) {
@@ -117,15 +117,15 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
       if(error instanceof SharedError && ['unauthenticated','scope_changed'].includes(error.code)){setVerifiedAccess(null);scopeFailure.current(error.code);}
     } finally {if(writeFlight.current===request)writeFlight.current=null;if(!request.signal.aborted && generation===current.current)setBusy(false);}
   }
-  function submit(event:FormEvent) {
+  function submit(event:Pick<FormEvent,'preventDefault'>, reviewDecision?:'accepted'|'returned') {
     event.preventDefault();if(!active || !supported || !context?.access.enabled || pending || busy || writeFlight.current && !writeFlight.current.signal.aborted || comparison || activeDirty && (!sameVisit(draftVisit.current,visit) || draftReportRevision.current!==(context.report?.reportRevision??null)))return;
     let command:VisitCommand;
     if(visit.status==='Confirmed')command={type:'start'};
     else if(mode==='review' && latest){
-      if(!reviewEligibility.allowed)return;
+      if(!reviewEligibility.allowed || !reviewDecision)return;
       const version=draftReviewVersion.current;
       if(version===null || version!==latest.version)return;
-      command={type:'review',version,decision:draft.decision as 'accepted'|'returned',note:draft.note};
+      command={type:'review',version,decision:reviewDecision,note:draft.note};
     }
     else {
       if(visit.status==='In progress' && !['completed','follow-up','not-completed'].includes(draft.outcome)) {
@@ -252,8 +252,8 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
     {pending&&!rejected && <p>A sent visit request remains unresolved; it may already have been recorded.</p>}
     {message && <p role={error?'alert':'status'}>{message}</p>}{retained}{reloadDraft}
   </section>:null;
-  return <section className="shared-visit-actions" aria-labelledby={`${id}-heading`}>
-    <h3 id={`${id}-heading`}>Visit commands</h3>
+  return <section className="shared-visit-actions" aria-labelledby={headingId??`${id}-heading`}>
+    <h3 id={headingId??`${id}-heading`} tabIndex={-1}>{visit.status==='Completed'?'Care report actions':'Visit actions'}</h3>
     {!context && <><p role="status">Checking command availability…</p><button type="button" onClick={()=>setReload(value=>value+1)}>Retry command access</button></>}
     {message && <p role={error?'alert':'status'} className="shared-visit-report__wording">{message}</p>}
     {context && !context.access.enabled && <p>Read-only. Visit start, submission, correction and review commands are not enabled here.</p>}
@@ -268,12 +268,12 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
           : <p role="alert">The current visit or report changed again. Reload before comparing this draft.</p>}
       </div>}
       {visit.status==='Completed' && latest && !pending && !comparison && <div className="shared-visit-actions__choices">
-        <button type="button" onClick={correction}>Correct latest report</button>
-        {reviewEligibility.allowed ? <button type="button" onClick={review}>Review latest report</button>
+        <button type="button" onClick={correction}>Edit latest report</button>
+        {reviewEligibility.allowed ? <button type="button" onClick={review}>Approve or return report</button>
           : <p className="shared-visit-report__wording">{reviewEligibility.reason}</p>}
       </div>}
       {mode==='review' && draftReviewVersion.current!==latest?.version && <p role="alert">This draft reviews version {draftReviewVersion.current}. The latest report version changed; the draft cannot be retargeted automatically.</p>}
-      {(visit.status==='Confirmed' || visit.status==='In progress' || latest && (mode==='correct' || mode==='review' && reviewEligibility.allowed)) && <form onSubmit={submit}>
+      {(visit.status==='Confirmed' || visit.status==='In progress' || latest && (mode==='correct' || mode==='review' && reviewEligibility.allowed)) && <form onSubmit={event=>submit(event)}>
         <fieldset disabled={busy || !!pending || !!comparison || activeDirty && (!sameVisit(draftVisit.current,visit) || draftReportRevision.current!==(context.report?.reportRevision??null)) || mode==='review' && draftReviewVersion.current!==latest?.version}>
           <legend>{visit.status==='Confirmed'?'Start assigned visit':visit.status==='In progress'?'Submit factual visit report':mode==='review'?`Independent review · exact version ${draftReviewVersion.current}`:`Correct latest report · version ${latest?.version}`}</legend>
           {visit.status==='In progress' && <div className="shared-visit-actions__choices" aria-label="Visit report shortcuts">
@@ -285,8 +285,11 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
             : mode==='review' && visit.status==='Completed' ? <>
               <p>Review the latest exact version in the history above before deciding. This draft reviews version {draftReviewVersion.current}. The current report shown is version {latest?.version}, content revision {latest?.revision}, report stream revision {context.report?.reportRevision}.</p>
               <dl className="shared-visit-detail__fields"><dt>Exact summary</dt><dd>{latest?.summary}</dd><dt>Outcome</dt><dd>{latest?.outcome}</dd><dt>Actual start · Vancouver</dt><dd>{latest && reportLocalTime(latest.actualStart).replace('T',' ')}</dd><dt>Actual end · Vancouver</dt><dd>{latest && reportLocalTime(latest.actualEnd).replace('T',' ')}</dd><dt>Completed tasks</dt><dd>{latest?.completedTasks.length ? latest.completedTasks.map((task,index)=><p key={index}>{task}</p>) : 'No completed tasks were recorded in this report version.'}</dd><dt>Issue text</dt><dd>{latest?.issue || 'None entered'}</dd><dt>Observations</dt><dd>{latest?.observations || 'None entered'}</dd><dt>Note event time · Vancouver</dt><dd>{latest?.noteEventAt ? reportLocalTime(latest.noteEventAt).replace('T',' ') : 'Not recorded · unknown'}</dd><dt>Correction reason</dt><dd>{latest?.reason || 'Original report'}</dd></dl>
-              <label htmlFor={`${id}-decision`}>Decision</label><select id={`${id}-decision`} value={draft.decision} onChange={event=>change('decision',event.target.value)}><option value="accepted">Accept this version</option><option value="returned">Return this version</option></select>
               <label htmlFor={`${id}-note`}>Review note</label><textarea id={`${id}-note`} required minLength={3} maxLength={500} value={draft.note} onChange={event=>change('note',event.target.value)} />
+              <div className="shared-visit-actions__choices">
+                <button type="button" onClick={event=>{if(event.currentTarget.form?.reportValidity())submit(event,'accepted');}}>Approve report</button>
+                <button type="button" onClick={event=>{if(event.currentTarget.form?.reportValidity())submit(event,'returned');}}>Return report</button>
+              </div>
             </> : <>
               {visit.status==='In progress' && <><label htmlFor={`${id}-outcome`}>Outcome reported</label><select id={`${id}-outcome`} required value={draft.outcome} onChange={event=>change('outcome',event.target.value)}><option value="" disabled>Choose the factual outcome</option><option value="completed">Completed</option><option value="follow-up">Follow-up needed</option><option value="not-completed">Not completed</option></select></>}
               <label htmlFor={`${id}-summary`}>{completedTasks.length===0 ? 'Factual summary · what happened and why no tasks were completed' : 'Factual summary'}</label><textarea id={`${id}-summary`} required minLength={3} maxLength={2000} value={draft.summary} onChange={event=>change('summary',event.target.value)} />
@@ -305,7 +308,7 @@ export function SharedVisitActions({visit,active,client,loadDetail,loadReport,lo
               <p id={`${id}-note-event-help`}>Enter when the event described in this note actually occurred, if known. Leave blank when unknown. This is separate from the visit interval and the automatically recorded save time; it is never filled automatically.</p></>}
               {visit.status==='Completed' && <><p>Corrections append a version and preserve the original outcome and history.</p><label htmlFor={`${id}-reason`}>Correction reason</label><textarea id={`${id}-reason`} required minLength={3} maxLength={500} value={draft.reason} onChange={event=>change('reason',event.target.value)} /></>}
             </>}
-          <button type="submit">{visit.status==='Confirmed'?'Request visit start':visit.status==='In progress'?'Submit report':mode==='review'?'Record exact-version review':'Submit correction'}</button>
+          {mode!=='review' && <button type="submit">{visit.status==='Confirmed'?'Request visit start':visit.status==='In progress'?'Submit report':'Submit correction'}</button>}
         </fieldset>
       </form>}
       {activeDirty&&!pending&&<><button type="button" disabled={busy} onClick={discardActionDraft}>Discard this action's draft</button><p>Discard clears only this action’s unsent edits. Saved reports, other action drafts and unresolved requests are not discarded.</p></>}
