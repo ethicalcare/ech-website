@@ -31,7 +31,7 @@ export function SharedVisitRead({actor,role,visit,clientName,fetcher,onClose,onV
  const [reportVersion,setReportVersion]=useState<number|null>(null);
  // A disposable preview runner opts its HTML into hours testing. This only
  // controls display; the separately injected server port checks all authority.
- const workHours=useMemo(()=>typeof document!=='undefined'&&document.documentElement.dataset.echWorkHoursPreview==='true'
+ const workHours=useMemo(()=>typeof document!=='undefined'&&document.documentElement?.dataset?.echWorkHoursPreview==='true'
   ?createWorkHoursClient(fetcher,actor,role):undefined,[fetcher,actor,role]);
  const loadReport=useMemo(()=>createVisitReportClient(fetcher,actor,role),[fetcher,actor,role]);
  const [retry,setRetry]=useState(0);

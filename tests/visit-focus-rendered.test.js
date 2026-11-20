@@ -30,7 +30,7 @@ test('opening focuses details once and accepted close returns focus without losi
   const field=()=>root.root.findAllByType('textarea').find(n=>n.props.id.endsWith(role==='staff'?'-summary':'-note'));
   try{
    await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}),{createNodeMock:element=>({disabled:!!element.props.disabled,focus:()=>focus.push(JSON.stringify(element.props.children))})});});const currentDay=root.root.findAll(n=>n.type==='section'&&n.props['aria-current']==='date');assert.equal(currentDay.length,1);assert.match(currentDay[0].props['aria-label'],/1 visible visit/);await act(async()=>button('View visit details').props.onClick());assert.equal(focus.at(-1),'"Selected visit details"');const opened=focus.length;
-   if(role==='manager')await act(async()=>button('Review latest report').props.onClick());
+   if(role==='manager')await act(async()=>button('Approve or return report').props.onClick());
    await act(async()=>field().props.onChange({target:{value:'Keep this exact unsaved wording'}}));
    await act(async()=>root.update(React.createElement(SharedScheduleRead,{session,fetcher,active:false})));await act(async()=>root.update(React.createElement(SharedScheduleRead,{session,fetcher,active:true})));assert.equal(focus.length,opened,'background navigation does not steal focus from current context');
    const requests=calls;

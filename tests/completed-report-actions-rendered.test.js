@@ -40,15 +40,17 @@ test('independent owner reviews exact latest version with retry, then corrects a
  const change=async(suffix,value)=>act(async()=>root.root.findAll(node=>node.props.id?.endsWith('-'+suffix)&&['input','select','textarea'].includes(node.type))[0].props.onChange({target:{value}}));
  try{
   await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});await act(async()=>button('View visit details').props.onClick());
-  assert.ok(button('Review latest report'));assert.ok(!calls.some(url=>url.includes('scheduling=1')),'completed manager does not mount competing scheduling workflow');
-  await act(async()=>button('Review latest report').props.onClick());await change('note','Independent fictional review');
-  await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));
-  assert.equal(posts[0].command.type,'review');assert.equal(posts[0].command.version,0);assert.equal(button('Close visit details').props.disabled,true);
+  assert.ok(button('Approve or return report'));assert.ok(!calls.some(url=>url.includes('scheduling=1')),'completed manager does not mount competing scheduling workflow');
+  await act(async()=>button('Approve or return report').props.onClick());await change('note','Independent fictional review');
+  const reviewClick=valid=>button('Approve report').props.onClick({preventDefault(){},currentTarget:{form:{reportValidity:()=>valid}}});
+  await act(async()=>reviewClick(false));assert.equal(posts.length,0);
+  await act(async()=>reviewClick(true));
+  assert.equal(posts[0].command.type,'review');assert.equal(posts[0].command.decision,'accepted');assert.equal(posts[0].command.version,0);assert.equal(button('Close visit details').props.disabled,true);
   await act(async()=>button('Retry exact request').props.onClick());assert.deepEqual(posts[1],posts[0]);assert.equal(report.reviews.length,1);assert.equal(button('Close visit details').props.disabled,false);
-  await act(async()=>button('Correct latest report').props.onClick());await change('summary','Corrected fictional wording');await change('reason','Clarify original wording');
+  await act(async()=>button('Edit latest report').props.onClick());await change('summary','Corrected fictional wording');await change('reason','Clarify original wording');
   await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));
   assert.equal(posts[2].command.type,'correct');assert.equal(posts[2].reportRevision,2);assert.equal(report.versions.length,2);assert.equal(report.versions[1].version,1);assert.equal(report.versions[1].outcome,'completed');
-  assert.equal(button('Review latest report'),undefined);assert.match(JSON.stringify(root.toJSON()),/different owner or manager must review/);
+  assert.equal(button('Approve or return report'),undefined);assert.match(JSON.stringify(root.toJSON()),/different owner or manager must review/);
   assert.equal(button('Close visit details').props.disabled,false);assert.equal(button('Reload schedule').props.disabled,false);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=saved;}
 });
@@ -60,20 +62,20 @@ test('review drafts remain pinned when a newer report arrives; authors/staff can
  const base={visit,actor,role:'manager',fetcher,active:true,schedulingEnabled:true,actionsEnabled:false,onConfirmed(){},onScopeFailure(){},onLeaveStateChange(){}};
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
  try{
-  await act(async()=>{root=create(React.createElement(StaffVisitWorkflow,base));});assert.equal(calls,0);assert.equal(button('Review latest report'),undefined);
+  await act(async()=>{root=create(React.createElement(StaffVisitWorkflow,base));});assert.equal(calls,0);assert.equal(button('Approve or return report'),undefined);
   await act(async()=>root.update(React.createElement(StaffVisitWorkflow,{...base,actionsEnabled:true})));
-  await act(async()=>button('Review latest report').props.onClick());
+  await act(async()=>button('Approve or return report').props.onClick());
   await act(async()=>root.root.findAllByType('textarea').find(n=>n.props.id.endsWith('-note')).props.onChange({target:{value:'Review version zero only'}}));
   await act(async()=>root.update(React.createElement(StaffVisitWorkflow,{...base,actionsEnabled:true,active:false})));
   const original=report.versions[0];report={...report,reportRevision:2,versions:[original,{...original,revision:2,version:1,sourceRevision:1,actorId:'30000000-0000-4000-8000-000000000001',actorRole:'manager',recordedAt:'2026-11-01T19:00:00.000Z',summary:'New factual correction',reason:'Correct wording'}]};
   await act(async()=>root.update(React.createElement(StaffVisitWorkflow,{...base,actionsEnabled:true})));
   assert.match(JSON.stringify(root.toJSON()),/cannot be retargeted automatically/);assert.equal(root.root.findByType('fieldset').props.disabled,true);
-  await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));assert.equal(posts,0);
+  await act(async()=>button('Return report').props.onClick({preventDefault(){},currentTarget:{form:{reportValidity:()=>true}}}));assert.equal(posts,0);
   await act(async()=>root.unmount());root=null;
   for(const role of ['manager','staff']){
    report=initialReport();report.versions[0].actorId=actor;report.versions[0].actorRole=role;
    await act(async()=>{root=create(React.createElement(StaffVisitWorkflow,{...base,role,actionsEnabled:true}));});
-   assert.equal(button('Review latest report'),undefined);assert.ok(button('Correct latest report'));
+   assert.equal(button('Approve or return report'),undefined);assert.ok(button('Edit latest report'));
    await act(async()=>root.unmount());root=null;
   }
  }finally{if(root)await act(async()=>root.unmount());}

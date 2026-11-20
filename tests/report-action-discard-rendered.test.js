@@ -30,10 +30,10 @@ test('staff can discard an unsent report without closing visit or sending a requ
  assert.equal(f.field('summary').props.value,'');assert.equal(f.leave.dirty,false);assert.equal(f.leave.pending,false);assert.equal(f.requests.length,0);
 }));
 test('discarding review preserves separate correction draft and its saved values',async()=>fixture(true,async f=>{
- await act(async()=>f.button('Correct latest report').props.onClick());await f.change('summary','Retain correction wording');await f.change('reason','Retain reason');
- await act(async()=>f.button('Review latest report').props.onClick());await f.change('note','Discard review note');
+ await act(async()=>f.button('Edit latest report').props.onClick());await f.change('summary','Retain correction wording');await f.change('reason','Retain reason');
+ await act(async()=>f.button('Approve or return report').props.onClick());await f.change('note','Discard review note');
  await act(async()=>f.button("Discard this action's draft").props.onClick());assert.equal(f.leave.dirty,true);
- await act(async()=>f.button('Correct latest report').props.onClick());assert.equal(f.field('summary').props.value,'Retain correction wording');assert.equal(f.field('reason').props.value,'Retain reason');
+ await act(async()=>f.button('Edit latest report').props.onClick());assert.equal(f.field('summary').props.value,'Retain correction wording');assert.equal(f.field('reason').props.value,'Retain reason');
  assert.equal(f.requests.length,0);
 }));
 test('unknown sent report cannot be discarded and exact retry retains the request',async()=>fixture(false,async f=>{

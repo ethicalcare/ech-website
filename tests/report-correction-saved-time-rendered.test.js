@@ -20,7 +20,7 @@ test('wording-only correction preserves saved repeated-hour actual instants; edi
  const report={schema:1,visitId:id,visitRevision:3,reportRevision:1,versions:[original],reviews:[]};
  for(const edit of [false,true]){let root;const requests=[];const client={availability:async()=>({schema:1,enabled:true,membershipRevision:7}),reviewEligibility:()=>({allowed:false,reason:'Staff cannot review'}),commit:async action=>{requests.push(action);throw new Error('Fictional unconfirmed request');}};
  try{await act(async()=>{root=create(React.createElement(SharedVisitActions,{visit,active:true,client,loadDetail:async()=>({}),loadReport:async()=>report,loadCurrentVisit:async()=>visit,onConfirmed(){},onReconciled(){},onScopeFailure(){},onLeaveStateChange(){}}));});
- await act(async()=>root.root.findAllByType('button').find(b=>b.props.children==='Correct latest report').props.onClick());
+ await act(async()=>root.root.findAllByType('button').find(b=>b.props.children==='Edit latest report').props.onClick());
  const change=async(suffix,value)=>act(async()=>root.root.findAll(n=>n.props.id?.endsWith('-'+suffix)&&['input','textarea'].includes(n.type))[0].props.onChange({target:{value}}));
  await change('summary','Corrected fictional wording');await change('reason','Clarify wording only');if(edit)await change('start','2025-11-02T01:20');
  await act(async()=>root.root.findByType('form').props.onSubmit({preventDefault(){}}));

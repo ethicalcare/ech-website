@@ -30,7 +30,7 @@ test('reselecting the same staff visit or manager review preserves draft and lea
   const field=()=>root.root.findAllByType('textarea').find(n=>n.props.id.endsWith(role==='staff'?'-summary':'-note'));
   try{
    await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});await act(async()=>button('View visit details').props.onClick());
-   if(role==='manager')await act(async()=>button('Review latest report').props.onClick());
+   if(role==='manager')await act(async()=>button('Approve or return report').props.onClick());
    await act(async()=>field().props.onChange({target:{value:'Keep this exact unsaved wording'}}));
    const requests=calls;
    await act(async()=>button('View visit details').props.onClick());
