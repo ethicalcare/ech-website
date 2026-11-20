@@ -55,7 +55,7 @@ async function withPhoneFixture({
         };
         if(url.origin!==origin)return reject();
         if(url.pathname==='/api/admin/operations'&&reportFixture){
-          if(request.headers()['x-ech-schedule-actor']!==signedIn.principal.id||request.headers()['x-ech-schedule-role']!=='staff')return reject();
+          if(request.headers()['x-ech-schedule-actor']!==signedIn.principal.id||request.headers()['x-ech-schedule-role']!==signedIn.principal.operationalRole)return reject();
           const response=reportFixture(request,url);
           if(response)return route.fulfill(response);
         }
@@ -260,8 +260,8 @@ test('assigned worker opens approved visit details from My day at phone width',
     });
   });
 
-test('active shift shortcuts focus the report fields and an exact fictional report is read back at phone width',
-  {timeout:45_000},async()=>{
+test('staff submit an exact report and the manager opens its dashboard review actions at phone width',
+  {timeout:70_000},async()=>{
     const signedIn={
       ...session,principal:{...session.principal,id:staff,email:'fictional.worker@ech-fixture.invalid',operationalRole:'staff'},
       capabilities:['leads.read_assigned'],operationsFeatures:{...session.operationsFeatures,visitActions:true},
@@ -312,7 +312,7 @@ test('active shift shortcuts focus the report fields and an exact fictional repo
     }
 
     await withPhoneFixture({signedIn,fixtureVisits:[activeVisit],now:'2026-01-15T19:05:00.000Z',
-      reportFixture},async({page})=>{
+      reportFixture},async({page,browser})=>{
       const myDay=page.getByRole('region',{name:'My day',exact:true});
       await myDay.getByRole('button',{name:'Open current visit',exact:true}).tap();
       const panel=page.getByRole('region',{name:'Selected visit details',exact:true});
@@ -340,6 +340,39 @@ test('active shift shortcuts focus the report fields and an exact fictional repo
       await history.getByText(command.summary,{exact:true}).first().waitFor();
       for(const written of [command.issue,command.observations,command.completedTasks[0]])
         assert.ok(await history.getByText(written,{exact:true}).count()>0);
+      const reviewShortcut={name:'Go to care report actions',exact:true};
+      const reviewChoice={name:'Approve or return report',exact:true};
+      assert.equal(await history.getByRole('button',reviewShortcut).count(),0);
+      assert.equal(await panel.getByRole('button',reviewChoice).count(),0);
+
+      const managerSession={...session,operationsFeatures:{...session.operationsFeatures,visitActions:true}};
+      await withPhoneFixture({signedIn:managerSession,
+        fixtureVisits:[{...activeVisit,status:'Completed',revision:savedReport.visitRevision}],
+        now:'2026-01-15T19:05:00.000Z', existingBrowser:browser,
+        reportFixture:(request,url)=>request.method()==='GET'?reportFixture(request,url):undefined,
+      },async({page:managerPage})=>{
+        const schedule=managerPage.getByRole('region',{name:'Shared schedule',exact:true});
+        await schedule.getByRole('button',{name:/^View visit details for Fictional Ada,/u}).first().tap();
+        const managerPanel=managerPage.getByRole('region',{name:'Selected visit details',exact:true});
+        await managerPanel.getByRole('button',{name:'View report history',exact:true}).tap();
+        const managerHistory=managerPanel.getByRole('region',{name:'Visit report and review history',exact:true});
+        await managerHistory.getByText(command.summary,{exact:true}).first().waitFor();
+        const currentUrl=managerPage.url();
+        assert.equal(new URL(currentUrl).searchParams.get('view'),'operations');
+        await managerHistory.getByRole('button',reviewShortcut).tap();
+        const actions=managerPanel.getByRole('region',{name:'Care report actions',exact:true});
+        const actionHeading=actions.getByRole('heading',{name:'Care report actions',exact:true});
+        assert.equal(await actionHeading.evaluate(node=>node===document.activeElement),true);
+        assert.equal(managerPage.url(),currentUrl,'the shortcut does not leave the dashboard');
+        assert.ok(await managerHistory.getByText(command.summary,{exact:true}).first().isVisible());
+        await actions.getByRole('button',{name:'Edit latest report',exact:true}).waitFor();
+        await actions.getByRole('button',reviewChoice).tap();
+        await actions.getByLabel('Review note',{exact:true}).waitFor();
+        await actions.getByRole('button',{name:'Approve report',exact:true}).waitFor();
+        await actions.getByRole('button',{name:'Return report',exact:true}).waitFor();
+        assert.ok(await actions.getByText(command.summary,{exact:true}).first().isVisible());
+      });
+      assert.equal(submissions,1,'opening manager controls sends no additional write');
     });
   });
 
