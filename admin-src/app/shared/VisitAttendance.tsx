@@ -14,7 +14,7 @@ export function VisitAttendance({visit,actor,role,fetcher}:{
   const [error,setError]=useState(false), [reload,setReload]=useState(0);
   const [readLoading,setReadLoading]=useState<string|null>(null);
   const controller=useRef<AbortController|null>(null);
-  const reloadLock=useRef<string|null>(null), lastVerifiedScope=useRef<string|null>(null);
+  const reloadLock=useRef<string|null>(null);
   const locking=useRef(false);
   const {id,revision}=visit;
   const scope=JSON.stringify([actor,role,id,revision]);
@@ -36,11 +36,10 @@ export function VisitAttendance({visit,actor,role,fetcher}:{
           headers:{Accept:'application/json','X-ECH-Schedule-Actor':actor,'X-ECH-Schedule-Role':role}
         });
         if (current.signal.aborted) return;
-        if (response.status===405 && lastVerifiedScope.current!==scope) return;
         if (!response.ok) throw new Error('read');
         const data=await readJson(response,4096);
         if (!isVisitAttendance(data,id,revision)) throw new Error('invalid');
-        if (!current.signal.aborted){lastVerifiedScope.current=scope;setSnapshot({scope,actual:data as Actual});}
+        if (!current.signal.aborted) setSnapshot({scope,actual:data as Actual});
       } catch { if (!current.signal.aborted) setError(true); }
       finally {
         if (!current.signal.aborted){if(reloadLock.current===scope)reloadLock.current=null;setReadLoading(null);}

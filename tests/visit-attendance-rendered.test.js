@@ -77,3 +77,36 @@ test('manager refreshes recorded attendance on the same panel without writing',a
   assert.match(rendered(),/recorded after the scheduled start/u);assert.equal(reads.length,2);
  }finally{await act(async()=>root?.unmount());delete globalThis.IS_REACT_ACT_ENVIRONMENT;}
 });
+
+test('an unavailable first attendance read remains visible and cannot be mistaken for missing records',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ let root;
+ const visit={id:'20000000-0000-4000-8000-000000000001',revision:3,workerId:'worker',
+  start:'2026-11-18T17:00:00.000Z',end:'2026-11-18T18:00:00.000Z',status:'Confirmed'};
+ const actual={visitId:visit.id,revision:3,observedAt:'2026-11-18T16:58:00.000Z',checkInAt:null,checkOutAt:null};
+ const contents=()=>JSON.stringify(root.toJSON());
+ try {
+  for(const role of ['staff','manager']){
+   const reads=[];
+   const fetcher=async(url,options)=>{
+    const query=new URL(url,'https://fixture.invalid').searchParams;
+    assert.equal(options.method,'GET');
+    assert.equal(options.headers['X-ECH-Schedule-Role'],role);
+    assert.equal(query.get('attendance'),visit.id);
+    assert.equal(query.get('revision'),String(visit.revision));
+    reads.push(url);
+    return reads.length===1?new Response(null,{status:405}):Response.json(actual);
+   };
+   await act(async()=>{root=create(React.createElement(VisitAttendance,{visit,actor:'fictional',role,fetcher}));});
+   assert.match(contents(),/Attendance could not be verified/u);
+   assert.doesNotMatch(contents(),/Not recorded|Follow up|Check in"/u);
+   const retry=root.root.findByType('button');
+   assert.equal(retry.props.children,role==='staff'?'Reload attendance':'Refresh attendance');
+   await act(async()=>retry.props.onClick());
+   assert.match(contents(),/Not recorded/u);
+   assert.doesNotMatch(contents(),/Attendance could not be verified/u);
+   assert.equal(reads.length,2);
+   await act(async()=>root.unmount());root=undefined;
+  }
+ }finally{await act(async()=>root?.unmount());delete globalThis.IS_REACT_ACT_ENVIRONMENT;}
+});
