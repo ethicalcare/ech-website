@@ -75,6 +75,7 @@ export function VisitAttendance({visit,actor,role,fetcher}:{
   const status=current?visitAttendanceStatus(visit,current,current.observedAt):null;
   return <section aria-label="Visit attendance">
     <h4>Visit attendance</h4>
+    <p>Check-in and check-out show when those actions were recorded. A missing record does not mean the visit did not happen. These records do not approve hours.</p>
     {manager&&<button type="button" aria-disabled={reading} onClick={refreshAttendance}>Refresh attendance</button>}
     {manager&&reading&&<p role="status">Updating attendance…</p>}
     {manager&&!reading&&error&&<p role="status">Attendance could not be verified. Refresh to check the latest recorded times.</p>}

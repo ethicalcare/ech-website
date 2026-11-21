@@ -35,6 +35,7 @@ test('assigned staff records arrival and departure, manager sees recorded times 
  const text=()=>JSON.stringify(root.toJSON());
  try {
    await act(async()=>{root=create(view());});assert.equal(buttons()[0].props.children,'Check in');
+   assert.match(text(),/Check-in and check-out show when those actions were recorded\. A missing record does not mean the visit did not happen\. These records do not approve hours\./u);
    await act(async()=>buttons()[0].props.onClick());assert.equal(buttons()[0].props.children,'Check out');
    await act(async()=>buttons()[0].props.onClick());assert.equal(buttons().length,0);
    role='manager';await act(async()=>root.update(view()));
@@ -65,6 +66,7 @@ test('manager refreshes recorded attendance on the same panel without writing',a
  try{
   await act(async()=>{root=create(React.createElement(VisitAttendance,{visit,actor:'fictional',role:'manager',fetcher}));});
   assert.match(rendered(),/09:58 Vancouver/u);assert.match(rendered(),/Not recorded/u);assert.doesNotMatch(rendered(),/Follow up/u);
+  assert.match(rendered(),/Check-in and check-out show when those actions were recorded\. A missing record does not mean the visit did not happen\. These records do not approve hours\./u);
   const button=refresh();
   await act(async()=>{button.props.onClick();});
   assert.equal(refresh(),button);assert.equal(button.props['aria-disabled'],true);
