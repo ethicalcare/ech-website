@@ -60,6 +60,7 @@ async function withPhoneFixture({
         if(url.pathname==='/api/admin/operations'&&reportFixture){
           if(request.headers()['x-ech-schedule-actor']!==signedIn.principal.id||request.headers()['x-ech-schedule-role']!==signedIn.principal.operationalRole)return reject();
           const response=reportFixture(request,url);
+          if(response?.abort===true)return route.abort('failed');
           if(response)return route.fulfill(response);
         }
         if(request.method()!=='GET')return reject();
@@ -263,7 +264,7 @@ test('assigned worker opens approved visit details from My day at phone width',
     });
   });
 
-test('staff submit an exact report and the manager opens its dashboard review actions at phone width',
+test('staff retry a lost report reply and the manager opens its dashboard review actions at phone width',
   {timeout:70_000},async()=>{
     const signedIn={
       ...session,principal:{...session.principal,id:staff,email:'fictional.worker@ech-fixture.invalid',operationalRole:'staff'},
@@ -277,10 +278,11 @@ test('staff submit an exact report and the manager opens its dashboard review ac
       completedTasks:['Fictional meal preparation'],
     };
     const recordedAt='2026-01-15T19:01:00.000Z';
-    let submissions=0,receiptReadbacks=0,savedReport=null;
+    let submissions=0,receiptReadbacks=0,savedReport=null,savedReceipt=null;
+    const posted=[];
     function reportFixture(request,url){
       const headers=request.headers();
-      if(request.method()==='POST'&&url.search===''&&submissions===0&&
+      if(request.method()==='POST'&&url.search===''&&
         headers['content-type']==='application/json'&&headers['x-ech-visit-features']==='1'){
         let body;
         try{body=request.postDataJSON();}catch{return;}
@@ -288,14 +290,20 @@ test('staff submit an exact report and the manager opens its dashboard review ac
         if(typeof operationId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(operationId)
           ||!isDeepStrictEqual(body,{schema:1,operationId,visitId:activeVisit.id,visitRevision:1,
             reportRevision:0,membershipRevision:7,command}))return;
+        posted.push(body);
+        if(savedReceipt){
+          assert.deepEqual(body,posted[0],'retry resends the exact retained envelope');
+          return {json:savedReceipt};
+        }
         submissions++;
         const {type,outcome,summary,issue,observations,actualStart,actualEnd,completedTasks}=body.command;
         savedReport={schema:1,visitId:activeVisit.id,visitRevision:2,reportRevision:1,reviews:[],versions:[{
           revision:1,version:0,sourceRevision:null,actorId:staff,actorRole:'staff',recordedAt,
           outcome,summary,issue,observations,actualStart,actualEnd,completedTasks,reason:null,
         }]};
-        return {json:{schema:1,operationId,visitId:activeVisit.id,visitRevision:2,
-          reportRevision:1,reportVersion:0,action:type,recordedAt}};
+        savedReceipt={schema:1,operationId,visitId:activeVisit.id,visitRevision:2,
+          reportRevision:1,reportVersion:0,action:type,recordedAt};
+        return {abort:true}; // server committed once, but the worker got no receipt
       }
       if(request.method()!=='GET')return;
       const q=url.searchParams;
@@ -334,9 +342,18 @@ test('staff submit an exact report and the manager opens its dashboard review ac
       await panel.getByLabel('Actual start · Vancouver',{exact:true}).fill('2026-01-15T10:10');
       await panel.getByLabel('Actual end · Vancouver',{exact:true}).fill('2026-01-15T11:00');
       await panel.getByRole('button',{name:'Submit report',exact:true}).tap();
+      const retry=panel.getByRole('button',{name:'Retry exact request',exact:true});
+      await retry.waitFor();
+      assert.equal(await panel.getByRole('region',{name:'Selected visit assignment',exact:true}).getByText('Completed',{exact:true}).count(),0,'no completion before receipt and readback');
+      assert.equal(posted.length,1);
+      assert.equal(submissions,1,'fictional provider recorded one report despite losing its response');
+      assert.equal(receiptReadbacks,0,'the failed response did not authorize a readback');
+      await retry.tap();
       await panel.getByRole('region',{name:'Selected visit assignment',exact:true})
         .getByText('Completed',{exact:true}).waitFor();
       assert.equal(submissions,1);
+      assert.equal(posted.length,2);
+      assert.equal(savedReport.versions.length,1);
       assert.equal(receiptReadbacks,1);
       await panel.getByRole('button',{name:'View report history',exact:true}).tap();
       const history=panel.getByRole('region',{name:'Visit report and review history',exact:true});
@@ -376,6 +393,7 @@ test('staff submit an exact report and the manager opens its dashboard review ac
         assert.ok(await actions.getByText(command.summary,{exact:true}).first().isVisible());
       });
       assert.equal(submissions,1,'opening manager controls sends no additional write');
+      assert.equal(posted.length,2);
     });
   });
 
