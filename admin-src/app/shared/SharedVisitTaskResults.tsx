@@ -121,7 +121,8 @@ function TaskResultsBody({enabled=false,actorId,scopeKey,visitId,visitRevision,v
   if(!active||!enabled)return null;
   return <section className="visit-task-results" aria-label="Visit task results" aria-busy={busy}>
     <h3>Visit tasks and results</h3>
-    <p>The ordered plan is fixed for this visit. Results are recorded separately. Missing or unavailable result information does not establish missed care. Recording a result does not approve worked time.</p>
+    {data?.plan!=null&&<p>This task plan is saved for this visit. A newer client plan does not replace it.</p>}
+    <p>Results are recorded separately. Missing or unavailable result information does not establish missed care. Recording a result does not approve worked time.</p>
     {!permitted?<p>Task history for completed or cancelled visits is unavailable in the current access contract.</p>:<>
       {message&&<p role={failure?'alert':'status'}>{message}</p>}
       <button type="button" disabled={busy} onClick={()=>setReload(n=>n+1)}>Reload task records</button>

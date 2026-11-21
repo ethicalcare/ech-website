@@ -15,11 +15,19 @@ const {SharedScheduleRead}=await component('SharedScheduleRead');
 test('task mount is opt-in; verified tasks propagate draft navigation guards and forbidden reads clear detail',async()=>{
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;const previous=globalThis.window;globalThis.window=Object.assign(new EventTarget(),{confirm:()=>false});
  const actor='10000000-0000-4000-8000-000000000001',id='20000000-0000-4000-8000-000000000001',task='30000000-0000-4000-8000-000000000001',category='40000000-0000-4000-8000-000000000001';
- let root,taskCalls=0,deny=false;
+ let root,taskCalls=0,deny=false,planRead='loading',resolvePlan;
+ const additions=[{categoryId:category,taskId:'30000000-0000-4000-8000-000000000002',text:'Fictional visit-only task',ordinal:1}];
  const session={authenticated:true,principal:{id:actor,operationalRole:'staff'},capabilities:[],operationsFeatures:{reads:true,scheduleCommands:false,scheduleRecurrence:false,visitActions:false,taskResults:false}};
  const fetcher=async(url)=>{
  if(url.includes('visitTaskAvailability')){taskCalls++;return Response.json({schema:1,enabled:true,membershipRevision:3});}
- if(url.includes('visitTasks')){taskCalls++;if(deny)return new Response('',{status:403});return Response.json({visitId:id,visitRevision:1,plan:[{id:category,label:'Household',tasks:[{id:task,text:'Prepare meal'}]}],additions:[],results:[],resultVisibility:'limited'});}
+ if(url.includes('visitTasks')){
+  taskCalls++;if(deny)return new Response('',{status:403});
+  const response=plan=>Response.json({visitId:id,visitRevision:1,plan,
+    additions:plan?.length?additions:[],results:[],resultVisibility:'limited'});
+  if(planRead==='loading')return new Promise(resolve=>{resolvePlan=()=>resolve(response(null));});
+  if(planRead==='unavailable')return new Response('',{status:503});
+  return response(planRead==='empty'?[]:[{id:category,label:'Household',tasks:[{id:task,text:'Prepare meal'}]}]);
+ }
  if(url.includes('commands=1'))return Response.json({schema:1,enabled:true,membershipRevision:3});
  if(url.includes('?report='))return Response.json({schema:1,visitId:id,visitRevision:1,reportRevision:0,reviews:[],versions:[]});
  if(url.includes('?visit='))return Response.json({visitId:id,revision:1,fields:{address:'Protected address'},contactAuthority:'unknown',allergyStatus:'unknown'});
@@ -28,7 +36,22 @@ test('task mount is opt-in; verified tasks propagate draft navigation guards and
  const button=text=>root.root.findAllByType('button').find(b=>JSON.stringify(b.props.children).includes(text));
  try{
  await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});await act(async()=>button('View visit details').props.onClick());assert.equal(taskCalls,0);
- const enabled={...session,operationsFeatures:{...session.operationsFeatures,taskResults:true,visitActions:true}};await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher})));await act(async()=>button('View visit details').props.onClick());assert.equal(taskCalls,2);assert.match(JSON.stringify(root.toJSON()),/Prepare meal/);
+ const enabled={...session,operationsFeatures:{...session.operationsFeatures,taskResults:true,visitActions:true}};
+ await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher})));
+ await act(async()=>button('View visit details').props.onClick());assert.equal(taskCalls,2);
+ const tree=()=>JSON.stringify(root.toJSON());
+ const pinned=/This task plan is saved for this visit. A newer client plan does not replace it/;
+ assert.match(tree(),/Loading authorized task records/);assert.doesNotMatch(tree(),pinned);
+ await act(async()=>resolvePlan());
+ assert.match(tree(),/No structured plan is attached/);assert.doesNotMatch(tree(),pinned);
+ planRead='unavailable';await act(async()=>button('Reload task records').props.onClick());
+ assert.match(tree(),/Task records are not available/);assert.doesNotMatch(tree(),pinned);
+ planRead='empty';await act(async()=>button('Reload task records').props.onClick());
+ assert.match(tree(),pinned);assert.match(tree(),/The saved plan contains no categories/);
+ planRead='saved';await act(async()=>button('Reload task records').props.onClick());
+ assert.match(tree(),pinned);assert.match(tree(),/Prepare meal/);
+ assert.match(tree(),/Visit-only addition; original plan unchanged/);
+ assert.equal(taskCalls,5,'presentation adds no requests to the explicit reloads');
  const summary=()=>root.root.findAllByType('textarea').find(n=>n.props.id.endsWith('-summary'));assert.ok(summary());await act(async()=>summary().props.onChange({target:{value:'Report draft'}}));assert.equal(button('Record my factual result'),undefined);await act(async()=>summary().props.onChange({target:{value:''}}));
  const edit=root.root.findAllByType('button').find(b=>String(b.props.children).includes('Record my factual result'));assert.ok(edit);await act(async()=>edit.props.onClick());assert.equal(button('Submit report'),undefined,'task draft suppresses concurrent report mutation');
  const unload=new Event('beforeunload',{cancelable:true});window.dispatchEvent(unload);assert.equal(unload.defaultPrevented,true);await act(async()=>button('Close visit details').props.onClick());assert.match(JSON.stringify(root.toJSON()),/Prepare meal/);
