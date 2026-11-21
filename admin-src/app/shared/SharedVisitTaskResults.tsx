@@ -36,6 +36,7 @@ function TaskResultsBody({enabled=false,actorId,scopeKey,visitId,visitRevision,v
   const [draft,setDraft]=useState<Draft|null>(()=>retained.get(scope)?.draft??null);
   const [pending,setPending]=useState<VisitTaskWrite|null>(()=>retained.get(scope)?.pending??null);
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[failure,setFailure]=useState(false),[reload,setReload]=useState(0);
+  const [readFailure,setReadFailure]=useState('');
   const controller=useRef<AbortController|null>(null),generation=useRef(0),lock=useRef(false),id=useId();
   const editorHeading=useRef<HTMLLegendElement|null>(null);
   const taskButtons=useRef(new Map<string,HTMLButtonElement>());
@@ -68,7 +69,9 @@ function TaskResultsBody({enabled=false,actorId,scopeKey,visitId,visitRevision,v
     const warn=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};window.addEventListener('beforeunload',warn);
     return()=>window.removeEventListener('beforeunload',warn);
   },[scope,draft,pending]);
-  function fail(error:unknown){setFailure(true);setMessage(error instanceof Error?error.message:'Task records could not be verified. Entries are retained.');
+  function fail(error:unknown,read=false){
+    const feedback=error instanceof Error?error.message:'Task records could not be verified. Entries are retained.';
+    if(read)setReadFailure(feedback);else{setFailure(true);setMessage(feedback);}
     if(error instanceof SharedError&&error.code==='stale_visit'){
       generation.current++;controller.current?.abort();setData(null);callbacks.current.onStale();return;
     }
@@ -77,8 +80,9 @@ function TaskResultsBody({enabled=false,actorId,scopeKey,visitId,visitRevision,v
     const gen=++generation.current;controller.current?.abort();setData(null);setBusy(false);lock.current=false;
     if(!permitted)return;
     const request=new AbortController();controller.current=request;setBusy(true);
-    client.load(visitId,visitRevision,membershipRevision,request.signal).then(value=>{if(!request.signal.aborted&&generation.current===gen)setData(value);})
-      .catch(error=>{if(!request.signal.aborted&&generation.current===gen)fail(error);})
+    client.load(visitId,visitRevision,membershipRevision,request.signal).then(value=>{
+      if(!request.signal.aborted&&generation.current===gen){setData(value);setReadFailure('');}
+    }).catch(error=>{if(!request.signal.aborted&&generation.current===gen)fail(error,true);})
       .finally(()=>{if(!request.signal.aborted&&generation.current===gen)setBusy(false);});
     return()=>{request.abort();controller.current?.abort();generation.current++;};
   },[client,permitted,visitId,visitRevision,membershipRevision,reload,refreshKey]);
@@ -124,6 +128,7 @@ function TaskResultsBody({enabled=false,actorId,scopeKey,visitId,visitRevision,v
     {data?.plan!=null&&<p>This task plan is saved for this visit. A newer client plan does not replace it.</p>}
     <p>Results are recorded separately. Missing or unavailable result information does not establish missed care. Recording a result does not approve worked time.</p>
     {!permitted?<p>Task history for completed or cancelled visits is unavailable in the current access contract.</p>:<>
+      {readFailure&&<p role="alert">{readFailure}</p>}
       {message&&<p role={failure?'alert':'status'}>{message}</p>}
       <button type="button" disabled={busy} onClick={()=>setReload(n=>n+1)}>Reload task records</button>
       {!data&&<p>{busy?'Loading authorized task records…':'Task records are not available. No care outcome is inferred.'}</p>}

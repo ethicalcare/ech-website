@@ -46,8 +46,11 @@ test('task mount is opt-in; verified tasks propagate draft navigation guards and
  assert.match(tree(),/No structured plan is attached/);assert.doesNotMatch(tree(),pinned);
  planRead='unavailable';await act(async()=>button('Reload task records').props.onClick());
  assert.match(tree(),/Task records are not available/);assert.doesNotMatch(tree(),pinned);
+ const readFailure=/Shared records are unavailable\. Reload to verify access\./;
+ assert.match(tree(),readFailure);
  planRead='empty';await act(async()=>button('Reload task records').props.onClick());
  assert.match(tree(),pinned);assert.match(tree(),/The saved plan contains no categories/);
+ assert.doesNotMatch(tree(),readFailure,'a verified reload supersedes the earlier read failure');
  planRead='saved';await act(async()=>button('Reload task records').props.onClick());
  assert.match(tree(),pinned);assert.match(tree(),/Prepare meal/);
  assert.match(tree(),/Visit-only addition; original plan unchanged/);
@@ -80,8 +83,18 @@ test('unknown task save survives reopen, blocks changed membership, and retries 
  const edit=root.root.findAllByType('button').find(b=>String(b.props.children).includes('Record my factual result'));assert.ok(edit);await act(async()=>edit.props.onClick());
  const form=()=>root.root.findAllByType('form').find(f=>f.props['aria-label']==='Task result editor');
  await act(async()=>form().findByType('select').props.onChange({target:{value:'done'}}));await act(async()=>form().findByType('input').props.onChange({target:{value:'2026-11-17T10:00'}}));await act(async()=>form().props.onSubmit({preventDefault(){}}));assert.equal(writes.length,1);assert.equal(button('Close visit details').props.disabled,true);
+ const writeFailure=/Keep the same request; its result is unknown\./;
+ assert.match(JSON.stringify(root.toJSON()),writeFailure);
+ const callsBeforeReload=taskCalls;
+ await act(async()=>button('Reload task records').props.onClick());
+ assert.equal(taskCalls,callsBeforeReload+1,'task reload performs one read');
+ assert.equal(writes.length,1,'reading saved results never resends the pending operation');
+ assert.match(JSON.stringify(root.toJSON()),/Latest visible result/);
+ assert.match(JSON.stringify(root.toJSON()),writeFailure,'a successful read does not reconcile the write failure');
+ assert.ok(button('Retry exact task result'));
+ assert.equal(button('Close visit details').props.disabled,true);
  await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher,active:false})));await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher,active:true})));assert.ok(button('Retry exact task result'));assert.equal(button('Close visit details').props.disabled,true);
  await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher,active:false})));membership=4;await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher,active:true})));assert.match(JSON.stringify(root.toJSON()),/different membership revision/);assert.equal(button('Record my factual result'),undefined);assert.equal(button('Close visit details').props.disabled,true);assert.equal(writes.length,1);
- await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher,active:false})));membership=3;await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher,active:true})));await act(async()=>button('Retry exact task result').props.onClick());assert.equal(writes.length,2);assert.deepEqual(writes[1],writes[0]);assert.equal(button('Close visit details').props.disabled,false);assert.match(JSON.stringify(root.toJSON()),/saved and read back/);
+ await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher,active:false})));membership=3;await act(async()=>root.update(React.createElement(SharedScheduleRead,{session:enabled,fetcher,active:true})));await act(async()=>button('Retry exact task result').props.onClick());assert.equal(writes.length,2);assert.deepEqual(writes[1],writes[0]);assert.equal(button('Close visit details').props.disabled,false);assert.match(JSON.stringify(root.toJSON()),/saved and read back/);assert.doesNotMatch(JSON.stringify(root.toJSON()),writeFailure);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=previous;}
 });
