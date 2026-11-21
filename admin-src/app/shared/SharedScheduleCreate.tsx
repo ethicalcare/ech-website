@@ -257,11 +257,11 @@ export function SharedScheduleCreate({client,staff,selectedTaskPlan:providedPlan
     {access && !access.enabled && <p>Read-only. New shared visits are not enabled here.</p>}
     {!sources && !pending && !busy && !review && <><p>Source details are hidden until current manager access is rechecked. Your draft stays in this open form.</p><button type="button" onClick={()=>void load()}>Reload reviewed sources</button></>}
     {access?.enabled && sources && !pending && <>
-      <p>Choose existing recorded client and service readiness. This form shows saved instruction version metadata. Where available, review the saved care-task plan separately. Source approval and instruction authoring are maintained outside this workspace.</p>
-      {!sources.length?<p>No current reviewed sources are available. A database owner must resolve readiness, saved instructions, service rules or linked inquiry changes before creation.</p>
+      <p id={`${id}-source-help`}>Choose a confirmed client and the service listed for them, such as Home support. Inquiries and referral partners are not selectable clients. If the client is missing, ask the person who maintains scheduling sources to confirm the recorded service readiness and saved instructions, then use Refresh reviewed sources.</p>
+      {!sources.length?<p>No clients are currently available to schedule.</p>
         :<form onSubmit={submit} onChange={()=>setDirty(true)}><fieldset disabled={busy}>
           <legend>Review source and visit times</legend>
-          <label htmlFor={`${id}-source`}>Reviewed client and service</label><select id={`${id}-source`} required value={draft.sourceId} onChange={event=>{
+          <label htmlFor={`${id}-source`}>Reviewed client and service</label><select id={`${id}-source`} aria-describedby={`${id}-source-help`} required value={draft.sourceId} onChange={event=>{
             const source=sources.find(row=>row.clientId===event.target.value);
             const previous=planAttemptRef.current;
             const nextKey=source&&planSourceKey({...source,membershipRevision:access.membershipRevision});

@@ -48,6 +48,13 @@ test('manager explicitly selects exact task plan, saves and reopens a single com
  try{
   await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher}));});
   await act(async()=>button('New shared visit').props.onClick());
+  const sourceHelp=field('source').props['aria-describedby'];
+  assert.ok(sourceHelp,'a manager can find missing-client guidance at the source picker, even when another client is selectable');
+  const help=root.root.findByProps({id:sourceHelp}).props.children;
+  assert.match(help,/Inquiries and referral partners are not selectable clients/);
+  assert.match(help,/confirm the recorded service readiness and saved instructions/);
+  assert.match(help,/Refresh reviewed sources/);
+  assert.deepEqual(field('source').findAllByType('option').map(option=>option.props.value),['',client]);
   assert.match(JSON.stringify(root.toJSON()),/Fictional reviewed client/);
   assert.equal(button('Review saved care-task plan'),undefined);
   await change('source',client);
