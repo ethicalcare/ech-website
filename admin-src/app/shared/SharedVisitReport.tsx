@@ -6,6 +6,7 @@ import { SharedError } from './live-model';
 import { taskEventLocalTime as formatVancouverInstant } from './visit-task-timeline';
 import type { LoadVisitReport, VisitReport } from './visit-report-client';
 import './shared-visit-report.css';
+import { formatReportedElapsed } from './visit-time';
 import {SharedVisitWorkHours} from './SharedVisitWorkHours';
 import type {HoursClient} from './work-hours-client';
 import { SharedVisitNoteTimeline } from './SharedVisitNoteTimeline';
@@ -14,8 +15,9 @@ type State = { status: 'loading' | 'paused' } | { status: 'ready'; report: Visit
 const versionLabel = (version: number) => version === 0 ? 'Original report · version 0' : `Correction ${version} · version ${version}`;
 const outcomeLabel = { completed: 'Completed', 'follow-up': 'Follow-up needed', 'not-completed': 'Not completed' };
 
-export function SharedVisitReport({ visitId, visitRevision, load, loadCompletedHistory, workHours, careReviewTarget, onVerificationFailure, selectedVersion, onSelectedVersionChange }: {
+export function SharedVisitReport({ visitId, visitRevision, load, loadCompletedHistory, showReportedElapsed = false, workHours, careReviewTarget, onVerificationFailure, selectedVersion, onSelectedVersionChange }: {
   loadCompletedHistory?:(visitId:string,visitRevision:number,reportRevision:number,signal:AbortSignal)=>Promise<CompletedTaskHistory>;
+  showReportedElapsed?: boolean;
   workHours?:HoursClient;
   careReviewTarget?:string;
   visitId: string; visitRevision: number; load: LoadVisitReport; onVerificationFailure: (code: string) => void;
@@ -130,6 +132,7 @@ export function SharedVisitReport({ visitId, visitRevision, load, loadCompletedH
               <dt>Recorded at · Vancouver</dt><dd>{formatVancouverInstant(content.recordedAt)}</dd>
               <dt>Content event revision</dt><dd>{content.revision}</dd>
               <dt>Reported actual visit · Vancouver</dt><dd>{formatVancouverInstant(content.actualStart)} – {formatVancouverInstant(content.actualEnd)}</dd>
+              {showReportedElapsed && <><dt>Reported elapsed time</dt><dd>{formatReportedElapsed(content.actualStart, content.actualEnd) ?? 'Unavailable'} · Not approved or payable time.</dd></>}
               <dt>Factual summary</dt><dd>{content.summary}</dd>
               <dt>Completed tasks as reported</dt><dd>{content.completedTasks.length
                 ? <ul>{content.completedTasks.map((task, index) => <li key={index}>{task}</li>)}</ul> : 'No completed tasks were recorded in this version.'}</dd>

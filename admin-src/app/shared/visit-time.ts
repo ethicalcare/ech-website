@@ -20,3 +20,27 @@ export function reportUtcTime(local: string): string {
   if (candidates.length !== 1) throw new RangeError(candidates.length ? 'This Vancouver time occurs twice when clocks change. Choose a time outside the repeated hour.' : 'This Vancouver time does not exist. Check the date and clock change.');
   return candidates[0];
 }
+
+/** Exact elapsed clock time for a saved report, before any worked-time approval. */
+export function formatReportedElapsed(start: unknown, end: unknown): string | null {
+  const utc = (value: unknown): number => {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(value)
+        || value.startsWith('0000-')) return NaN;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) && new Date(parsed).toISOString() === value ? parsed : NaN;
+  };
+  const elapsed = utc(end) - utc(start);
+  if (!Number.isFinite(elapsed) || elapsed < 1 || elapsed > 86_400_000) return null;
+  const hours = Math.floor(elapsed / 3_600_000);
+  const minutes = Math.floor(elapsed / 60_000) % 60;
+  const seconds = Math.floor(elapsed / 1_000) % 60;
+  const ms = elapsed % 1_000;
+  const parts: string[] = [];
+  if (hours) parts.push(hours + ' h');
+  if (minutes) parts.push(minutes + ' min');
+  if (seconds || ms) {
+    const fraction = ms ? '.' + String(ms).padStart(3, '0').replace(/0+$/u, '') : '';
+    parts.push(seconds + fraction + ' sec');
+  }
+  return parts.join(' ');
+}

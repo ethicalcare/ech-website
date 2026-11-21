@@ -81,3 +81,48 @@ test('report access/stale failures clear sensitive detail AND schedule before re
   }finally{if(root)await act(async()=>root.unmount());}
  }}finally{globalThis.window=saved.window;globalThis.document=saved.document;}
 });
+
+test('manager and owner see exact elapsed time for the selected report separately from schedule and review; staff does not',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const saved={window:globalThis.window,document:globalThis.document};
+ globalThis.window=Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});
+ globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true});
+ const entry={id:visit,revision:3,clientId:reviewer,workerId:actor,service:'Home support',
+   start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T20:00:00.000Z',status:'Completed'};
+ const report=fictionalReport();
+ report.versions[0].actualEnd='2026-11-02T17:00:00.000Z';
+ report.versions[0].recordedAt='2026-11-02T17:01:00.000Z';
+ report.versions[1].actualEnd='2026-11-02T16:59:59.999Z';
+ try{for(const role of ['manager','owner','staff']){
+  let root;
+  const id=role==='staff'?actor:reviewer,calls=[];
+  const fetcher=async(url,options)=>{
+   assert.equal(options.method,'GET');
+   assert.equal(options.headers['X-ECH-Schedule-Role'],role);
+   calls.push(url);
+   if(url.includes('?visit='))return Response.json({visitId:visit,revision:3,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'});
+   assert.match(url,/report=.*&revision=3/);
+   return Response.json(report);
+  };
+  try{
+   await act(async()=>{root=create(React.createElement(SharedVisitRead,{actor:id,role,visit:entry,fetcher,onClose(){}}));});
+   await act(async()=>root.root.findAllByType('button').find(b=>b.props.children==='View report history').props.onClick());
+   const rendered=()=>JSON.stringify(root.toJSON());
+   assert.match(rendered(),/Scheduled time · Vancouver/);
+   assert.match(rendered(),/Exact correction reviewed/);
+   if(role==='staff')assert.doesNotMatch(rendered(),/Reported elapsed time|59\.999 sec/);
+   else{
+    assert.match(rendered(),/Reported elapsed time/);
+    assert.match(rendered(),/23 h 59 min 59\.999 sec/);
+    assert.match(rendered(),/Not approved or payable time/);
+    await act(async()=>root.root.findAllByType('input')[0].props.onChange());
+    assert.match(rendered(),/Original version reviewed/);
+    assert.match(rendered(),/24 h/);
+    assert.match(rendered(),/Not approved or payable time/);
+    assert.match(rendered(),/Scheduled time · Vancouver/);
+    assert.doesNotMatch(rendered(),/59\.999 sec/);
+   }
+   assert.equal(calls.length,2,'selecting report versions requires no new fetches or writes');
+  }finally{if(root)await act(async()=>root.unmount());}
+ }}finally{globalThis.window=saved.window;globalThis.document=saved.document;}
+});
