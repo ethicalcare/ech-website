@@ -5,7 +5,7 @@ import {StaffProfileReview, type ProfileCredential, type ManagementProfileDetail
 export type CompleteProfile = StaffProfile & {credentials:ProfileCredential[];photo?:{objectKey:string;contentType:string}|null;photoUrl?:string;management?:ManagementProfileDetails};
 export type ProfileWorkspaceApi = {
  read:()=>Promise<CompleteProfile>;
- save:(request:{id:string;expectedRevision:number;changes:Record<string,unknown>})=>Promise<{status:'saved';profile:CompleteProfile}|{status:'pending_review';submissionId:string}>;
+ save:(request:{id:string;expectedRevision:number;changes:Record<string,unknown>})=>Promise<{status:'saved';profile:CompleteProfile;savedSubmissions?:ProfileSubmission[]}|{status:'pending_review';submissionId:string}>;
  uploadPhoto:(file:File)=>Promise<{objectKey:string;contentType:string}>;
  verify:(credentialId:string)=>Promise<void>;
  approve:(submissionId:string)=>Promise<void>;
@@ -33,7 +33,7 @@ function Workspace({initialProfile,mode,api,initialSubmissions,pendingReview,pho
   setBusy(true);setNotice('');try{
    if(savePhoto!==undefined)changes.photo=savePhoto===null?null:await api.uploadPhoto(savePhoto);
    const result=await api.save({id:profile.id,expectedRevision:profile.revision,changes});
-   if(admin){if(result.status!=='saved')throw Error('Unconfirmed save');await refresh();setPhoto(undefined);setNotice('Profile saved.');}
+   if(admin){if(result.status!=='saved')throw Error('Unconfirmed save');if(result.savedSubmissions){setProfile(result.profile);setDraft(result.profile);setSubmissions(result.savedSubmissions);}else await refresh();setPhoto(undefined);setNotice('Profile saved.');}
    else{if(result.status!=='pending_review'||!result.submissionId)throw Error('Unconfirmed submission');setSubmitted(true);setNotice('Submitted for admin approval. Your approved information has not changed.');}
   }catch{setNotice('Could not confirm the change. Your entered details are still here.');}finally{setBusy(false);}
  }
