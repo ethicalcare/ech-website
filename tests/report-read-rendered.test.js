@@ -56,6 +56,41 @@ test('rendered report history scopes versions/reviews and clears on blur, retry,
   assert.ok(calls.every(call=>!call.url.includes('reportAuthors')));
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=saved.window;globalThis.document=saved.document;}
 });
+test('manager reopening report history shows the newest saved correction, not the prior historical selection',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const saved={window:globalThis.window,document:globalThis.document};
+ globalThis.window=Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});
+ globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true});
+ const calls=[];const fetcher=(url,options)=>new Promise(resolve=>calls.push({url,options,resolve}));
+ const entry={id:visit,revision:3,clientId:reviewer,workerId:actor,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T20:00:00.000Z',status:'Completed'};
+ const current=fictionalReport();
+ const next=fictionalReport();
+ next.reportRevision=6;
+ next.versions.push({...next.versions[1],revision:6,version:2,sourceRevision:3,
+  recordedAt:'2026-11-04T20:00:00.000Z',summary:'Newest correction wording',reason:'Clarify factual notes'});
+ let root;
+ const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+ const text=()=>JSON.stringify(root.toJSON());
+ try{
+  await act(async()=>{root=create(React.createElement(SharedVisitRead,{actor:reviewer,role:'manager',visit:entry,fetcher,onClose(){}}));});
+  await act(async()=>calls[0].resolve(Response.json({visitId:visit,revision:3,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'})));
+  await act(async()=>button('View report history').props.onClick());
+  await act(async()=>calls[1].resolve(Response.json(current)));
+  await act(async()=>root.root.findAllByType('input')[0].props.onChange());
+  assert.match(text(),/Original version reviewed/);
+  await act(async()=>button('Reload report').props.onClick());
+  await act(async()=>calls[2].resolve(Response.json(current)));
+  assert.match(text(),/Original version reviewed/,'manual reload preserves deliberate historical selection while open');
+  await act(async()=>button('Hide report history').props.onClick());
+  assert.doesNotMatch(text(),/Original version reviewed/);
+  await act(async()=>button('View report history').props.onClick());
+  await act(async()=>calls[3].resolve(Response.json(next)));
+  assert.match(text(),/Newest correction wording/);
+  assert.match(text(),/No independent review recorded for this version/);
+  assert.doesNotMatch(text(),/Original version reviewed|Exact correction reviewed/);
+  assert.ok(calls.every(call=>call.options.method==='GET'));
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=saved.window;globalThis.document=saved.document;}
+});
 const {SharedScheduleRead}=await component('SharedScheduleRead');
 test('report access/stale failures clear sensitive detail AND schedule before revalidation',async()=>{
  const saved={window:globalThis.window,document:globalThis.document};
