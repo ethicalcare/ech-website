@@ -7,8 +7,10 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import React from 'react';
 import {create,act} from 'react-test-renderer';
 const require=createRequire(import.meta.url);
-async function component(name){
- const bundle=await build({entryPoints:[fileURLToPath(new URL('../admin-src/app/shared/'+name+'.tsx',import.meta.url))],bundle:true,write:false,platform:'node',format:'esm',jsx:'automatic',loader:{'.css':'empty'},plugins:[{name:'external-react',setup(b){b.onResolve({filter:/^react(?:\/.*)?$/},args=>({path:pathToFileURL(require.resolve(args.path)).href,external:true}));}}]});
+async function component(name,fixtureSource){
+ const entry=fixtureSource ? {stdin:{contents:fixtureSource,resolveDir:fileURLToPath(new URL('../admin-src/app/shared/',import.meta.url))}}
+  : {entryPoints:[fileURLToPath(new URL('../admin-src/app/shared/'+name+'.tsx',import.meta.url))]};
+ const bundle=await build({...entry,bundle:true,write:false,platform:'node',format:'esm',jsx:'automatic',loader:{'.css':'empty'},plugins:[{name:'external-react',setup(b){b.onResolve({filter:/^react(?:\/.*)?$/},args=>({path:pathToFileURL(require.resolve(args.path)).href,external:true}));}}]});
  return import('data:text/javascript;base64,'+Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 }
 const actor='10000000-0000-4000-8000-000000000001',reviewer='10000000-0000-4000-8000-000000000002',visit='20000000-0000-4000-8000-000000000001';
@@ -196,6 +198,180 @@ test('read-only office visit shows the current worker confirmation after reassig
    else assert.doesNotMatch(rendered(),/Worker confirmation|Waiting for the assigned worker/);
    assert.equal(root.root.findAllByType('form').length,0);
    assert.deepEqual(reads.map(r=>r.revision),[3,4]);
+  }finally{if(root)await act(async()=>root.unmount());}
+ }
+});
+
+test('work-hours preview reads the current corrected version and keeps a stale return separate from care review',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const globals={window:globalThis.window,document:globalThis.document};
+ const eventWindow=()=>Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});
+ globalThis.window=eventWindow();
+ globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true,documentElement:{dataset:{}}});
+ let report=fictionalReport(),root;const reads=[],writes=[];
+ const entry={id:visit,revision:3,clientId:reviewer,workerId:actor,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T20:00:00.000Z',status:'Completed'};
+ const fetcher=async(path,opts)=>{
+  const q=new URL(path,'https://fixture.invalid').searchParams;
+  if(q.has('workHours')){
+   assert.equal(opts.headers['X-ECH-Schedule-Role'],'manager');
+   assert.equal(opts.headers['X-ECH-Schedule-Actor'],reviewer);
+   const current={schema:1,visitId:visit,visitRevision:entry.revision,reportRevision:report.reportRevision,contentRevision:report.versions.at(-1).revision,membershipRevision:8};
+   if(opts.method==='GET'){
+    reads.push(Object.fromEntries(q));assert.equal(Number(q.get('reportRevision')),current.reportRevision);
+    return Response.json({...current,enabled:true,canDecide:true,receipt:null});
+   }
+   const command=JSON.parse(opts.body);writes.push(command);
+   if(command.contentRevision!==current.contentRevision)return Response.json({}, {status:409});
+   const {reason,...body}=command;return Response.json({...body,recordedAt:'2026-11-05T20:00:00.000Z'});
+  }
+  if(q.has('visit'))return Response.json({visitId:visit,revision:3,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'});
+  if(q.has('report'))return Response.json(report);
+  throw Error('Unexpected fixture request '+path);
+ };
+ const element=()=>React.createElement(SharedVisitRead,{actor:reviewer,role:'manager',visit:entry,fetcher,onClose(){}});
+ const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+ const copy=()=>JSON.stringify(root.toJSON());
+ try{
+  await act(async()=>{root=create(element());});
+  await act(async()=>button('View report history').props.onClick());
+  assert.match(copy(),/Exact correction reviewed/);
+  assert.doesNotMatch(copy(),/Worked hours decision/);assert.deepEqual(reads,[]);assert.deepEqual(writes,[]);
+  await act(async()=>root.unmount());root=null;
+  document.documentElement.dataset.echWorkHoursPreview='true';
+  await act(async()=>{root=create(element());});
+  await act(async()=>button('View report history').props.onClick());
+  assert.equal(reads.at(-1).reportRevision,'5');assert.equal(button('Return hours').props.disabled,true);
+  await act(async()=>root.root.findAllByType('input')[0].props.onChange());
+  assert.doesNotMatch(copy(),/Worked hours decision/);
+  await act(async()=>button('View latest report').props.onClick());
+  await act(async()=>root.root.findByType('textarea').props.onChange({currentTarget:{value:'Fictional verify time'}}));
+  report={...report,reportRevision:6,versions:[...report.versions,{...report.versions[1],revision:6,version:2,sourceRevision:3,
+    recordedAt:'2026-11-04T20:00:00.000Z',summary:'Newest fictional correction',reason:'Clarify work'}]};
+  await act(async()=>button('Return hours').props.onClick());
+  assert.equal(writes[0].contentRevision,3);assert.equal(writes[0].reportRevision,5);
+  assert.match(copy(),/Reload hours status to verify/);assert.doesNotMatch(copy(),/Hours return recorded|Retry same decision/);
+  await act(async()=>button('Reload report').props.onClick());
+  assert.doesNotMatch(copy(),/Worked hours decision/);
+  await act(async()=>button('View latest report').props.onClick());
+  assert.match(copy(),/Newest fictional correction/);assert.match(copy(),/No independent review recorded for this version/);
+  assert.equal(root.root.findByType('textarea').props.value,'');
+  assert.equal(button('Return hours').props.disabled,true);
+  await act(async()=>root.root.findByType('textarea').props.onChange({currentTarget:{value:'New fictional reason'}}));
+  await act(async()=>button('Return hours').props.onClick());
+  assert.equal(writes[1].contentRevision,6);assert.equal(writes[1].reportRevision,6);
+  assert.equal(writes[1].reason,'New fictional reason');
+  assert.match(copy(),/Hours return recorded/);
+  assert.match(copy(),/No independent review recorded for this version/);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.window=globals.window;globalThis.document=globals.document;}
+});
+
+const workHoursFixture=()=>component('SharedVisitWorkHours',`
+ export {SharedVisitWorkHours} from './SharedVisitWorkHours';
+ export {createWorkHoursClient} from './work-hours-client';
+`);
+
+test('work-hours preview refresh cannot replace an unconfirmed return on the same binding',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const {SharedVisitWorkHours,createWorkHoursClient}=await workHoursFixture();
+ const binding={visitId:visit,visitRevision:3,reportRevision:5,contentRevision:3};
+ const state={schema:1,...binding,enabled:true,canDecide:true,membershipRevision:8,receipt:null};
+ const writes=[];let reads=0,root;let readResponse=state;
+ const client=createWorkHoursClient(async(_path,opts)=>{
+  if(opts.method==='GET'){reads++;return Response.json(readResponse);}
+  writes.push(JSON.parse(opts.body));return Response.json({}, {status:503});
+ },reviewer,'manager');
+ const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+ try{
+  await act(async()=>{root=create(React.createElement(SharedVisitWorkHours,{binding,client}));});
+  await act(async()=>root.root.findByType('textarea').props.onChange({currentTarget:{value:'Fictional return note'}}));
+  await act(async()=>button('Return hours').props.onClick());
+  assert.equal(writes.length,1);assert.ok(button('Retry same decision'));
+  await act(async()=>button('Reload hours status').props.onClick());
+  assert.equal(reads,2);assert.equal(writes.length,1);
+  assert.ok(button('Retry same decision'),'successful null read must not displace the unresolved exact return');
+  assert.equal(button('Approve hours'),undefined,'no replacement approval may be composed');
+  await act(async()=>button('Retry same decision').props.onClick());
+  assert.deepEqual(writes[1],writes[0]);
+  readResponse={...state,canDecide:false,receipt:{decision:'return',recordedAt:'2026-11-05T20:00:00.000Z'}};
+  await act(async()=>button('Reload hours status').props.onClick());
+  const text=JSON.stringify(root.toJSON());
+  assert.match(text,/Returned/);
+  assert.match(text,/decision is already recorded for this report version/);
+  assert.doesNotMatch(text,/Hours return recorded/,'status-only read must not claim the exact operation was confirmed');
+  assert.equal(button('Retry same decision'),undefined);assert.equal(button('Approve hours'),undefined);
+  assert.equal(writes.length,2);
+ }finally{if(root)await act(async()=>root.unmount());}
+});
+
+test('work-hours preview fences unresolved intent when authority changes before a status reload',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const {SharedVisitWorkHours,createWorkHoursClient}=await workHoursFixture();
+ const binding={visitId:visit,visitRevision:3,reportRevision:5,contentRevision:3};
+ const state={schema:1,...binding,enabled:true,canDecide:true,membershipRevision:8,receipt:null};
+ for(const circumstance of ['membership changed','forbidden']){
+  let root,readMode='original';const writes=[];
+  const client=createWorkHoursClient(async(_path,opts)=>{
+   if(opts.method==='GET'){
+    if(readMode==='forbidden')return Response.json({}, {status:403});
+    return Response.json({...state,membershipRevision:readMode==='membership changed'?9:8});
+   }
+   writes.push(JSON.parse(opts.body));return Response.json({}, {status:503});
+  },reviewer,'manager');
+  const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+  try{
+   await act(async()=>{root=create(React.createElement(SharedVisitWorkHours,{binding,client}));});
+   await act(async()=>button('Approve hours').props.onClick());
+   assert.ok(button('Retry same decision'));
+   readMode=circumstance;
+   await act(async()=>button('Reload hours status').props.onClick());
+   assert.match(JSON.stringify(root.toJSON()),/Hours access changed/);
+   assert.equal(button('Approve hours'),undefined);assert.equal(button('Return hours'),undefined);assert.equal(button('Retry same decision'),undefined);
+   if(circumstance==='forbidden'){
+    readMode='original';
+    await act(async()=>button('Reload hours status').props.onClick());
+    assert.equal(button('Approve hours'),undefined);assert.equal(button('Retry same decision'),undefined);
+   }
+   assert.equal(writes.length,1);
+  }finally{if(root)await act(async()=>root.unmount());}
+ }
+});
+
+test('work-hours requires current authority before retrying an explicit conflict or stale response',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const {SharedVisitWorkHours,createWorkHoursClient}=await workHoursFixture();
+ const binding={visitId:visit,visitRevision:3,reportRevision:5,contentRevision:3};
+ const state={schema:1,...binding,enabled:true,canDecide:true,membershipRevision:8,receipt:null};
+ for(const {status,changed} of [{status:409},{status:412},{status:409,changed:{membershipRevision:9}},
+  {status:409,changed:{canDecide:false}},{status:409,changed:{denied:403}},{status:412,changed:{denied:412}}]){
+  const writes=[];let root,readStatus=200,readState=state;
+  const client=createWorkHoursClient(async(_path,opts)=>{
+   if(opts.method==='GET')return Response.json(readState,{status:readStatus});
+   writes.push(JSON.parse(opts.body));return Response.json({}, {status});
+  },reviewer,'manager');
+  const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+  const noDecision=()=>{
+   assert.ok(!button('Retry same decision'),'an explicit stale/conflict response must not permit retry before a verified read');
+   assert.equal(button('Approve hours'),undefined);assert.equal(button('Return hours'),undefined);
+   assert.equal(writes.length,1);
+  };
+  try{
+   await act(async()=>{root=create(React.createElement(SharedVisitWorkHours,{binding,client}));});
+   await act(async()=>button('Approve hours').props.onClick());
+   noDecision();
+   readStatus=503;
+   await act(async()=>button('Reload hours status').props.onClick());
+   noDecision();
+   readStatus=changed?.denied??200;readState={...state,...changed};
+   await act(async()=>button('Reload hours status').props.onClick());
+   if(changed){
+    noDecision();
+    assert.match(JSON.stringify(root.toJSON()),/Reopen the report/);
+   }else{
+    assert.equal(button('Approve hours'),undefined);assert.equal(button('Return hours'),undefined);
+    await act(async()=>button('Retry same decision').props.onClick());
+    assert.deepEqual(writes[1],writes[0]);
+    assert.equal(button('Retry same decision'),undefined,'another conflict requires another read');
+   }
   }finally{if(root)await act(async()=>root.unmount());}
  }
 });

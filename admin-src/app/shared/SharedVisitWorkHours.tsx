@@ -1,6 +1,10 @@
-import {useEffect,useId,useRef,useState} from 'react';
+import {useEffect,useId,useLayoutEffect,useRef,useState} from 'react';
+import {SharedError} from './live-model';
 import type {HoursBinding,HoursClient,HoursCommand,HoursDecision,HoursState} from './work-hours-client';
 
+const scopeFailure=(error:unknown)=>error instanceof SharedError&&['unauthenticated','forbidden','scope_changed'].includes(error.code);
+const staleDecision=(error:unknown)=>error instanceof SharedError&&error.code==='conflict';
+const accessChanged='Hours access changed. Reopen the report before making another decision.';
 type View={status:'loading'|'hidden'|'error'}|{status:'ready';hours:HoursState};
 export function SharedVisitWorkHours({binding,client}:{binding:HoursBinding;client:HoursClient}){
  const [view,setView]=useState<View>({status:'loading'});
@@ -13,22 +17,49 @@ export function SharedVisitWorkHours({binding,client}:{binding:HoursBinding;clie
  const life=useRef<AbortController|null>(null);
  const pending=useRef<HoursCommand|null>(null);
  const inFlight=useRef(false);
+ const recoveryFenced=useRef(false);
+ const needsVerifiedRead=useRef(false);
  const id=useId();
+ function fenceRecovery(){
+  pending.current=null;recoveryFenced.current=true;needsVerifiedRead.current=false;
+  setReason('');setNotice(accessChanged);
+ }
+ useLayoutEffect(()=>{
+  pending.current=null;recoveryFenced.current=false;needsVerifiedRead.current=false;inFlight.current=false;
+  setView({status:'loading'});setReason('');setNotice('');setBusy(false);
+  return()=>life.current?.abort();
+ },[client,visit,visitRevision,reportRevision,contentRevision]);
  useEffect(()=>{
   const controller=new AbortController();
   life.current=controller;
-  pending.current=null;inFlight.current=false;
-  setView({status:'loading'});setReason('');setNotice('');setBusy(false);
+  inFlight.current=false;
+  setView({status:'loading'});setBusy(false);
   void client.read({visitId:visit,visitRevision,reportRevision,contentRevision},controller.signal).then(hours=>{
-   if(!controller.signal.aborted)setView(hours?{status:'ready',hours}:{status:'hidden'});
-  }).catch(()=>{
-   if(!controller.signal.aborted)setView({status:'error'});
+   if(controller.signal.aborted)return;
+   const unresolved=pending.current;
+   if(!hours){setView(unresolved||recoveryFenced.current?{status:'error'}:{status:'hidden'});return;}
+   if(unresolved){
+    if(hours.membershipRevision!==unresolved.membershipRevision||(!hours.canDecide&&!hours.receipt)){
+     fenceRecovery();
+    }else if(hours.receipt){
+     pending.current=null;needsVerifiedRead.current=false;
+     setReason('');setNotice('A worked-hours decision is already recorded for this report version.');
+    }else if(needsVerifiedRead.current){
+     needsVerifiedRead.current=false;
+     setNotice('Hours status verified. You can retry the same decision.');
+    }
+   }
+   setView({status:'ready',hours:recoveryFenced.current?{...hours,canDecide:false}:hours});
+  }).catch(error=>{
+   if(controller.signal.aborted)return;
+   if((scopeFailure(error)||staleDecision(error))&&pending.current)fenceRecovery();
+   setView({status:'error'});
   });
   return()=>controller.abort();
  },[client,visit,visitRevision,reportRevision,contentRevision,retry]);
 
  async function record(action:HoursDecision){
-  if(view.status!=='ready'||!view.hours.canDecide||view.hours.receipt||inFlight.current
+  if(recoveryFenced.current||needsVerifiedRead.current||view.status!=='ready'||!view.hours.canDecide||view.hours.receipt||inFlight.current
      ||!life.current||life.current.signal.aborted)return;
   const trimmed=reason.trim();
   if(!pending.current&&action==='return'&&!trimmed){setNotice('Enter a brief reason to return the hours.');return;}
@@ -47,8 +78,16 @@ export function SharedVisitWorkHours({binding,client}:{binding:HoursBinding;clie
    setView({status:'ready',hours:{...view.hours,canDecide:false,receipt}});
    setReason('');
    setNotice(receipt.decision==='approve'?'Hours approval recorded.':'Hours return recorded.');
-  } catch {
-   if(!scope.signal.aborted)setNotice('The decision could not be confirmed. Retry the same decision or reload its status.');
+  } catch(error) {
+   if(!scope.signal.aborted){
+    if(scopeFailure(error)){
+     fenceRecovery();setView({status:'error'});
+    }else if(staleDecision(error)){
+     needsVerifiedRead.current=true;
+     setView({status:'error'});
+     setNotice('Reload hours status to verify the current report and access before retrying this decision.');
+    }else setNotice('The decision could not be confirmed. Retry the same decision or reload its status.');
+   }
   } finally{
    if(!scope.signal.aborted){inFlight.current=false;setBusy(false);}
   }

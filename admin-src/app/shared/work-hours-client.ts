@@ -26,6 +26,7 @@ export function createWorkHoursClient(fetcher:typeof fetch,actor:string,role:'ow
     ...(command?{'Content-Type':'application/json'}:{})},...(command?{body:JSON.stringify(command)}:{})});
   combined.throwIfAborted();
   if(!command&&response.status===404)return {schema:1,enabled:false};
+  if(response.status===412)throw new SharedError('conflict','The worked-hours report or access has changed.');
   if(response.status!==200)throw statusError(response.status,!!command);
   const data=object(await readJson(response,12000));
   combined.throwIfAborted();
