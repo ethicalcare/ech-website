@@ -38,6 +38,7 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
   const refreshing = useRef(false); const lastChecked = useRef(0);
   const [checking, setChecking] = useState(true); const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const [pending, setPending] = useState(false);
   const [inquiries, setInquiries] = useState<SharedInquiry[]>([]); const [partners, setPartners] = useState<SharedPartner[]>([]); const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [inquiriesVerified, setInquiriesVerified] = useState(false);
   const [cursors, setCursors] = useState<{ inquiry: string | null; partner: string | null }>({ inquiry: null, partner: null });
   const navigation = useDashboardNavigation();
   const staffOnly=isOrdinaryStaff(session);
@@ -78,7 +79,7 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
   const [selected, setSelected] = useState<SharedRecord>(); const [creating, setCreating] = useState<string>(); const [addingPartner, setAddingPartner] = useState(false); const [search, setSearch] = useState('');
   const [drafts] = useState(() => new Map<string, RetainedDraft>()); const [inlineOperations,setInlineOperations] = useState(() => new Map<string, Command>()); const [inlineReview, setInlineReview] = useState(false); const inlineBusy = useRef(false);
   const client = useMemo(() => createSessionClient(fetcher), [fetcher]);
-  const clearProtected = useCallback(() => { setShowAccounts(false); setInquiries([]); setPartners([]); setAssignees([]); setSelected(undefined); setCreating(undefined); setAddingPartner(false); setCursors({ inquiry: null, partner: null }); setSearch(''); setNotice(''); }, []);
+  const clearProtected = useCallback(() => { setShowAccounts(false); setInquiriesVerified(false); setInquiries([]); setPartners([]); setAssignees([]); setSelected(undefined); setCreating(undefined); setAddingPartner(false); setCursors({ inquiry: null, partner: null }); setSearch(''); setNotice(''); }, []);
   const invalidate = useCallback(() => { epoch.current += 1; verified.current = null; clearVisitTaskResultEntries(); setSession(null); clearProtected(); setError('Session or record access is unverified. Protected views were cleared. Unsaved record drafts remain in this tab for the same authorized account after reload.'); }, [clearProtected]);
   // Repository constructors retain this callback; only asynchronous request failures invoke it.
   // eslint-disable-next-line react-hooks/refs
@@ -103,7 +104,7 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
         })(), can(current, 'leads.assign') ? inquiryRepository.assignees() : Promise.resolve([])]);
         if (ticket !== epoch.current) return;
         if ([...inq.items,...par.items].some(row => !mayRead(current,row))) throw new Error('Unexpected row scope.');
-        setInquiries(inq.items as SharedInquiry[]); setPartners(par.items as SharedPartner[]); setAssignees(people); setCursors({ inquiry: inq.nextCursor, partner: par.nextCursor });
+        setInquiries(inq.items as SharedInquiry[]); setInquiriesVerified(true); setPartners(par.items as SharedPartner[]); setAssignees(people); setCursors({ inquiry: inq.nextCursor, partner: par.nextCursor });
       }
       if (ticket !== epoch.current) return; verified.current = current; lastChecked.current = Date.now(); if (full || !unchanged) setSession(current);
     } catch { if (ticket === epoch.current) invalidate(); }
@@ -197,7 +198,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
      {navigation.view==='daily'&&!details&&!accountsOpen&&!checking&&sharedSchedule&&session.principal.operationalRole==='manager'&&
       <ManagerTodayScheduleAttention key={operationsFeatureScope(session)} actor={session.principal.id} fetcher={fetcher}
        onOpenSchedule={()=>changeView('operations','visits')}/>}
-     {['daily','overview'].includes(navigation.view) && !details && <SharedRecordCounts inquiries={inquiries} partners={partners} moreInquiries={!!cursors.inquiry} morePartners={!!cursors.partner}/>}
+     {['daily','overview'].includes(navigation.view) && !details && <SharedRecordCounts inquiries={inquiries} partners={partners} moreInquiries={!!cursors.inquiry} inquiryRead={checking?'checking':inquiriesVerified?'verified':'unavailable'} onOpenInquiries={()=>changeView('leads')} morePartners={!!cursors.partner}/>}
      <div hidden={navigation.view !== 'operations'}>{sharedSchedule ? visitedOperations && <SharedScheduleRead session={session} fetcher={fetcher} active={navigation.view === 'operations' && !accountsOpen}/> : visitedOperations && (localOperations || <NamedOperations actor={actor} section={operationsSection} onSectionChange={navigation.replaceOperationsSection} />)}</div>
      {navigation.view === 'assessments' && <section className="panel dashboard-card"><h2>Assessments</h2><p>Assessment recording is disabled for this first release. Clinical information must stay in the approved care-record system.</p><button type="button" disabled>Record assessment</button></section>}
      {recordView && <>
