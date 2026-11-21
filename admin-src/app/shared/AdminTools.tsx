@@ -51,7 +51,7 @@ function memberRow(value: unknown): Member {
 
 export function AdminTools({ session, onChanged, requests, reloadRequests, fetcher, visible, accountDecisionHistoryEnabled=false }: {
  session: Session; onChanged: () => Promise<void>; requests: RequestState;
- reloadRequests: () => Promise<void>; fetcher: typeof fetch; visible: boolean; accountDecisionHistoryEnabled?:boolean;
+ reloadRequests: () => Promise<boolean>; fetcher: typeof fetch; visible: boolean; accountDecisionHistoryEnabled?:boolean;
 }) {
  const [members, setMembers] = useState<Member[]>();
  const [memberLoading, setMemberLoading] = useState(false);

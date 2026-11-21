@@ -31,7 +31,7 @@ for(const unknownFirst of [false,true]) test(`verified receipt clears uncertaint
  globalThis.document={activeElement:null};globalThis.HTMLElement=class {};
  const button=label=>root.root.findAllByType('button').find(n=>n.props.children===label);
  try {
-  await act(async()=>{root=create(React.createElement(AccessRequests,{requests:{status:'ready',rows:[row]},reload:async()=>{reloads++;refreshed();throw Error('Fictional refresh failed');},owner:true,fetcher:async(url,options)=>{
+  await act(async()=>{root=create(React.createElement(AccessRequests,{requests:{status:'ready',rows:[row]},reload:async()=>{reloads++;refreshed();if(unknownFirst)throw Error('Fictional refresh failed');return false;},owner:true,fetcher:async(url,options)=>{
    const body=JSON.parse(options.body);requests.push(body);calls++;
    if(unknownFirst&&calls===1)throw Error('Fictional unknown result');
    if(calls===(unknownFirst?2:1))return Response.json({schema:1,request:{...row,state:'approved',role:'staff',revision:2,decidedAt:'2026-11-18T00:00:00Z'},receipt:{operationId:body.operationId,expectedRevision:1,revision:2,commandFingerprint:await fingerprint(body)}});

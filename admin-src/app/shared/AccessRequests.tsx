@@ -80,12 +80,12 @@ export function useAccountRequests(fetcher: typeof fetch, scope: string, panelOp
   const [snapshot, setSnapshot] = useState<{ scope: string; state: RequestState }>();
   const sequence = useRef(0);
   const lastChecked = useRef(0);
-  const inFlight = useRef<Promise<void> | null>(null);
+  const inFlight = useRef<Promise<boolean> | null>(null);
   const controller = useRef<AbortController | null>(null);
   const panelIsOpen = useRef(panelOpen);
   panelIsOpen.current = panelOpen;
-  const reload = useCallback((quiet = false): Promise<void> => {
-    if (!scope || document.visibilityState !== 'visible') return Promise.resolve();
+  const reload = useCallback((quiet = false): Promise<boolean> => {
+    if (!scope || document.visibilityState !== 'visible') return Promise.resolve(false);
     if (inFlight.current && quiet && !controller.current?.signal.aborted) return inFlight.current;
     // Explicit refreshes (including verified writes) must read newer state.
     if (inFlight.current) controller.current?.abort();
@@ -98,9 +98,12 @@ export function useAccountRequests(fetcher: typeof fetch, scope: string, panelOp
       if (data?.schema !== 1 || !Array.isArray(data.items)) throw new Error('Unverified list');
       const rows = data.items.map(requestRow);
       if (new Set(rows.map(row => row.userId)).size !== rows.length) throw new Error('Duplicate subjects');
-      if (ticket === sequence.current && !request.signal.aborted && document.visibilityState === 'visible') setSnapshot({ scope, state: { status: 'ready', rows } });
+      if (ticket !== sequence.current || request.signal.aborted || document.visibilityState !== 'visible') return false;
+      setSnapshot({ scope, state: { status: 'ready', rows } });
+      return true;
     } catch {
       if (ticket === sequence.current && !request.signal.aborted && document.visibilityState === 'visible') setSnapshot({ scope, state: { status: 'unavailable' } });
+      return false;
     } finally {
       if (ticket === sequence.current) {
         lastChecked.current = Date.now();
@@ -183,7 +186,7 @@ const roleLabels = { staff: 'Staff · assigned records', manager: 'Manager · al
 type Selection = { row: AccessRequest; type: Review['command']['type']; role: AccessRequest['role']; delegated?: boolean };
 type RetainedReview = { body: Review; email: string };
 export function AccessRequests({ requests, reload, owner, fetcher, renderHistory }: {
-  requests: RequestState; reload: () => Promise<void>; owner: boolean; fetcher: typeof fetch;
+  requests: RequestState; reload: () => Promise<boolean>; owner: boolean; fetcher: typeof fetch;
   renderHistory?: (props: AccountHistoryProps) => ReactNode;
 }) {
   const [search, setSearch] = useState('');
@@ -223,7 +226,7 @@ export function AccessRequests({ requests, reload, owner, fetcher, renderHistory
       outcomeUnknown.current = false;
       setOperation(undefined);
       setRoles(current => { const next = { ...current }; delete next[row.userId]; return next; });
-      await reload();
+      if (!(await reload())) throw new Error('Account refresh could not be confirmed.');
       setMessage(`${body.command.type === 'approve' ? 'Approval' : body.command.type === 'revoke' ? 'Revocation' : 'Denial'} recorded. Check the refreshed account status for current access.${body.command.type === 'approve' ? ' If approval is still current, the person must sign in again.' : ''}`);
     } catch (failure) {
       if (receiptVerified) {

@@ -33,8 +33,8 @@ test('opening Accounts refreshes stale lists immediately, without duplicate or h
   globalThis.document = {visibilityState:'visible', addEventListener(name,handler){if(name==='visibilitychange')visibilityHandler=handler;}, removeEventListener(name,handler){if(name==='visibilitychange'&&visibilityHandler===handler)visibilityHandler=undefined;}};
   globalThis.window = {setInterval(){return 1;},clearInterval(){}};
   Date.now = () => now;
-  let finish;
-  const fetcher = async (_url, options) => {calls++; const requestNumber=calls; signals.push(options.signal); await new Promise(resolve => {finish=resolve;}); return new Response(JSON.stringify({schema:1,items:[{userId:'10000000-0000-4000-8000-000000000001',email:`read${requestNumber}@example.test`,displayName:'Fictional account',state:'pending',role:null,revision:requestNumber,requestedAt:'2026-11-17T12:00:00Z',decidedAt:null}]}), {status:200,headers:{'content-type':'application/json'}});};
+  let finish; let failNext = false;
+  const fetcher = async (_url, options) => {calls++; const requestNumber=calls; const unavailable=failNext; failNext=false; signals.push(options.signal); await new Promise(resolve => {finish=resolve;}); if(unavailable)return new Response(null,{status:503}); return new Response(JSON.stringify({schema:1,items:[{userId:'10000000-0000-4000-8000-000000000001',email:`read${requestNumber}@example.test`,displayName:'Fictional account',state:'pending',role:null,revision:requestNumber,requestedAt:'2026-11-17T12:00:00Z',decidedAt:null}]}), {status:200,headers:{'content-type':'application/json'}});};
   const render = (open, scope = 'owner-scope') => {cursor=0; effects=[]; const value=useAccountRequests(fetcher,scope,open); effects.forEach(fn=>fn()); return value;};
   const settle = async () => {finish(); await new Promise(resolve=>setImmediate(resolve));};
   try {
@@ -49,7 +49,7 @@ test('opening Accounts refreshes stale lists immediately, without duplicate or h
     assert.equal(signals[1].aborted,true,'older background request is cancelled');
     oldFinish(); await new Promise(resolve=>setImmediate(resolve));
     assert.equal(render(true).state.status,'loading','old response cannot publish stale rows');
-    await settle(); await postWriteRefresh;
+    await settle(); assert.equal(await postWriteRefresh,true,'published current list is confirmed');
     assert.equal(render(true).state.status,'ready','new post-write response is published');
     render(false); now += 60_001; document.visibilityState='hidden';
     render(true); assert.equal(calls,3,'hidden tab does not issue a new request');
@@ -77,6 +77,9 @@ test('opening Accounts refreshes stale lists immediately, without duplicate or h
     hiddenReadFinish();await new Promise(resolve=>setImmediate(resolve));
     assert.equal(render(true,'new-owner-scope').state.rows[0].email,'read7@example.test');
     assert.equal(calls,7,'late aborted read neither overwrites nor triggers a duplicate fetch');
+    failNext=true; const failedPostWrite=render(true,'new-owner-scope').reload();
+    await settle(); assert.equal(await failedPostWrite,false,'unavailable list does not confirm refresh');
+    assert.equal(render(true,'new-owner-scope').state.status,'unavailable');
   } finally {
     slots.forEach(slot=>slot?.cleanup?.());
     Date.now=original.now; globalThis.document=original.document; globalThis.window=original.window;
