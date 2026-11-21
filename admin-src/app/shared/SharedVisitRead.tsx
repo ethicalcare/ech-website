@@ -64,6 +64,9 @@ export function SharedVisitRead({actor,role,visit,clientName,fetcher,onClose,onV
     <dt>Scheduled service</dt><dd>{visit.service}</dd>
     <dt>Scheduled time · Vancouver</dt><dd><time dateTime={visit.start}>{scheduleLabel(visit.start)}</time> – <time dateTime={visit.end}>{scheduleLabel(visit.end)}</time></dd>
     <dt>Visit status</dt><dd>{visit.status}</dd>
+    {role!=='staff'&&(visit.status==='Assigned'||visit.status==='Confirmed')&&<>
+     <dt>Worker confirmation</dt><dd>{visit.status==='Assigned'?'Waiting for the assigned worker':'Confirmed by the assigned worker'}</dd>
+    </>}
    </dl><p>This is the scheduled assignment, not report authorship, verified attendance or approval of worked time.</p></section>}
    <dl>{Object.entries(labels).map(([field,label])=><div key={field}><dt>{label}</dt><dd>{detail.fields[field as keyof typeof labels]||'Not provided'}</dd></div>)}</dl>
    {detail.fields.contact&&<section aria-label="Visit logistics contact"><h4>Visit logistics contact</h4><p>{detail.fields.contact.name}</p><p>{detail.fields.contact.phone||'Phone not provided'}</p></section>}

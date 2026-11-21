@@ -126,3 +126,41 @@ test('manager and owner see exact elapsed time for the selected report separatel
   }finally{if(root)await act(async()=>root.unmount());}
  }}finally{globalThis.window=saved.window;globalThis.document=saved.document;}
 });
+
+test('read-only office visit shows the current worker confirmation after reassignment and revision verification',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const nextWorker='10000000-0000-4000-8000-000000000003';
+ const initial={id:visit,revision:3,clientId:reviewer,workerId:actor,service:'Home support',
+  start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T20:00:00.000Z',status:'Confirmed'};
+ const staff=[{id:actor,name:'Fictional previous worker'},{id:nextWorker,name:'Fictional replacement'}];
+ for(const role of ['manager','owner','staff']){
+  let root;
+  const reads=[];
+  const fetcher=(url,options)=>new Promise(resolve=>{
+   assert.equal(options.method,'GET');assert.equal(options.headers['X-ECH-Schedule-Role'],role);
+   const query=new URL(url,'https://fixture.invalid').searchParams;
+   assert.equal(query.get('visit'),visit);
+   reads.push({revision:Number(query.get('revision')),signal:options.signal,resolve});
+  });
+  const element=visit=>React.createElement(SharedVisitRead,{actor:role==='staff'?nextWorker:reviewer,
+   role,visit,staff,fetcher,onClose(){}});
+  const detail=revision=>Response.json({visitId:visit,revision,fields:{},contactAuthority:'unknown',allergyStatus:'unknown'});
+  const assignment=()=>root.root.findAllByProps({'aria-label':'Selected visit assignment'})[0];
+  const rendered=()=>JSON.stringify(root.toJSON());
+  try{
+   await act(async()=>{root=create(element(initial));});
+   await act(async()=>reads[0].resolve(detail(3)));
+   if(role!=='staff')assert.match(rendered(),/Confirmed by the assigned worker/);
+   await act(async()=>root.update(element({...initial,workerId:nextWorker,revision:4,status:'Assigned'})));
+   assert.equal(assignment(),undefined,'previous unverified state never remains visible');
+   assert.equal(reads[0].signal.aborted,true);
+   await act(async()=>reads[1].resolve(detail(4)));
+   assert.match(rendered(),/Fictional replacement/);
+   assert.doesNotMatch(rendered(),/Confirmed by the assigned worker|Fictional previous worker/);
+   if(role!=='staff')assert.match(rendered(),/Waiting for the assigned worker/);
+   else assert.doesNotMatch(rendered(),/Worker confirmation|Waiting for the assigned worker/);
+   assert.equal(root.root.findAllByType('form').length,0);
+   assert.deepEqual(reads.map(r=>r.revision),[3,4]);
+  }finally{if(root)await act(async()=>root.unmount());}
+ }
+});
