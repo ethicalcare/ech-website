@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {workHours,createWorkHoursFixturePort} from '../lib/admin/operations-work-hours.js';
+import {preparePayrollInput} from '../lib/admin/operations-payroll-preparation.js';
 const id=n=>'10000000-0000-4000-8000-'+String(n).padStart(12,'0');
 const actor=id(10),visitId=id(11);
 const manager={principal:{id:actor,operationalRole:'manager'},member:{user_id:actor,operational_role:'manager',active:true,revision:8}};
@@ -62,4 +63,39 @@ test('fixture database port binds server session and SQL arguments without escap
  await workHours(manager,request('manager'),null,port);
  await workHours(manager,request('manager','POST'),body,port);
  await assert.rejects(workHours(manager,request('manager','POST'),body,port),{status:412});
+});
+
+test('a refreshed approval status cannot relabel saved payroll evidence for unchanged content',async()=>{
+ const savedApproval=Object.freeze({...body,recordedAt:at});
+ const interval={actualStart:'2026-11-20T08:00:00.000Z',actualEnd:'2026-11-20T09:30:00.000Z'};
+ const savedWork=Object.freeze({schema:1,visitId,visitRevision:5,reportRevision:4,contentRevision:3,
+   operationId:savedApproval.operationId,...interval,approvedMinutes:90});
+ const staffId=id(20);
+ const previousReport={schema:1,visitId,visitRevision:5,reportRevision:4,contentRevision:3,staffId,...interval};
+ const period={startsAt:'2026-11-19T00:00:00.000Z',endsAt:'2026-11-30T00:00:00.000Z'};
+ const effectiveRates=[{rateId:id(21),rateRevision:1,staffId,startsAt:period.startsAt,endsAt:null,currency:'CAD',hourlyRateCents:2800}];
+ const prepare=currentReport=>preparePayrollInput({currentReport,approval:savedApproval,approvedWork:savedWork,period,effectiveRates});
+ assert.equal(prepare(previousReport).status,'internal_non_postable_reference');
+
+ const viewer={...manager,member:{...manager.member,revision:9}};
+ const currentReport={...previousReport,reportRevision:5};
+ const currentPins={visitId,visitRevision:5,reportRevision:5,membershipRevision:9};
+ const port=createWorkHoursFixturePort(async(current,dispatch)=>{
+   assert.equal(current,viewer);
+   return dispatch({query:async(sql,args)=>{
+     assert.match(sql,/ech_fixture_hours\.read_current/);
+     assert.deepEqual(args,[visitId,5,5,'manager',9]);
+     return {rows:[{value:{schema:1,...currentPins,contentRevision:3,enabled:true,canDecide:false,
+       receipt:{decision:savedApproval.decision,recordedAt:savedApproval.recordedAt}}}]};
+   }});
+ });
+ const query='workHours=1&visit='+visitId+'&visitRevision=5&reportRevision=5';
+ const status=await workHours(viewer,request('manager','GET',query),null,port);
+ assert.deepEqual(status,{schema:1,...currentPins,contentRevision:3,enabled:true,canDecide:false,
+   receipt:{decision:'approve',recordedAt:at}});
+ // The outer values describe the current read, not the saved approval.
+ assert.equal(savedApproval.reportRevision,4);
+ assert.equal(savedApproval.membershipRevision,8);
+ assert.equal(savedWork.reportRevision,4);
+ assert.deepEqual(prepare(currentReport),{status:'hold',reason:'approval_revision_changed'});
 });
