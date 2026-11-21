@@ -107,3 +107,71 @@ test('rendered schedule clears rows on reload/date change and never renders malf
   assert.equal(requests.length,4);assert.match(JSON.stringify(root.toJSON()),/Choose a valid date/);
  }finally{if(root)await act(async()=>root.unmount());}
 });
+
+test('Admin Today shows only verified manager schedule attention totals and discards old-scope responses',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const keys=['window','document','requestAnimationFrame','cancelAnimationFrame','localStorage'];
+ const prior=Object.fromEntries(keys.map(k=>[k,globalThis[k]]));
+ const frames=new Map();let next=0;
+ const location=new URL('https://fixture.invalid/admin?view=daily');
+ const navigate=(state,_unused,target)=>{window.history.state=state;location.href=String(target);};
+ globalThis.window=Object.assign(new EventTarget(),{location,history:{state:null,pushState:navigate,replaceState:navigate},setInterval:()=>1,clearInterval(){},scrollTo(){}});
+ globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',title:''});
+ globalThis.localStorage={getItem:()=>null};
+ globalThis.requestAnimationFrame=fn=>{frames.set(++next,fn);return next;};globalThis.cancelAnimationFrame=id=>frames.delete(id);
+ const drain=async()=>{for(let i=0;i<3;i++)await act(async()=>{for(const [id,fn]of [...frames]){frames.delete(id);fn();}await new Promise(r=>setImmediate(r));});};
+ const ids=[1,2,3,4,5,6,7,8,9].map(i=>'10000000-0000-4000-8000-00000000000'+i);
+ const session=(id=ids[0],role='manager',reads=true)=>({authenticated:true,principal:{id,email:'fictional@example.invalid',operationalRole:role,technicalAdmin:false,applicationAdmin:false},capabilities:[role==='staff'?'leads.read_assigned':'leads.read_all'],operationsFeatures:{reads,scheduleCommands:false,scheduleRecurrence:false,visitActions:false}});
+ let current=session(),root;
+ const reads=[];
+ const fetcher=async(url,options)=>{
+  if(url==='/api/admin/session')return Response.json(current);
+  if(['/api/admin/inquiries?limit=20','/api/admin/partners?limit=20'].includes(url))return Response.json({schema:1,mode:'shared',items:[],nextCursor:null});
+  assert.match(url,/^\/api\/admin\/operations\?from=/);assert.equal(options.method,'GET');
+  return new Promise(resolve=>reads.push({url,options,resolve}));
+ };
+ const payload=(req,statuses)=>{
+  const query=new URL(req.url,location).searchParams,from=query.get('from');
+  const begin=new Date(Date.parse(from)+3600000).toISOString(),end=new Date(Date.parse(begin)+3600000).toISOString();
+  return {schema:1,mode:'shared',clients:statuses.length?[{id:ids[2],name:'Fictional protected client'}]:[],
+   staff:statuses.some(s=>s!=='Open')?[{id:ids[3],name:'Fictional protected worker'}]:[],
+   visits:statuses.map((status,i)=>({id:ids[i+4],clientId:ids[2],workerId:status==='Open'?null:ids[3],service:'Home support',start:begin,end,status,revision:1}))};
+ };
+ const mount=async()=>{await act(async()=>{root=create(React.createElement(AdminWorkspace,{fetcher}));});await drain();};
+ const button=text=>root.root.findAllByType('button').find(b=>b.props.children===text);
+ const click=async label=>{assert.ok(button(label),label);await act(async()=>button(label).props.onClick());await drain();};
+ const card=()=>root.root.findAllByProps({'aria-label':'Today’s visits needing attention'})[0];
+ const words=node=>typeof node==='string'?node:node.children.map(words).join(' ');
+ const markup=()=>card()?words(card()):'';
+ const resolve=async(req,statuses)=>act(async()=>req.resolve(Response.json(payload(req,statuses))));
+ try{
+  await mount();assert.equal(reads.length,1);
+  const req=reads[0];assert.equal(req.options.headers['X-ECH-Schedule-Actor'],ids[0]);assert.equal(req.options.headers['X-ECH-Schedule-Role'],'manager');
+  const q=new URL(req.url,location).searchParams;assert.deepEqual([...q.keys()],['from','to']);
+  const start=new Date(q.get('from')),finish=new Date(q.get('to')),vancouver=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',dateStyle:'short',timeStyle:'short',hourCycle:'h23'});
+  assert.match(vancouver.format(start),/00:00/u);assert.match(vancouver.format(finish),/00:00/u);assert.notEqual(vancouver.format(start),vancouver.format(finish));
+  assert.match(markup(),/Checking the shared schedule/u);
+  await resolve(req,['Open','Assigned','Confirmed','Completed','Cancelled']);
+  assert.deepEqual(card().findAllByType('dd').map(n=>n.props.children),[1,1]);
+  assert.doesNotMatch(markup(),/Fictional protected|report received|reports due/u);
+  await click('Refresh today’s schedule');assert.equal(reads.length,2);assert.match(markup(),/Checking the shared schedule/u);assert.equal(card().findAllByType('dd').length,0);
+  await act(async()=>reads[1].resolve(new Response(null,{status:403})));
+  assert.match(markup(),/could not be verified/u);assert.doesNotMatch(markup(),/No visits are unassigned/u);
+  await click('Refresh today’s schedule');await resolve(reads[2],[]);
+  assert.match(markup(),/No visits are unassigned/u);
+  await click('Refresh today’s schedule');const abandoned=reads[3];
+  current=session(ids[1]);await click('Refresh account and records');
+  assert.equal(abandoned.options.signal.aborted,true);assert.equal(reads[4].options.headers['X-ECH-Schedule-Actor'],ids[1]);
+  await resolve(abandoned,['Open','Assigned']);assert.match(markup(),/Checking the shared schedule/u);
+  await resolve(reads[4],[]);assert.match(markup(),/No visits are unassigned/u);
+  await click('Open shared schedule');assert.equal(location.searchParams.get('view'),'operations');assert.equal(card(),undefined);
+  assert.match(reads[5].url,/from=/u);
+  for(const state of [session(ids[0],'owner'),session(ids[0],'manager',false),session(ids[0],'staff',false)]){
+   await act(async()=>root.unmount());root=undefined;const count=reads.length;location.searchParams.set('view','daily');current=state;
+   await mount();assert.equal(card(),undefined);assert.equal(reads.length,count);
+  }
+ }finally{
+  if(root)await act(async()=>root.unmount());
+  for(const [k,v]of Object.entries(prior)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}
+ }
+});

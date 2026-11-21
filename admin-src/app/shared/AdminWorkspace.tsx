@@ -14,6 +14,7 @@ import { companyDate } from './time';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { can, canOperate, type Assignee, type Session, type SharedInquiry, type SharedPartner, type SharedRecord, type RecordKind, type Command } from './live-model';
 import { SharedScheduleRead } from './SharedScheduleRead';
+import { ManagerTodayScheduleAttention } from './ManagerTodayScheduleAttention';
 import { operationsFeatures, operationsFeatureScope } from './operations-features';
 import { createSessionClient } from './session';
 import { createSharedRepository } from './inquiry-repository';
@@ -193,6 +194,9 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     {session?.authenticated && operating && <>
      {navigation.view === 'overview' && <section className="hero-card"><div><p className="eyebrow">Your shared workspace</p><h2>Keep every next step clear.</h2><p>Review incoming care inquiries, maintain referral relationships and follow up with the right person.</p><div className="hero-actions"><button className="primary-button" type="button" onClick={() => changeView('leads')}>Review care inquiries</button><button className="secondary-button" type="button" onClick={() => changeView('partners')}>View referral partners</button></div></div><div className="flow"><span><b>1</b>Receive</span><i>→</i><span><b>2</b>Follow up</span><i>→</i><span><b>3</b>Record next step</span></div></section>}
      {navigation.view === 'daily' && !details && <section className="day-brief" aria-label="Today at ECH"><div><p className="eyebrow">Your daily workspace</p><h2>Your day, in focus.</h2><p>Keep conversations moving and make the next step clear.</p></div><div className="day-date"><Icon name="calendar-days" /><span><strong>{new Intl.DateTimeFormat('en-CA',{weekday:'long',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(companyDate()+'T12:00:00Z'))}</strong><small>Vancouver calendar day</small></span></div></section>}
+     {navigation.view==='daily'&&!details&&!accountsOpen&&!checking&&sharedSchedule&&session.principal.operationalRole==='manager'&&
+      <ManagerTodayScheduleAttention key={operationsFeatureScope(session)} actor={session.principal.id} fetcher={fetcher}
+       onOpenSchedule={()=>changeView('operations','visits')}/>}
      {['daily','overview'].includes(navigation.view) && !details && <SharedRecordCounts inquiries={inquiries} partners={partners} moreInquiries={!!cursors.inquiry} morePartners={!!cursors.partner}/>}
      <div hidden={navigation.view !== 'operations'}>{sharedSchedule ? visitedOperations && <SharedScheduleRead session={session} fetcher={fetcher} active={navigation.view === 'operations' && !accountsOpen}/> : visitedOperations && (localOperations || <NamedOperations actor={actor} section={operationsSection} onSectionChange={navigation.replaceOperationsSection} />)}</div>
      {navigation.view === 'assessments' && <section className="panel dashboard-card"><h2>Assessments</h2><p>Assessment recording is disabled for this first release. Clinical information must stay in the approved care-record system.</p><button type="button" disabled>Record assessment</button></section>}
