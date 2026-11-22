@@ -5,6 +5,8 @@ import { createSessionClient } from './session';
 type CheckApi = { render: (element: HTMLElement, options: { sitekey: string; action: string; callback: (token: string) => void; 'expired-callback': () => void; 'error-callback': () => void }) => string; remove: (id: string) => void };
 function SignInCheck({ siteKey, onToken }: { siteKey: string; onToken: (token: string) => void }) {
   const element = useRef<HTMLDivElement>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
     let stopped = false; let widget: string | undefined;
     const api = () => (window as unknown as { turnstile?: CheckApi }).turnstile;
@@ -13,13 +15,14 @@ function SignInCheck({ siteKey, onToken }: { siteKey: string; onToken: (token: s
     const clearToken = () => acceptToken('');
     const mount = () => { if (!stopped && element.current && api()) widget = api()!.render(element.current, { sitekey: siteKey, action: 'admin-login', callback: acceptToken, 'expired-callback': clearToken, 'error-callback': clearToken }); };
     let script = document.querySelector<HTMLScriptElement>('script[data-admin-login-check]');
+    const scriptError = () => { if (!stopped) { script?.remove(); clearToken(); setLoadFailed(true); } };
     if (api()) mount(); else {
-      if (!script) { script = document.createElement('script'); script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; script.async = true; script.dataset.adminLoginCheck = 'true'; document.head.appendChild(script); }
-      script.addEventListener('load', mount); script.addEventListener('error', clearToken, { once: true });
+      if (!script) { script = document.createElement('script'); script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; script.async = true; script.dataset.adminLoginCheck = 'true'; const created = script; created.addEventListener('error', () => created.remove(), { once: true }); document.head.appendChild(script); }
+      script.addEventListener('load', mount); script.addEventListener('error', scriptError, { once: true });
     }
-    return () => { stopped = true; script?.removeEventListener('load', mount); script?.removeEventListener('error', clearToken); if (widget !== undefined) api()?.remove(widget); onToken(''); };
-  }, [siteKey, onToken]);
-  return <div ref={element} aria-label="Sign-in security check" />;
+    return () => { stopped = true; script?.removeEventListener('load', mount); script?.removeEventListener('error', scriptError); if (widget !== undefined) api()?.remove(widget); onToken(''); };
+  }, [siteKey, onToken, retry]);
+  return <><div ref={element} aria-label="Sign-in security check" />{loadFailed && <p role="alert">The sign-in security check could not load. <button type="button" onClick={() => { setLoadFailed(false); setRetry(value => value + 1); }}>Retry security check</button></p>}</>;
 }
 export function SignIn({ session, client, onVerified }: { session: Extract<Session, {authenticated:false}>; client: ReturnType<typeof createSessionClient>; onVerified: () => Promise<void> }) {
   const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [passwordMode, setPasswordMode] = useState(true); const [token, setToken] = useState(''); const [challenge, setChallenge] = useState(''); const [sent, setSent] = useState(false); const [pending, setPending] = useState(false); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const errorRef = useRef<HTMLParagraphElement>(null); const [attempt, setAttempt] = useState(0); const busy = useRef(false);

@@ -69,3 +69,55 @@ test('retired security widget callbacks cannot change the active sign-in check',
   globalThis.document=priorDocument;globalThis.window=priorWindow;
  }
 });
+
+
+test('a failed security script can be retried without reloading sign-in', async () => {
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const previousDocument=globalThis.document, previousWindow=globalThis.window;
+ let script=null; const scripts=[], widgets=[];
+ globalThis.window={location:{search:''}};
+ globalThis.document={
+  querySelector:()=>script,
+  createElement:()=>Object.assign(new EventTarget(),{dataset:{},remove(){if(script===this)script=null;}}),
+  head:{appendChild(node){script=node;scripts.push(node);}},
+ };
+ let root;
+ try {
+  await act(async()=>{root=create(React.createElement(SignIn,{session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'test-site-key',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')}),{createNodeMock:node=>node.type==='div'?{}:null});});
+  const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+  await act(async()=>scripts[0].dispatchEvent(new Event('error')));
+  assert.equal(button('Sign in').props.disabled,true);
+  assert.ok(button('Retry security check'));
+  await act(async()=>button('Retry security check').props.onClick());
+  assert.equal(scripts.length,2);
+  window.turnstile={render(_node,options){widgets.push(options);return 'widget';},remove(){}};
+  await act(async()=>scripts[1].dispatchEvent(new Event('load')));
+  await act(async()=>widgets[0].callback('fictional-check'));
+  assert.equal(button('Sign in').props.disabled,false);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.document=previousDocument;globalThis.window=previousWindow;}
+});
+
+
+test('remount after an abandoned script failure can load a fresh security check', async () => {
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const previousDocument=globalThis.document, previousWindow=globalThis.window;
+ let script=null; const scripts=[], widgets=[];
+ globalThis.window={location:{search:''}};
+ globalThis.document={querySelector:()=>script,createElement:()=>Object.assign(new EventTarget(),{dataset:{},remove(){if(script===this)script=null;}}),head:{appendChild(node){script=node;scripts.push(node);}}};
+ const props={session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'test-site-key',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')};
+ const options={createNodeMock:node=>node.type==='div'?{}:null};
+ let root;
+ try {
+  await act(async()=>{root=create(React.createElement(SignIn,props),options);});
+  await act(async()=>root.unmount());root=null;
+  await act(async()=>scripts[0].dispatchEvent(new Event('error')));
+  await act(async()=>{root=create(React.createElement(SignIn,props),options);});
+  const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+  assert.equal(button('Sign in').props.disabled,true);
+  assert.equal(scripts.length,2,'remount must not reuse the abandoned script');
+  window.turnstile={render(_node,options){widgets.push(options);return 'widget';},remove(){}};
+  await act(async()=>scripts[1].dispatchEvent(new Event('load')));
+  await act(async()=>widgets[0].callback('fictional-check'));
+  assert.equal(button('Sign in').props.disabled,false);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.document=previousDocument;globalThis.window=previousWindow;}
+});
