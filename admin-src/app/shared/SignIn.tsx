@@ -8,13 +8,16 @@ function SignInCheck({ siteKey, onToken }: { siteKey: string; onToken: (token: s
   useEffect(() => {
     let stopped = false; let widget: string | undefined;
     const api = () => (window as unknown as { turnstile?: CheckApi }).turnstile;
-    const mount = () => { if (!stopped && element.current && api()) widget = api()!.render(element.current, { sitekey: siteKey, action: 'admin-login', callback: onToken, 'expired-callback': () => onToken(''), 'error-callback': () => onToken('') }); };
+    // A retired challenge may still deliver a queued callback after its widget is removed.
+    const acceptToken = (token: string) => { if (!stopped) onToken(token); };
+    const clearToken = () => acceptToken('');
+    const mount = () => { if (!stopped && element.current && api()) widget = api()!.render(element.current, { sitekey: siteKey, action: 'admin-login', callback: acceptToken, 'expired-callback': clearToken, 'error-callback': clearToken }); };
     let script = document.querySelector<HTMLScriptElement>('script[data-admin-login-check]');
     if (api()) mount(); else {
       if (!script) { script = document.createElement('script'); script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'; script.async = true; script.dataset.adminLoginCheck = 'true'; document.head.appendChild(script); }
-      script.addEventListener('load', mount); script.addEventListener('error', () => onToken(''), { once: true });
+      script.addEventListener('load', mount); script.addEventListener('error', clearToken, { once: true });
     }
-    return () => { stopped = true; script?.removeEventListener('load', mount); if (widget !== undefined) api()?.remove(widget); onToken(''); };
+    return () => { stopped = true; script?.removeEventListener('load', mount); script?.removeEventListener('error', clearToken); if (widget !== undefined) api()?.remove(widget); onToken(''); };
   }, [siteKey, onToken]);
   return <div ref={element} aria-label="Sign-in security check" />;
 }

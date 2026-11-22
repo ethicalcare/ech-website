@@ -38,3 +38,34 @@ test('existing staff see which sign-in methods are unavailable when the security
   }finally{if(root)await act(async()=>root.unmount());}
  }
 });
+
+test('retired security widget callbacks cannot change the active sign-in check', async () => {
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const priorDocument=globalThis.document, priorWindow=globalThis.window;
+ const widgets=[], removed=[];
+ globalThis.document={querySelector:()=>null};
+ globalThis.window={location:{search:''},turnstile:{
+  render(_element,options){widgets.push(options);return String(widgets.length);},
+  remove(id){removed.push(id);},
+ }};
+ let root;
+ try {
+  await act(async()=>{root=create(React.createElement(SignIn,{session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'test-site-key',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')}),{createNodeMock:node=>node.type==='div'?{}:null});});
+  const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+  assert.equal(widgets.length,1);
+  await act(async()=>button('Use an email code').props.onClick());
+  assert.deepEqual(removed,['1']);
+  assert.equal(widgets.length,2);
+  await act(async()=>widgets[0].callback('retired-check'));
+  assert.equal(button('Request sign-in code').props.disabled,true,'retired success must not enable the form');
+  await act(async()=>widgets[1].callback('current-check'));
+  assert.equal(button('Request sign-in code').props.disabled,false);
+  await act(async()=>{widgets[0]['expired-callback']();widgets[0]['error-callback']();});
+  assert.equal(button('Request sign-in code').props.disabled,false,'retired failure must not disable the current check');
+  await act(async()=>widgets[1]['expired-callback']());
+  assert.equal(button('Request sign-in code').props.disabled,true);
+ }finally{
+  if(root)await act(async()=>root.unmount());
+  globalThis.document=priorDocument;globalThis.window=priorWindow;
+ }
+});

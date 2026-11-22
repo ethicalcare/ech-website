@@ -64,6 +64,11 @@ export function SharedVisitWorkHours({binding,client}:{binding:HoursBinding;clie
   const trimmed=reason.trim();
   if(!pending.current&&action==='return'&&!trimmed){setNotice('Enter a brief reason to return the hours.');return;}
   if(!pending.current){
+   // Match the existing server note constraint before creating an operation;
+   // an unconfirmed operation, by contrast, must keep its original text.
+   if(trimmed.length>500||/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(trimmed)){
+    setNotice('Edit the note to remove unsupported characters or shorten it to 500 characters.');return;
+   }
    pending.current={schema:1,visitId:visit,visitRevision,reportRevision,contentRevision,
     membershipRevision:view.hours.membershipRevision,operationId:crypto.randomUUID(),decision:action,
     ...(trimmed?{reason:trimmed}:{})};

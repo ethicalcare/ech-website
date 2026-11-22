@@ -375,3 +375,35 @@ test('work-hours requires current authority before retrying an explicit conflict
   }finally{if(root)await act(async()=>root.unmount());}
  }
 });
+
+test('an invalid pasted hours note remains editable and cannot create a retry operation',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const {SharedVisitWorkHours,createWorkHoursClient}=await workHoursFixture();
+ const binding={visitId:visit,visitRevision:3,reportRevision:5,contentRevision:3};
+ const state={schema:1,...binding,enabled:true,canDecide:true,membershipRevision:8,receipt:null};
+ const writes=[];let root;
+ const client=createWorkHoursClient(async(_path,opts)=>{
+  if(opts.method==='GET')return Response.json(state);
+  const command=JSON.parse(opts.body);writes.push(command);
+  if(command.reason.includes('\x01'))return Response.json({}, {status:400});
+  const {reason,...receipt}=command;
+  return Response.json({...receipt,recordedAt:'2026-11-05T20:00:00.000Z'});
+ },reviewer,'manager');
+ const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+ const note=()=>root.root.findByType('textarea');
+ try{
+  await act(async()=>{root=create(React.createElement(SharedVisitWorkHours,{binding,client}));});
+  await act(async()=>note().props.onChange({currentTarget:{value:'Copied\x01 fictional reason'}}));
+  await act(async()=>button('Return hours').props.onClick());
+  assert.deepEqual(writes,[]);
+  assert.equal(note().props.readOnly,false);
+  assert.equal(button('Retry same decision'),undefined);
+  assert.match(JSON.stringify(root.toJSON()),/Edit the note to remove unsupported characters/);
+  await act(async()=>note().props.onChange({currentTarget:{value:'Fictional reason\nSecond line'}}));
+  await act(async()=>button('Return hours').props.onClick());
+  assert.equal(writes.length,1);
+  assert.equal(writes[0].reason,'Fictional reason\nSecond line');
+  assert.equal(writes[0].contentRevision,3);
+  assert.match(JSON.stringify(root.toJSON()),/Hours return recorded/);
+ }finally{if(root)await act(async()=>root.unmount());}
+});
