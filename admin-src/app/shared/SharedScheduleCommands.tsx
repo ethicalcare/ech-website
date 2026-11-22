@@ -15,6 +15,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
   renderReceiptStatus?: (command:ScheduleCommand)=>ReactNode;
 }) {
   const [access,setAccess]=useState<ScheduleCommandAccess|null>(null);
+  const [accessFailed,setAccessFailed]=useState(false);
   const [mode,setMode]=useState<SchedulingCommand['type']>(role==='staff'?'confirm':'reschedule');
   const [draft,setDraft]=useState(()=>({workerId:visit.workerId??'',start:reportLocalTime(visit.start),end:reportLocalTime(visit.end),
     reasons:{assign:'',unassign:'',reschedule:'',cancel:'',confirm:''}}));
@@ -30,7 +31,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
   const membership=useRef<number|null>(null);
   useLayoutEffect(()=>{leaveChange.current({dirty,pending:!!pending&&!rejected,retained:!!pending});},[pending,dirty,rejected]);
   useLayoutEffect(()=>{
-    const current=++generation.current;controller.current?.abort();mutationOwner.current=null;setBusy(false);setAccess(null);
+    const current=++generation.current;controller.current?.abort();mutationOwner.current=null;setBusy(false);setAccess(null);setAccessFailed(false);
     if(!active)return;
     const request=new AbortController();controller.current=request;
     client.availability(request.signal).then(value=>{
@@ -40,7 +41,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
       membership.current=value.membershipRevision;setAccess(value);
     }).catch(failure=>{
       if(request.signal.aborted || current!==generation.current)return;
-      setError(true);setMessage('Schedule command access could not be verified. The draft is retained in this open visit.');
+      setAccessFailed(true);
       if(failure instanceof SharedError && ['unauthenticated','scope_changed','conflict','forbidden'].includes(failure.code))scopeFailure.current(failure.code);
     });
     return ()=>{request.abort();controller.current?.abort();};
@@ -139,7 +140,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
   return <section className="shared-schedule-commands" aria-labelledby={`${id}-heading`}>
     <h3 id={`${id}-heading`}>Schedule changes</h3>
     {message && <p role={error?'alert':'status'} className="shared-visit-report__wording">{message}</p>}
-    {!access && <><p role="status">Checking schedule command availability…</p><button type="button" onClick={()=>setRetry(value=>value+1)}>Retry schedule command access</button></>}
+    {!access && <>{accessFailed?<><p role="alert">Schedule command access could not be verified. The draft is retained in this open visit.</p><button type="button" onClick={()=>setRetry(value=>value+1)}>Retry schedule command access</button></>:<p role="status">Checking schedule command availability…</p>}</>}
     {access && !access.enabled && <p>Read-only. Schedule changes and assignment confirmation are not enabled here.</p>}
     {access?.enabled && <>
       {retained}

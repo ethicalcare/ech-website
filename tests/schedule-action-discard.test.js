@@ -70,3 +70,23 @@ test('invalid local schedule fields remain editable and do not create a retained
  await f.edit(f.root.root.findAllByType('input')[1],'2026-11-20T14:00:00.000');
  await f.submitHold();assert.equal(f.requests.length,1);assert.equal(f.leave.pending,true);
 }));
+
+test('a failed schedule availability check remains retryable and clears its warning after recovery',async()=>{
+ let root,attempt=0,commits=0;
+ const props={visit:initial,active:true,role:'manager',staff:[],client:{
+  availability:async()=>{if(++attempt===1)throw Error('Fictional transport unavailable');return {schema:1,enabled:true,membershipRevision:2};},
+  commit:async()=>{commits++;throw Error('Unexpected write');}},
+  onConfirmed:()=>assert.fail('Unexpected confirmation'),onScopeFailure:()=>assert.fail('Unexpected access failure'),onLeaveStateChange:()=>{},onStale:()=>{}};
+ const rendered=()=>JSON.stringify(root.toJSON());
+ try{
+  await act(async()=>{root=create(React.createElement(SharedScheduleCommands,props));});
+  assert.match(rendered(),/could not be verified/);
+  assert.doesNotMatch(rendered(),/Checking schedule command availability/);
+  assert.equal(root.root.findAllByType('form').length,0);
+  await act(async()=>root.root.findAllByType('button').find(b=>b.props.children==='Retry schedule command access').props.onClick());
+  assert.equal(attempt,2);
+  assert.doesNotMatch(rendered(),/could not be verified|Checking schedule command availability/);
+  assert.equal(root.root.findAllByType('form').length,1);
+  assert.equal(commits,0);
+ }finally{if(root)await act(async()=>root.unmount());}
+});
