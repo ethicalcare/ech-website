@@ -202,24 +202,35 @@ test('read-only office visit shows the current worker confirmation after reassig
  }
 });
 
-test('work-hours preview reads the current corrected version and keeps a stale return separate from care review',async()=>{
+test('selected visit keeps scheduled, reported and recorded time separate from exact work-hours decisions',async()=>{
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;
  const globals={window:globalThis.window,document:globalThis.document};
  const eventWindow=()=>Object.assign(new EventTarget(),{setInterval:()=>1,clearInterval(){}});
  globalThis.window=eventWindow();
  globalThis.document=Object.assign(new EventTarget(),{visibilityState:'visible',hasFocus:()=>true,documentElement:{dataset:{}}});
- let report=fictionalReport(),root;const reads=[],writes=[];
+ let report=fictionalReport(),root;const reads=[],writes=[],attendanceReads=[];
+ let viewer='manager';
  const entry={id:visit,revision:3,clientId:reviewer,workerId:actor,service:'Home support',start:'2026-11-01T17:00:00.000Z',end:'2026-11-01T20:00:00.000Z',status:'Completed'};
  const fetcher=async(path,opts)=>{
   const q=new URL(path,'https://fixture.invalid').searchParams;
+  if(q.has('attendance')){
+   assert.equal(opts.method,'GET');
+   assert.equal(q.get('attendance'),visit);
+   assert.equal(q.get('revision'),'3');
+   attendanceReads.push(viewer);
+   return Response.json({visitId:visit,revision:3,observedAt:'2026-11-01T20:10:00.000Z',
+     checkInAt:'2026-11-01T17:11:00.000Z',checkOutAt:null});
+  }
   if(q.has('workHours')){
-   assert.equal(opts.headers['X-ECH-Schedule-Role'],'manager');
-   assert.equal(opts.headers['X-ECH-Schedule-Actor'],reviewer);
+   assert.equal(opts.headers['X-ECH-Schedule-Role'],viewer);
+   assert.equal(opts.headers['X-ECH-Schedule-Actor'],viewer==='manager'?reviewer:actor);
    const current={schema:1,visitId:visit,visitRevision:entry.revision,reportRevision:report.reportRevision,contentRevision:report.versions.at(-1).revision,membershipRevision:8};
    if(opts.method==='GET'){
     reads.push(Object.fromEntries(q));assert.equal(Number(q.get('reportRevision')),current.reportRevision);
-    return Response.json({...current,enabled:true,canDecide:true,receipt:null});
+    return Response.json({...current,enabled:true,canDecide:viewer==='manager',
+      receipt:viewer==='manager'?null:{decision:'return'}});
    }
+   assert.equal(viewer,'manager');
    const command=JSON.parse(opts.body);writes.push(command);
    if(command.contentRevision!==current.contentRevision)return Response.json({}, {status:409});
    const {reason,...body}=command;return Response.json({...body,recordedAt:'2026-11-05T20:00:00.000Z'});
@@ -228,7 +239,7 @@ test('work-hours preview reads the current corrected version and keeps a stale r
   if(q.has('report'))return Response.json(report);
   throw Error('Unexpected fixture request '+path);
  };
- const element=()=>React.createElement(SharedVisitRead,{actor:reviewer,role:'manager',visit:entry,fetcher,onClose(){}});
+ const element=()=>React.createElement(SharedVisitRead,{actor:viewer==='manager'?reviewer:actor,role:viewer,visit:entry,attendanceEnabled:true,fetcher,onClose(){}});
  const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
  const copy=()=>JSON.stringify(root.toJSON());
  try{
@@ -241,6 +252,15 @@ test('work-hours preview reads the current corrected version and keeps a stale r
   await act(async()=>{root=create(element());});
   await act(async()=>button('View report history').props.onClick());
   assert.equal(reads.at(-1).reportRevision,'5');assert.equal(button('Return hours').props.disabled,true);
+  const assignment=root.root.findByProps({'aria-label':'Selected visit assignment'});
+  assert.deepEqual(assignment.findAllByType('time').map(time=>time.props.dateTime),[entry.start,entry.end]);
+  const attendance=root.root.findByProps({'aria-label':'Visit attendance'});
+  const clocks=attendance.findAllByType('dt').map((term,i)=>[term.props.children,attendance.findAllByType('dd')[i].props.children]);
+  assert.match(clocks[0][1],/10:11 Vancouver/);
+  assert.deepEqual(clocks[1],['Recorded check-out · Vancouver','Not recorded']);
+  assert.match(copy(),/Reported elapsed time/);
+  assert.match(copy(),/2 h 59 min.*Not approved or payable time/);
+  assert.match(copy(),/Worked hours decision.*Pending/);
   await act(async()=>root.root.findAllByType('input')[0].props.onChange());
   assert.doesNotMatch(copy(),/Worked hours decision/);
   await act(async()=>button('View latest report').props.onClick());
@@ -262,6 +282,16 @@ test('work-hours preview reads the current corrected version and keeps a stale r
   assert.equal(writes[1].reason,'New fictional reason');
   assert.match(copy(),/Hours return recorded/);
   assert.match(copy(),/No independent review recorded for this version/);
+  await act(async()=>root.unmount());root=null;
+  viewer='staff';
+  await act(async()=>{root=create(element());});
+  await act(async()=>button('View report history').props.onClick());
+  assert.match(copy(),/Worked hours decision.*Returned/);
+  assert.equal(button('Approve hours'),undefined);
+  assert.equal(button('Return hours'),undefined);
+  assert.equal(root.root.findAllByType('textarea').length,0);
+  assert.equal(writes.length,2);
+  assert.deepEqual([...new Set(attendanceReads)],['manager','staff']);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=globals.window;globalThis.document=globals.document;}
 });
 
