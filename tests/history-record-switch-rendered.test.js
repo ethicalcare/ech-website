@@ -25,3 +25,30 @@ test('record history stays loading until confirmed and rejects old initial and p
   await act(async()=>root.update(React.createElement(RecordEditor,{...props,record:record('D')})));await flush();await act(async()=>pending[4].reject(new Error('unavailable')));assert(text().includes('Saved history could not be verified'));assert(!text().includes('No activity returned'));assert(!text().includes('Checking saved activity history'));
  }finally{if(root)await act(async()=>root.unmount());globalThis.requestAnimationFrame=old.raf;globalThis.cancelAnimationFrame=old.caf;}
 });
+
+test('a later failed inquiry reload clears stale saved-state review and preserves the exact retained operation',async()=>{
+ const old={raf:globalThis.requestAnimationFrame,caf:globalThis.cancelAnimationFrame};
+ globalThis.requestAnimationFrame=()=>1;globalThis.cancelAnimationFrame=()=>{};
+ const record={id:'fictional-inquiry',revision:3,name:'Fictional inquiry',ownerId:'viewer',updatedAt:'2026-11-01T12:00:00Z'};
+ const pending={schema:1,operationId:'fictional-retained-operation',expectedRevision:3,command:{type:'update',id:record.id,fields:{name:'Fictional retained draft'}}};
+ const drafts=new Map([['viewer:inquiry:'+record.id,{fields:{name:'Fictional retained draft'},pending,uncertain:true}]]);
+ const session={authenticated:true,principal:{id:'viewer'},capabilities:['leads.update_all']};
+ let reloads=0,root;
+ try{
+  await act(async()=>{root=create(React.createElement(RecordEditor,{kind:'inquiry',record,createId:record.id,session,
+   assignees:[],partners:[],drafts,repository:{},onReload:async()=>{if(++reloads===2)throw Error('Fictional unavailable');return record;},onClose(){},onSaved(){}}));});
+  const button=label=>root.root.findAllByType('button').find(n=>n.props.children===label);
+  const render=()=>JSON.stringify(root.toJSON());
+  await act(async()=>button('Reload saved record; keep draft').props.onClick());
+  assert.match(render(),/Current server record loaded/);
+  assert.equal(button('Retry the same reviewed operation').props.disabled,false);
+  await act(async()=>button('Reload saved record; keep draft').props.onClick());
+  assert.match(render(),/Saved state could not be checked/);
+  assert.doesNotMatch(render(),/Current server record loaded|Review current saved values against your draft/);
+  assert.equal(button('Retry the same reviewed operation').props.disabled,true);
+  assert.deepEqual(drafts.get('viewer:inquiry:'+record.id).pending,pending);
+  await act(async()=>button('Reload saved record; keep draft').props.onClick());
+  assert.equal(button('Retry the same reviewed operation').props.disabled,false);
+  assert.doesNotMatch(render(),/Saved state could not be checked/);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.requestAnimationFrame=old.raf;globalThis.cancelAnimationFrame=old.caf;}
+});
