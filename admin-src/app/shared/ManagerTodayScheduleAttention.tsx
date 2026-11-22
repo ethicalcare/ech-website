@@ -12,6 +12,24 @@ export function ManagerTodayScheduleAttention({actor,fetcher,onOpenSchedule}:{
  const [loaded,setLoaded]=useState<{request:typeof request;fetcher:typeof fetch;result:Result}|null>(null);
  const result=loaded?.request===request&&loaded.fetcher===fetcher?loaded.result:undefined;
  useEffect(()=>{
+  // Only a Vancouver date change starts a new read; focus also catches a suspended tab.
+  if(typeof window==='undefined'||typeof document==='undefined')return;
+  const checkDay=()=>{
+   if(document.visibilityState!=='visible')return;
+   const day=companyDate();
+   setRequest(previous=>previous.day===day?previous:{day});
+  };
+  checkDay();
+  const timer=window.setInterval(checkDay,60_000);
+  window.addEventListener('focus',checkDay);
+  document.addEventListener('visibilitychange',checkDay);
+  return()=>{
+   window.clearInterval(timer);
+   window.removeEventListener('focus',checkDay);
+   document.removeEventListener('visibilitychange',checkDay);
+  };
+ },[]);
+ useEffect(()=>{
   const controller=new AbortController(),signal=controller.signal;
   const publish=(result:Result)=>{if(!signal.aborted)setLoaded({request,fetcher,result});};
   void Promise.resolve().then(()=>createScheduleClient(fetcher,'manager',actor)
