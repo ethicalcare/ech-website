@@ -96,3 +96,33 @@ test('one rate identity cannot change its effective dates between entries, but d
   b.effectiveRates[0].rateRevision=2;
   assert.deepEqual(preflight([a,b]).rows.map(row=>row.reasons),[[],[]]);
 });
+
+test('a fractional-cent hold does not hide conflicting validated rate evidence',()=>{
+  const held=entry(1,8,9), valid=entry(2,10,11);
+  held.currentReport.actualEnd=held.approvedWork.actualEnd='2026-01-08T09:01:00.000Z';
+  held.approvedWork.approvedMinutes=61;
+  held.effectiveRates[0].hourlyRateCents=2900;
+  assert.deepEqual(preflight([held,valid]).rows.map(row=>row.reasons),[
+    ['fractional_cent','inconsistent_rate_revision'],['inconsistent_rate_revision'],
+  ]);
+});
+
+test('invalid rate records cannot create a conflict against valid evidence',()=>{
+  const invalid=entry(1,8,9), valid=entry(2,10,11);
+  invalid.effectiveRates[0].currency='USD';
+  invalid.effectiveRates[0].hourlyRateCents=2900;
+  assert.deepEqual(preflight([invalid,valid]).rows.map(row=>row.reasons),[
+    ['rate_unverified'],[],
+  ]);
+});
+
+test('conflicting future rate metadata in a full schedule is not hidden by another selected rate',()=>{
+  const early=entry(1,8,9), late=entry(2,10,11);
+  const laterRate={...early.effectiveRates[0],rateId:id(901),startsAt:instant(9),hourlyRateCents:3000};
+  early.effectiveRates[0].endsAt=instant(9);
+  early.effectiveRates.push(laterRate);
+  late.effectiveRates=[{...early.effectiveRates[0]}, {...laterRate,hourlyRateCents:3200}];
+  assert.deepEqual(preflight([early,late]).rows.map(row=>row.reasons),[
+    ['inconsistent_rate_revision'],['inconsistent_rate_revision'],
+  ]);
+});
