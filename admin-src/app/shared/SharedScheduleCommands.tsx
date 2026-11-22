@@ -29,7 +29,18 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
   const leaveChange=useRef(onLeaveStateChange);leaveChange.current=onLeaveStateChange;
   const stale=useRef(onStale);stale.current=onStale;
   const membership=useRef<number|null>(null);
+  const previousWorker=useRef(visit.workerId??'');
   useLayoutEffect(()=>{leaveChange.current({dirty,pending:!!pending&&!rejected,retained:!!pending});},[pending,dirty,rejected]);
+  // Follow a changed assignment only when the worker selection was unedited.
+  // Preserve separately edited assignment choices and all action reasons.
+  useLayoutEffect(()=>{
+    const currentWorker=visit.workerId??'', priorWorker=previousWorker.current;
+    previousWorker.current=currentWorker;
+    if(currentWorker!==priorWorker && draft.workerId===priorWorker){
+      const next={...draft,workerId:currentWorker};setDraft(next);setDirty(hasDraft(next,visit));
+    }
+    if(role!=='staff' && mode==='unassign' && !visit.workerId)setMode('reschedule');
+  },[visit.workerId]);
   useLayoutEffect(()=>{
     const current=++generation.current;controller.current?.abort();mutationOwner.current=null;setBusy(false);setAccess(null);setAccessFailed(false);
     if(!active)return;
@@ -105,11 +116,13 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
       ...(mode==='assign'?{workerId:visit.workerId??''}:{}),
       ...(mode==='reschedule'?{start:reportLocalTime(visit.start),end:reportLocalTime(visit.end)}:{})};
     setDraft(next);setDirty(hasDraft(next,visit));setError(false);
+    if(mode==='unassign'&&!visit.workerId)setMode('reschedule');
     setMessage('Unsubmitted edits for this action were discarded. Other action drafts are unchanged. No shared visit was changed.');
   }
   function submit(event:FormEvent) {
     // Synchronous ownership fences repeat events before disabled state renders.
     event.preventDefault();if(!active || mutationOwner.current || !access || pending || busy)return;
+    if(mode==='unassign' && !visit.workerId){setError(true);setMessage('There is no current assignment to remove. You can discard this retained draft. No request was sent.');return;}
     if(mode==='confirm' && role!=='staff'){setMode('reschedule');setError(true);setMessage('This manager view waits for the assigned worker to confirm. No confirmation request was sent.');return;}
     let command:SchedulingCommand;
     try {
@@ -149,7 +162,7 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
         <legend>{manager?'Change this visit':'Confirm your assigned visit'}</legend>
         {manager && <><label htmlFor={`${id}-action`}>Action</label><select id={`${id}-action`} value={mode} onChange={event=>setMode(event.target.value as SchedulingCommand['type'])}>
           <option value="reschedule">Reschedule</option><option value="assign">Assign or reassign staff</option>
-          {visit.workerId && <option value="unassign">Remove assignment</option>}<option value="cancel">Cancel visit</option>
+          {(visit.workerId || draft.reasons.unassign.length>0 || mode==='unassign') && <option value="unassign">{visit.workerId?'Remove assignment':'Remove assignment (retained draft only)'}</option>}<option value="cancel">Cancel visit</option>
 
         </select></>}
         {mode==='assign' && <><label htmlFor={`${id}-worker`}>Staff member</label><select id={`${id}-worker`} required value={draft.workerId} onChange={event=>setDraft(old=>({...old,workerId:event.target.value}))}>
@@ -161,7 +174,8 @@ export function SharedScheduleCommands({visit,active,role,staff,client,onConfirm
         {mode==='confirm'?<p>Confirming means you acknowledge this assignment. Only the currently assigned worker can confirm. This records no attendance or worked time.</p>
           :<><label htmlFor={`${id}-reason`}>Operational reason</label><textarea id={`${id}-reason`} required minLength={3} maxLength={500} value={draft.reasons[mode]} onChange={event=>setDraft(old=>({...old,reasons:{...old.reasons,[mode]:event.target.value}}))}/></>}
         {mode==='cancel' && <p>This cancels the visit and preserves its history.</p>}
-        <button type="submit">{mode==='confirm'?'Confirm assignment':'Save schedule change'}</button>
+        {mode==='unassign' && !visit.workerId && <p>There is no current assignment to remove. Review or discard this retained draft.</p>}
+        <button type="submit" disabled={mode==='unassign'&&!visit.workerId}>{mode==='confirm'?'Confirm assignment':'Save schedule change'}</button>
         {manager&&<button type="button" onClick={discardActionDraft}>Discard this action's draft</button>}
         {manager&&<p>Discard clears only this action’s unsubmitted edits. It does not cancel a visit, undo a saved change or discard an unresolved request.</p>}
       </fieldset></form>}
