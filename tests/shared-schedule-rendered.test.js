@@ -1,4 +1,5 @@
 import {fixtureVisitStart} from './calendar-fixture-time.js';
+import {reportUtcTime} from '../admin-src/app/shared/visit-time.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
@@ -148,8 +149,9 @@ test('Admin Today shows only verified manager schedule attention totals and disc
   await mount();assert.equal(reads.length,1);
   const req=reads[0];assert.equal(req.options.headers['X-ECH-Schedule-Actor'],ids[0]);assert.equal(req.options.headers['X-ECH-Schedule-Role'],'manager');
   const q=new URL(req.url,location).searchParams;assert.deepEqual([...q.keys()],['from','to']);
-  const start=new Date(q.get('from')),finish=new Date(q.get('to')),vancouver=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',dateStyle:'short',timeStyle:'short',hourCycle:'h23'});
-  assert.match(vancouver.format(start),/00:00/u);assert.match(vancouver.format(finish),/00:00/u);assert.notEqual(vancouver.format(start),vancouver.format(finish));
+  const day=markup().match(/\b(\d{4}-\d{2}-\d{2})\s*·\s*Vancouver calendar day/u)?.[1];assert.ok(day,'rendered Vancouver day');
+  const next=new Date(Date.parse(day+'T00:00:00.000Z')+86400000).toISOString().slice(0,10);
+  assert.deepEqual({from:q.get('from'),to:q.get('to')},{from:reportUtcTime(day+'T00:00'),to:reportUtcTime(next+'T00:00')});
   assert.match(markup(),/Checking the shared schedule/u);
   await resolve(req,['Open','Assigned','Confirmed','Completed','Cancelled']);
   assert.deepEqual(card().findAllByType('dd').map(n=>n.props.children),[1,1]);

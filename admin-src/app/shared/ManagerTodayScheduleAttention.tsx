@@ -1,14 +1,16 @@
 import {useEffect,useState} from 'react';
 import {focusedCalendarWindow} from './schedule-calendar';
 import {createScheduleClient} from './schedule-client';
-import {companyDate} from './time';
+import {scheduleDay} from './schedule-window';
+
+const today = () => scheduleDay(new Date().toISOString());
 
 type Result={kind:'unavailable'}|{kind:'verified';open:number;waiting:number};
 
 export function ManagerTodayScheduleAttention({actor,fetcher,onOpenSchedule}:{
  actor:string;fetcher:typeof fetch;onOpenSchedule:()=>void;
 }){
- const [request,setRequest]=useState(()=>({day:companyDate()}));
+ const [request,setRequest]=useState(()=>({day:today()}));
  const [loaded,setLoaded]=useState<{request:typeof request;fetcher:typeof fetch;result:Result}|null>(null);
  const result=loaded?.request===request&&loaded.fetcher===fetcher?loaded.result:undefined;
  useEffect(()=>{
@@ -16,7 +18,7 @@ export function ManagerTodayScheduleAttention({actor,fetcher,onOpenSchedule}:{
   if(typeof window==='undefined'||typeof document==='undefined')return;
   const checkDay=()=>{
    if(document.visibilityState!=='visible')return;
-   const day=companyDate();
+   const day=today();
    setRequest(previous=>previous.day===day?previous:{day});
   };
   checkDay();
@@ -52,7 +54,7 @@ export function ManagerTodayScheduleAttention({actor,fetcher,onOpenSchedule}:{
   {result?.kind==='verified'&&(result.open||result.waiting
    ?<dl><dt>Open / unassigned</dt><dd>{result.open}</dd><dt>Waiting for worker confirmation</dt><dd>{result.waiting}</dd></dl>
    :<p>No visits are unassigned or awaiting worker confirmation.</p>)}
-  <button type="button" disabled={!result} onClick={()=>setRequest({day:companyDate()})}>Refresh today’s schedule</button>
+  <button type="button" disabled={!result} onClick={()=>setRequest({day:today()})}>Refresh today’s schedule</button>
   <button type="button" onClick={onOpenSchedule}>Open shared schedule</button>
  </section>;
 }
