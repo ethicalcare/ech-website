@@ -256,7 +256,7 @@ test('selected visit keeps scheduled, reported and recorded time separate from e
   assert.deepEqual(assignment.findAllByType('time').map(time=>time.props.dateTime),[entry.start,entry.end]);
   const attendance=root.root.findByProps({'aria-label':'Visit attendance'});
   const clocks=attendance.findAllByType('dt').map((term,i)=>[term.props.children,attendance.findAllByType('dd')[i].props.children]);
-  assert.match(clocks[0][1],/10:11 Vancouver/);
+  assert.match(clocks[0][1],/10:11:00\.000 Vancouver/);
   assert.deepEqual(clocks[1],['Recorded check-out · Vancouver','Not recorded']);
   assert.match(copy(),/Reported elapsed time/);
   assert.match(copy(),/2 h 59 min.*Not approved or payable time/);

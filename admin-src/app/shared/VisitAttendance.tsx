@@ -3,7 +3,10 @@ import {useEffect,useRef,useState} from 'react';
 import type {ScheduleVisit} from './schedule-client';
 import {readJson,requestOptions} from './session';
 import {scheduleLabel} from './schedule-window';
+import {reportLocalTime} from './visit-time';
 import {isVisitAttendance,visitAttendanceStatus} from '../../../lib/operations/visit-attendance.js';
+
+const attendanceLabel=(instant:string)=>reportLocalTime(instant).replace('T',' ')+' Vancouver ('+instant+' UTC)';
 
 type Actual={visitId:string;revision:number;observedAt:string;checkInAt:string|null;checkOutAt:string|null};
 type Action='check_in'|'check_out';
@@ -80,8 +83,8 @@ export function VisitAttendance({visit,actor,role,fetcher}:{
     {manager&&!reading&&error&&<p role="status">Attendance could not be verified. Refresh to check the latest recorded times.</p>}
     {current&&<>
     {manager&&<p>Last checked: {scheduleLabel(current.observedAt)}</p>}
-    <dl><dt>Recorded check-in · Vancouver</dt><dd>{current.checkInAt?scheduleLabel(current.checkInAt):'Not recorded'}</dd>
-    <dt>Recorded check-out · Vancouver</dt><dd>{current.checkOutAt?scheduleLabel(current.checkOutAt):'Not recorded'}</dd></dl>
+    <dl><dt>Recorded check-in · Vancouver</dt><dd>{current.checkInAt?attendanceLabel(current.checkInAt):'Not recorded'}</dd>
+    <dt>Recorded check-out · Vancouver</dt><dd>{current.checkOutAt?attendanceLabel(current.checkOutAt):'Not recorded'}</dd></dl>
     {role!=='staff' && current.checkInAt && Date.parse(current.checkInAt)>Date.parse(visit.start) && <p>Check-in was recorded after the scheduled start.</p>}
     {role!=='staff' && status==='scheduled_start_passed_without_check_in' && <p>Follow up: scheduled start passed without a recorded check-in.</p>}
     {role!=='staff' && status==='scheduled_end_passed_without_check_in' && <p>Follow up: scheduled visit ended without a recorded check-in.</p>}

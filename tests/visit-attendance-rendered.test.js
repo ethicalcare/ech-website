@@ -39,7 +39,7 @@ test('assigned staff records arrival and departure, manager sees recorded times 
    await act(async()=>buttons()[0].props.onClick());assert.equal(buttons()[0].props.children,'Check out');
    await act(async()=>buttons()[0].props.onClick());assert.equal(buttons().length,0);
    role='manager';await act(async()=>root.update(view()));
-   assert.match(text(),/11:05 Vancouver/u);assert.match(text(),/recorded after the scheduled start/u);assert.deepEqual(buttons().map(button=>button.props.children),['Refresh attendance']);
+   assert.match(text(),/11:05:00\.000 Vancouver/u);assert.match(text(),/recorded after the scheduled start/u);assert.deepEqual(buttons().map(button=>button.props.children),['Refresh attendance']);
    data.checkInAt=null;data.checkOutAt=null;
    await act(async()=>root.unmount());await act(async()=>{root=create(view());});
    assert.match(text(),/scheduled visit ended without a recorded check-in/u);
@@ -73,7 +73,7 @@ test('manager refreshes recorded attendance on the same panel without writing',a
   assert.match(rendered(),/Updating attendance/u);assert.doesNotMatch(rendered(),/09:58 Vancouver|Not recorded/u);
   await act(async()=>releaseRefresh());
   assert.equal(refresh(),button);assert.equal(button.props['aria-disabled'],false);
-  assert.match(rendered(),/10:07 Vancouver/u);assert.match(rendered(),/10:05 Vancouver/u);
+  assert.match(rendered(),/10:07 Vancouver/u);assert.match(rendered(),/10:05:00\.000 Vancouver/u);
   assert.match(rendered(),/recorded after the scheduled start/u);assert.equal(reads.length,2);
  }finally{await act(async()=>root?.unmount());delete globalThis.IS_REACT_ACT_ENVIRONMENT;}
 });
@@ -108,5 +108,29 @@ test('an unavailable first attendance read remains visible and cannot be mistake
    assert.equal(reads.length,2);
    await act(async()=>root.unmount());root=undefined;
   }
+ }finally{await act(async()=>root?.unmount());delete globalThis.IS_REACT_ACT_ENVIRONMENT;}
+});
+
+
+test('attendance displays distinct recorded instants within the same minute',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;let root;
+ const visit={id:'20000000-0000-4000-8000-000000000001',revision:3,workerId:'worker',start:'2026-11-18T17:00:00.000Z',end:'2026-11-18T18:00:00.000Z',status:'Completed'};
+ const actual={visitId:visit.id,revision:3,observedAt:'2026-11-18T18:10:00.000Z',checkInAt:'2026-11-18T17:10:01.123Z',checkOutAt:'2026-11-18T17:10:59.456Z'};
+ try{
+  await act(async()=>{root=create(React.createElement(VisitAttendance,{visit,actor:'fictional',role:'manager',fetcher:async()=>Response.json(actual)}));});
+  const fields=root.root.findAllByType('dd').map(node=>node.children.join(''));
+  assert.deepEqual(fields,['2026-11-18 10:10:01.123 Vancouver (2026-11-18T17:10:01.123Z UTC)','2026-11-18 10:10:59.456 Vancouver (2026-11-18T17:10:59.456Z UTC)']);
+ }finally{await act(async()=>root?.unmount());delete globalThis.IS_REACT_ACT_ENVIRONMENT;}
+});
+
+
+test('fall-back attendance instants include unambiguous UTC times',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;let root;
+ const visit={id:'20000000-0000-4000-8000-000000000001',revision:3,workerId:'worker',start:'2025-11-02T07:00:00.000Z',end:'2025-11-02T11:00:00.000Z',status:'Completed'};
+ const actual={visitId:visit.id,revision:3,observedAt:'2025-11-02T11:00:00.000Z',checkInAt:'2025-11-02T08:30:00.000Z',checkOutAt:'2025-11-02T09:30:00.000Z'};
+ try{
+  await act(async()=>{root=create(React.createElement(VisitAttendance,{visit,actor:'fictional',role:'manager',fetcher:async()=>Response.json(actual)}));});
+  const fields=root.root.findAllByType('dd').map(node=>node.children.join(''));
+  assert.deepEqual(fields,['2025-11-02 01:30:00.000 Vancouver (2025-11-02T08:30:00.000Z UTC)','2025-11-02 01:30:00.000 Vancouver (2025-11-02T09:30:00.000Z UTC)']);
  }finally{await act(async()=>root?.unmount());delete globalThis.IS_REACT_ACT_ENVIRONMENT;}
 });
