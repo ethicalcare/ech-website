@@ -74,3 +74,25 @@ test('an inconsistent explicit quantity cannot invalidate a neighboring valid in
   assert.deepEqual(preflight([entry(1,8,9),uncertain]).rows.map(row=>row.reasons),
     [[],['approved_quantity_mismatch']]);
 });
+
+test('contradictory selected versions of the same staff rate hold all references using it',()=>{
+  const a=entry(1,8,9), b=entry(2,9,10), c=entry(3,10,11), other=entry(4,8,9,id(501));
+  b.effectiveRates[0].hourlyRateCents=2950;
+  other.effectiveRates[0].hourlyRateCents=3800;
+  const result=preflight([a,b,c,other]);
+  assert.deepEqual(result.rows.map(row=>row.reasons),[
+    ['inconsistent_rate_revision'],['inconsistent_rate_revision'],['inconsistent_rate_revision'],[],
+  ]);
+  assert.doesNotMatch(JSON.stringify(result),/2800|2950|3800/);
+});
+
+test('one rate identity cannot change its effective dates between entries, but distinct revisions can',()=>{
+  const a=entry(1,8,9), b=entry(2,9,10);
+  a.effectiveRates[0].endsAt=instant(9);
+  b.effectiveRates[0].startsAt=instant(9);
+  assert.deepEqual(preflight([a,b]).rows.map(row=>row.reasons),[
+    ['inconsistent_rate_revision'],['inconsistent_rate_revision'],
+  ]);
+  b.effectiveRates[0].rateRevision=2;
+  assert.deepEqual(preflight([a,b]).rows.map(row=>row.reasons),[[],[]]);
+});
