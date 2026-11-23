@@ -139,14 +139,20 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
   const [scheduleHeld, setScheduleHeld] = useState(false);
   const [staffLocation, setStaffLocation] = useState<'home'|'schedule'>('home');
   const staffScheduleFocus = useRef(false);
+  const staffHomeFocus = useRef(false);
+  useEffect(()=>{if(staffHomeFocus.current && activeView==='daily' && session?.authenticated){staffHomeFocus.current=false;accountsHeading.current?.focus();}},[activeView,session]);
   useEffect(()=>{if(staffScheduleFocus.current && activeView==='daily' && sharedSchedule){staffScheduleFocus.current=false;document.querySelector<HTMLElement>('[aria-label="Shared schedule"] h2')?.focus();}},[activeView,sharedSchedule]);
   function mobileSafeToLeave() {
     if (scheduleHeld || selected || creating || addingPartner) { setError('Finish or close the current editor or visit before navigating. Pending and retained work must be resolved in place.'); return false; }
     return true;
   }
   function mobileChangeView(next: DashboardView, section?: OperationsSection) {
-    if (!mobileSafeToLeave()) return;
-    setStaffLocation('home'); pendingQuickInquiry.current = null; changeView(next, section);
+    if (!mobileSafeToLeave()) return false;
+    setStaffLocation('home'); pendingQuickInquiry.current = null; changeView(next, section); return true;
+  }
+  function mobileAccountNavigate(next: DashboardView, button: HTMLButtonElement) {
+    if (!mobileChangeView(next)) return;
+    const menu = button.closest('details'); menu?.removeAttribute('open'); menu?.querySelector<HTMLElement>('summary')?.focus();
   }
   function mobileAccounts() {
     if (!mobileSafeToLeave()) return;
@@ -187,7 +193,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
      </span>}
     </button>}
     <button className="theme-toggle" aria-label={`Switch to ${dark ? 'light' : 'dark'} theme`} type="button" onClick={toggleTheme}><Icon name={dark ? 'sun' : 'moon'} />{dark ? 'Light' : 'Dark'}</button>
-    {session?.authenticated && <details className="account-menu"><summary aria-label="My account"><span className="account-avatar" aria-hidden="true">{session.principal.email.slice(0,1).toUpperCase()}</span><span className="account-identity"><strong>My account</strong><small>{session.principal.email}</small></span><span aria-hidden="true">⌃</span></summary><div className="account-actions"><p>Signed in as <strong>{session.principal.email}</strong></p><p className="account-save-note">{staffOnly?'Use Today to check your assigned care visits.':navigation.view === 'operations' && !accountsOpen ? sharedSchedule ? scheduleCapabilityCopy(session.principal.operationalRole,operationsFeatures(session)) : 'Fictional Operations changes save on this device for this account only.' : 'Inquiries, referral partners and account changes save to the shared ECH system.'}</p>{staffOnly&&<button type="button" onClick={event=>{event.currentTarget.closest('details')?.removeAttribute('open');changeView('staff-profiles');}}>My Staff Profile</button>}<button type="button" disabled={checking} onClick={() => refresh()}>{staffOnly?'Refresh account':'Refresh account and records'}</button><button type="button" disabled={checking} onClick={logout}>Sign out</button>{!operating && !staffOnly && <p>This account has no operational record access.</p>}</div></details>}</div></header>
+    {session?.authenticated && <details className={`account-menu${session.principal.operationalRole==='staff'&&!staffOnly?' account-menu--staff-admin':''}`}><summary aria-label="My account"><span className="account-avatar" aria-hidden="true">{session.principal.email.slice(0,1).toUpperCase()}</span><span className="account-identity"><strong>My account</strong><small>{session.principal.email}</small></span><span aria-hidden="true">⌃</span></summary><div className="account-actions"><p>Signed in as <strong>{session.principal.email}</strong></p><p className="account-save-note">{staffOnly?'Use Today to check your assigned care visits.':navigation.view === 'operations' && !accountsOpen ? sharedSchedule ? scheduleCapabilityCopy(session.principal.operationalRole,operationsFeatures(session)) : 'Fictional Operations changes save on this device for this account only.' : 'Inquiries, referral partners and account changes save to the shared ECH system.'}</p>{session.principal.operationalRole==='staff'&&staffProfilesLabel&&<button type="button" onClick={event=>mobileAccountNavigate('staff-profiles',event.currentTarget)}>{staffProfilesLabel}</button>}{session.principal.operationalRole==='staff'&&!staffOnly&&<div className="admin-staff-mobile-links" aria-label="Workspace destinations">{([['leads','Care Inquiries'],['partners','Referral Partners'],['followups','Follow-ups'],['operations','Operations'],['overview','Overview'],['assessments','Assessments']] as [DashboardView,string][]).map(([next,label])=><button key={next} type="button" onClick={event=>mobileAccountNavigate(next,event.currentTarget)}>{label}</button>)}</div>}<button type="button" disabled={checking} onClick={() => refresh()}>{staffOnly?'Refresh account':'Refresh account and records'}</button><button type="button" disabled={checking} onClick={logout}>Sign out</button>{!operating && !staffOnly && <p>This account has no operational record access.</p>}</div></details>}</div></header>
     {session?.authenticated && operating && (accountsOpen || navigation.view !== 'operations') && <p className="named-live-notice">Shared ECH workspace. Inquiries, referral partners and account changes use the existing live system. Operations identifies whether its records are shared or fictional.</p>}
     {error && <p role="alert" className="field-error">{error}</p>}{notice && operating && <p role="status">{notice}</p>}{checking && <p role="status">Checking current server access…</p>}
     {!session && !checking && <section className="panel dashboard-card"><p>Account access could not be verified.</p><button type="button" onClick={() => refresh()}>Reload account status</button></section>}
@@ -196,7 +202,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     {session?.authenticated && (activeView==='staff-profiles' || profileVisitedBy===session.principal.id) && (
      <div hidden={accountsOpen || activeView!=='staff-profiles'}>
       {staffProfilesLabel
-        ? <StaffProfiles key={session.principal.id+':'+manageAccounts} session={session} fetcher={fetcher} onBackToToday={staffOnly?()=>changeView('daily'):undefined}/>
+        ? <StaffProfiles key={session.principal.id+':'+manageAccounts} session={session} fetcher={fetcher} onBackToToday={staffOnly?()=>{staffHomeFocus.current=window.matchMedia('(max-width: 700px)').matches;if(staffHomeFocus.current)setStaffLocation('home');changeView('daily');}:undefined}/>
         : <section className="panel dashboard-card"><p>Staff profiles are not available for this account.</p></section>}
      </div>
     )}

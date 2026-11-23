@@ -230,7 +230,9 @@ test('assigned worker opens approved visit details from My day at phone width',
       const profile=page.getByRole('region',{name:'My Staff Profile',exact:true});
       await profile.getByText('Fictional worker',{exact:true}).waitFor();
       assert.equal(await myDay.isVisible(),false);
-      await profile.getByRole('button',{name:'Back to Today',exact:true}).tap();
+      const back=profile.getByRole('button',{name:'Back to Today',exact:true});await back.focus();await back.press('Enter');
+      await page.waitForFunction(()=>document.activeElement?.matches('h1')&&document.activeElement.textContent==='Today');
+      assert.equal(await header.getByRole('heading',{name:'Today',exact:true}).evaluate(e=>e===document.activeElement),true);
       await current.waitFor();
       assert.equal(new URL(page.url()).searchParams.get('view'),'daily');
 
@@ -256,10 +258,11 @@ test('assigned worker opens approved visit details from My day at phone width',
         assert.equal(location.searchParams.has('contact'),false);
         assert.equal(await unavailablePage.getByRole('region',{name:'My day',exact:true}).count(),0);
         assert.equal(await unavailablePage.getByText('No assigned visits to work on today.',{exact:true}).count(),0);
-        await unavailablePage.getByRole('button',{name:/^Menu/}).tap();
-        const menu=unavailablePage.getByRole('dialog');
-        await menu.getByRole('button',{name:'My Staff Profile',exact:true}).waitFor();
-        assert.equal(await menu.getByRole('button',{name:/^Care Inquiries$|^Referral Partners$|^Follow-ups$|^Overview$|^Accounts$/}).count(),0);
+        await unavailablePage.locator('summary[aria-label="My account"]').tap();
+        await unavailablePage.locator('.account-actions').getByRole('button',{name:'My Staff Profile',exact:true}).waitFor();
+        const staffNav=unavailablePage.getByRole('navigation',{name:'Primary navigation'});
+        assert.equal(await staffNav.getByRole('button',{name:'Schedule'}).isDisabled(),true);
+        assert.equal(await staffNav.getByRole('button',{name:'More'}).count(),0);
       });
     });
   });
@@ -336,7 +339,8 @@ test('staff retry a lost report reply and the manager opens its dashboard review
       assert.equal(await issue.evaluate(e=>e===document.activeElement),true);
       await issue.fill(command.issue);
       const phoneNav=page.getByRole('navigation',{name:'Primary navigation'});
-      await phoneNav.getByRole('button',{name:'More'}).tap();await page.getByRole('dialog',{name:'Workspace menu'}).getByRole('button',{name:'My Staff Profile'}).tap();
+      await page.locator('summary[aria-label="My account"]').tap();const profileAction=page.locator('.account-actions').getByRole('button',{name:'My Staff Profile'});await profileAction.focus();await profileAction.press('Enter');
+      assert.equal(await profileAction.evaluate(e=>e===document.activeElement),true,'blocked profile action retains focus');
       assert.equal(await issue.inputValue(),command.issue,'dirty visit draft stays open');
       assert.equal(submissions,0,'shortcuts only focus the report fields');
       await panel.getByLabel('Outcome reported',{exact:true}).selectOption(command.outcome);
@@ -347,7 +351,7 @@ test('staff retry a lost report reply and the manager opens its dashboard review
       await panel.getByRole('button',{name:'Submit report',exact:true}).tap();
       const retry=panel.getByRole('button',{name:'Retry exact request',exact:true});
       await retry.waitFor();
-      await phoneNav.getByRole('button',{name:'More'}).tap();await page.getByRole('dialog',{name:'Workspace menu'}).getByRole('button',{name:'My Staff Profile'}).tap();
+      await profileAction.press('Enter');
       assert.equal(await retry.isVisible(),true,'retained request stays available after blocked navigation');
       assert.equal(await panel.getByRole('region',{name:'Selected visit assignment',exact:true}).getByText('Completed',{exact:true}).count(),0,'no completion before receipt and readback');
       assert.equal(posted.length,1);

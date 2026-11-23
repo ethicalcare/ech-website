@@ -16,7 +16,7 @@ test('mobile menu closes on selection, preserves current Accounts and restricts 
  const modal={open:false,showModal(){this.open=true;},close(){this.open=false;}};let focus=0,accounts=0;const routes=[];let root;
  const props={titles,view:'operations',section:'team',accountsOpen:false,sharedSchedule:false,manageAccounts:true,onNavigate:(...args)=>routes.push(args),onAccounts:()=>accounts++};
  try{
- await act(async()=>{root=create(React.createElement(MobileNavigation,props),{createNodeMock:e=>e.type==='dialog'?modal:e.type==='button'?{focus(){focus++;}}:null});});
+ await act(async()=>{root=create(React.createElement(MobileNavigation,props),{createNodeMock:e=>e.type==='dialog'?(e.props.className==='mobile-navigation-drawer'?modal:{open:false,showModal(){this.open=true;},close(){this.open=false;}}):e.type==='button'?{focus(){focus++;}}:null});});
  const button=name=>root.root.findAllByType('button').find(n=>n.props.children===name);
  const open=()=>root.root.findByProps({className:'mobile-navigation-trigger'}).props.onClick();
  await act(async()=>open());assert.equal(modal.open,true);assert.equal(document.body.style.overflow,'hidden');
@@ -33,6 +33,6 @@ test('mobile menu closes on selection, preserves current Accounts and restricts 
  await act(async()=>root.update(React.createElement(MobileNavigation,{...props,staffProfilesLabel:null,manageAccounts:false})));
  assert.equal(button('Staff Profiles'),undefined);
  await act(async()=>open());await act(async()=>window.dispatchEvent(new Event('popstate')));assert.equal(modal.open,false);
- await act(async()=>open());await act(async()=>root.root.findByType('dialog').props.onCancel());assert.equal(root.root.findByProps({className:'mobile-navigation-trigger'}).props['aria-expanded'],false);
+ await act(async()=>open());await act(async()=>root.root.findByProps({className:'mobile-navigation-drawer'}).props.onCancel());assert.equal(root.root.findByProps({className:'mobile-navigation-trigger'}).props['aria-expanded'],false);
  }finally{if(root)await act(async()=>root.unmount());globalThis.window=oldWindow;globalThis.document=oldDocument;}
 });

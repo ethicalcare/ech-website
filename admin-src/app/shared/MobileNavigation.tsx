@@ -18,6 +18,9 @@ type Props = {
 /** Native modal semantics keep the background inert and contain keyboard focus. */
 export function MobileNavigation(props: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const addDialog = useRef<HTMLDialogElement>(null);
+  const addTrigger = useRef<HTMLButtonElement>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const start = useRef<{x: number; y: number} | null>(null);
   const [open, setOpen] = useState(false);
@@ -29,10 +32,16 @@ export function MobileNavigation(props: Props) {
   function openMenu() { if (!dialog.current?.open) { dialog.current?.showModal(); setOpen(true); } }
   function navigate(view: DashboardView, section?: OperationsSection) { if (dialog.current?.open) close(); if (section) props.onNavigate(view, section); else props.onNavigate(view); }
   function createInquiry() { if (props.canCreateInquiry) props.onCreateInquiry?.(); }
+  const canAdd = !props.staffNavigation && !props.mobileBlocked && props.canCreateInquiry === true;
+  function closeAdd(restore = true) { if (addDialog.current?.open) addDialog.current.close(); setAddOpen(false); if (restore) { if (!addTrigger.current?.disabled) addTrigger.current?.focus(); else document.getElementById('workspace-content')?.focus(); } }
+  function openAdd() { if (canAdd && !addDialog.current?.open) { addDialog.current?.showModal(); setAddOpen(true); } }
+  function selectInquiry() { if (!canAdd) return; closeAdd(false); document.getElementById('workspace-content')?.focus(); createInquiry(); }
+  useEffect(() => { if (addOpen && !canAdd) closeAdd(); }, [addOpen, canAdd]);
 
   useEffect(() => {
     const wide = window.matchMedia?.('(min-width: 701px)');
     const dismiss = () => {
+      if (addDialog.current?.open) { addDialog.current.close(); setAddOpen(false); if (wide?.matches) document.getElementById('workspace-content')?.focus(); else addTrigger.current?.focus(); }
       if (!dialog.current?.open) return;
       dialog.current.close(); setOpen(false);
       if (wide?.matches) document.getElementById('workspace-content')?.focus();
@@ -54,7 +63,7 @@ export function MobileNavigation(props: Props) {
 
   return <div className={`mobile-navigation${managerMode ? ' mobile-navigation--manager' : ''}`}>
     <>
-      <nav className="mobile-tabbar" aria-label="Primary navigation">
+      <nav className={`mobile-tabbar${props.staffNavigation ? ' mobile-tabbar--staff' : ''}`} aria-label="Primary navigation">
         <button type="button" aria-current={!props.accountsOpen && props.view === 'daily' && (!props.staffNavigation || props.staffLocation!=='schedule') ? 'page' : undefined} onClick={() => navigate('daily')}>
           <Icon name="calendar-days" /><span>{props.staffNavigation ? 'Home' : 'Today'}</span>
         </button>
@@ -67,13 +76,17 @@ export function MobileNavigation(props: Props) {
         {props.staffNavigation || props.canOperate ? <button type="button" className="mobile-tab-reports" disabled aria-label="Reports, unavailable" title="A reports list is not available">
           <Icon name="clipboard-list" /><span>Reports</span><small>{props.staffNavigation ? 'Unavailable' : 'Proposed'}</small>
         </button> : <span aria-hidden="true" />}
-        <button ref={trigger} type="button" aria-current={moreCurrent ? 'page' : undefined} aria-haspopup="dialog" aria-expanded={open} aria-controls="mobile-workspace-menu" onClick={openMenu}>
+        {!props.staffNavigation && <button ref={trigger} type="button" aria-current={moreCurrent ? 'page' : undefined} aria-haspopup="dialog" aria-expanded={open} aria-controls="mobile-workspace-menu" onClick={openMenu}>
           <Icon name="more-horizontal" /><span>More</span>
-        </button>
+        </button>}
       </nav>
-      <button type="button" className="mobile-add-button" aria-label={props.staffNavigation ? 'No standalone create action available' : 'Record new inquiry'} title={props.staffNavigation ? 'Select an assigned visit to report' : 'Record new inquiry'} disabled={props.staffNavigation || props.mobileBlocked || !props.canCreateInquiry} onClick={createInquiry}>
+      <button ref={addTrigger} type="button" className="mobile-add-button" aria-label={props.staffNavigation ? 'No standalone create action available' : 'Add'} title={props.staffNavigation ? 'Select an assigned visit to report' : 'Add'} aria-haspopup="dialog" aria-expanded={addOpen} aria-controls="mobile-add-menu" disabled={!canAdd} onClick={openAdd}>
         <Icon name="plus" />
       </button>
+      <dialog ref={addDialog} id="mobile-add-menu" className="mobile-add-dialog" aria-labelledby="mobile-add-title" onClose={() => setAddOpen(false)} onCancel={event => { event.preventDefault(); closeAdd(); }} onClick={event => { if (event.target === event.currentTarget) closeAdd(); }}>
+        <header><h2 id="mobile-add-title">Add</h2><button type="button" aria-label="Close Add menu" onClick={() => closeAdd()}>×</button></header>
+        <button type="button" autoFocus disabled={!canAdd} onClick={selectInquiry}>Record New Inquiry</button>
+      </dialog>
       {managerMode && <button type="button" className="desktop-add-button" aria-label="Record new inquiry" title="Record new inquiry" disabled={!props.canCreateInquiry} onClick={createInquiry}>
         <Icon name="plus" />
       </button>}
