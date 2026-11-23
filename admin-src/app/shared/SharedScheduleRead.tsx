@@ -19,11 +19,11 @@ import {createScheduleClient,type ScheduleSnapshot} from './schedule-client';
 
 // The keyed child owns every request and all protected state. Changing account,
 // role or negotiated features destroys it rather than reusing prior rows.
-export function SharedScheduleRead({session,fetcher=fetch,active=true,todayOnly=false}:{session:Session|null;fetcher?:typeof fetch;active?:boolean;todayOnly?:boolean}){
+export function SharedScheduleRead({session,fetcher=fetch,active=true,todayOnly=false,onNavigationHold}:{session:Session|null;fetcher?:typeof fetch;active?:boolean;todayOnly?:boolean;onNavigationHold?:(held:boolean)=>void}){
  if(!session?.authenticated || !operationsFeatures(session).reads || !session.principal.operationalRole)return null;
- return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} attendanceEnabled={operationsFeatures(session).visitAttendance===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} todayOnly={todayOnly&&session.principal.operationalRole==='staff'} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} planPick={operationsFeatures(session).scheduleTaskPlanPick===true} planRecover={operationsFeatures(session).scheduleTaskPlanRecover===true} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions}/>;
+ return <ScheduleRows key={operationsFeatureScope(session)} scope={operationsFeatureScope(session)} tasksEnabled={operationsFeatures(session).taskResults===true} attendanceEnabled={operationsFeatures(session).visitAttendance===true} actor={session.principal.id} role={session.principal.operationalRole} fetcher={fetcher} active={active} todayOnly={todayOnly&&session.principal.operationalRole==='staff'} recurrenceEnabled={operationsFeatures(session).scheduleRecurrence} planPick={operationsFeatures(session).scheduleTaskPlanPick===true} planRecover={operationsFeatures(session).scheduleTaskPlanRecover===true} schedulingEnabled={operationsFeatures(session).scheduleCommands} actionsEnabled={operationsFeatures(session).visitActions} onNavigationHold={onNavigationHold}/>;
 }
-function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,active,todayOnly,schedulingEnabled,actionsEnabled,recurrenceEnabled,planPick,planRecover}:{planPick:boolean;planRecover:boolean;scope:string;tasksEnabled:boolean;attendanceEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;todayOnly:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
+function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,active,todayOnly,schedulingEnabled,actionsEnabled,recurrenceEnabled,planPick,planRecover,onNavigationHold}:{onNavigationHold?:(held:boolean)=>void;planPick:boolean;planRecover:boolean;scope:string;tasksEnabled:boolean;attendanceEnabled:boolean;actor:string;role:'owner'|'manager'|'staff';fetcher:typeof fetch;active:boolean;todayOnly:boolean;schedulingEnabled:boolean;actionsEnabled:boolean;recurrenceEnabled:boolean}){
  const visitButtons=useRef(new Map<string,HTMLButtonElement>());
  const currentVisitButton=useRef<HTMLButtonElement|null>(null);
  const [focusedShift,setFocusedShift]=useState(false);
@@ -52,6 +52,8 @@ function ScheduleRows({scope,tasksEnabled,attendanceEnabled,actor,role,fetcher,a
  },[fetcher,actor,role,planRecover,planPick]);
  const creationConfirmed=useCallback(()=>setReload(value=>value+1),[]);
  const [leave,setLeave]=useState<VisitLeaveState>({dirty:false,pending:false});
+ useLayoutEffect(()=>{onNavigationHold?.(!!(creationHeld||leave.dirty||leave.pending||leave.retained));},[onNavigationHold,creationHeld,leave.dirty,leave.pending,leave.retained]);
+ useEffect(()=>()=>onNavigationHold?.(false),[onNavigationHold]);
  const canLeave=()=>!leave.pending&&(!(leave.dirty||leave.retained)||window.confirm('Discard the unsaved visit draft and retained request?'));
  const close=()=>{if(canLeave()){setFocusedShift(false);returnToShift.current=focusedShift;returnFocus.current=origin.current;returnElement.current=focusedShift?null:attentionOrigin.current;setSelected(null);setLeave({dirty:false,pending:false});}};
  const invalidate=useCallback(()=>{setFocusedShift(false);setCreationKind(null);setCreationHeld(false);setSelected(null);setLeave({dirty:false,pending:false});setReload(value=>value+1);},[]);

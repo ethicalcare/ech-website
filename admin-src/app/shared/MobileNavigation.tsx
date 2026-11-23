@@ -8,7 +8,8 @@ import './mobile-navigation.css';
 type Props = {
   view: DashboardView; section: OperationsSection; accountsOpen: boolean;
   sharedSchedule: boolean; manageAccounts: boolean; staffProfilesLabel?: string | null; staffOnly?: boolean;
-  managerMode?: boolean; canCreateInquiry?: boolean; onCreateInquiry?: () => void;
+  managerMode?: boolean; canCreateInquiry?: boolean; mobileBlocked?: boolean; onCreateInquiry?: () => void;
+  canOperate?: boolean; onStaffSchedule?: () => void; staffNavigation?: boolean; staffScheduleAvailable?: boolean; staffLocation?: 'home'|'schedule';
   titles: Record<DashboardView, string>;
   onNavigate: (view: DashboardView, section?: OperationsSection) => void;
   onAccounts: () => void;
@@ -52,31 +53,34 @@ export function MobileNavigation(props: Props) {
     ? namedSections.find(([id]) => id === (props.sharedSchedule ? 'visits' : props.section))?.[1] : props.titles[props.view];
 
   return <div className={`mobile-navigation${managerMode ? ' mobile-navigation--manager' : ''}`}>
-    {managerMode ? <>
+    <>
       <nav className="mobile-tabbar" aria-label="Primary navigation">
-        <button type="button" aria-current={!props.accountsOpen && props.view === 'daily' ? 'page' : undefined} onClick={() => navigate('daily')}>
-          <Icon name="calendar-days" /><span>Today</span>
+        <button type="button" aria-current={!props.accountsOpen && props.view === 'daily' && (!props.staffNavigation || props.staffLocation!=='schedule') ? 'page' : undefined} onClick={() => navigate('daily')}>
+          <Icon name="calendar-days" /><span>{props.staffNavigation ? 'Home' : 'Today'}</span>
         </button>
-        <button type="button" aria-current={scheduleCurrent ? 'page' : undefined} onClick={() => navigate('operations', 'visits')}>
+        {props.staffNavigation ? <button type="button" aria-current={!props.accountsOpen && props.view==='daily' && props.staffLocation==='schedule' ? 'page' : undefined} disabled={!props.staffScheduleAvailable} onClick={props.onStaffSchedule}>
           <Icon name="clock-3" /><span>Schedule</span>
-        </button>
+        </button> : props.canOperate ? <button type="button" aria-current={scheduleCurrent ? 'page' : undefined} onClick={() => navigate('operations', 'visits')}>
+          <Icon name="clock-3" /><span>Schedule</span>
+        </button> : <span aria-hidden="true" />}
         <span className="mobile-tabbar-spacer" aria-hidden="true" />
-        <button type="button" className="mobile-tab-reports" disabled aria-label="Reports, proposed and unavailable" title="Manager Reports queue is proposed and unavailable">
-          <Icon name="clipboard-list" /><span>Reports</span><small>Proposed</small>
-        </button>
+        {props.staffNavigation || props.canOperate ? <button type="button" className="mobile-tab-reports" disabled aria-label="Reports, unavailable" title="A reports list is not available">
+          <Icon name="clipboard-list" /><span>Reports</span><small>{props.staffNavigation ? 'Unavailable' : 'Proposed'}</small>
+        </button> : <span aria-hidden="true" />}
         <button ref={trigger} type="button" aria-current={moreCurrent ? 'page' : undefined} aria-haspopup="dialog" aria-expanded={open} aria-controls="mobile-workspace-menu" onClick={openMenu}>
           <Icon name="more-horizontal" /><span>More</span>
         </button>
       </nav>
-      <button type="button" className="mobile-add-button" aria-label="Record new inquiry" title="Record new inquiry" disabled={!props.canCreateInquiry} onClick={createInquiry}>
+      <button type="button" className="mobile-add-button" aria-label={props.staffNavigation ? 'No standalone create action available' : 'Record new inquiry'} title={props.staffNavigation ? 'Select an assigned visit to report' : 'Record new inquiry'} disabled={props.staffNavigation || props.mobileBlocked || !props.canCreateInquiry} onClick={createInquiry}>
         <Icon name="plus" />
       </button>
-      <button type="button" className="desktop-add-button" aria-label="Record new inquiry" title="Record new inquiry" disabled={!props.canCreateInquiry} onClick={createInquiry}>
+      {managerMode && <button type="button" className="desktop-add-button" aria-label="Record new inquiry" title="Record new inquiry" disabled={!props.canCreateInquiry} onClick={createInquiry}>
         <Icon name="plus" />
-      </button>
-    </> : <button ref={trigger} type="button" className="mobile-navigation-trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls="mobile-workspace-menu" onClick={openMenu}>
-      <span aria-hidden="true">☰</span><span>Menu</span><small>{current}</small>
-    </button>}
+      </button>}
+      {!managerMode && <button type="button" className="mobile-navigation-trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls="mobile-workspace-menu" onClick={openMenu}>
+        <span aria-hidden="true">☰</span><span>Menu</span><small>{current}</small>
+      </button>}
+    </>
     <dialog ref={dialog} id="mobile-workspace-menu" className="mobile-navigation-drawer" aria-labelledby="mobile-navigation-title"
       onClose={() => setOpen(false)} onCancel={() => setOpen(false)}
       onClick={event => { if (event.target === event.currentTarget) { const bounds=event.currentTarget.getBoundingClientRect(); if(event.clientX>bounds.right||event.clientX<bounds.left||event.clientY<bounds.top||event.clientY>bounds.bottom) close(); } }}

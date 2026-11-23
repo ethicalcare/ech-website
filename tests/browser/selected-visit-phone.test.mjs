@@ -335,6 +335,9 @@ test('staff retry a lost report reply and the manager opens its dashboard review
       await panel.getByRole('button',{name:'Jump to visit issue',exact:true}).tap();
       assert.equal(await issue.evaluate(e=>e===document.activeElement),true);
       await issue.fill(command.issue);
+      const phoneNav=page.getByRole('navigation',{name:'Primary navigation'});
+      await phoneNav.getByRole('button',{name:'More'}).tap();await page.getByRole('dialog',{name:'Workspace menu'}).getByRole('button',{name:'My Staff Profile'}).tap();
+      assert.equal(await issue.inputValue(),command.issue,'dirty visit draft stays open');
       assert.equal(submissions,0,'shortcuts only focus the report fields');
       await panel.getByLabel('Outcome reported',{exact:true}).selectOption(command.outcome);
       await panel.getByLabel(/^Factual summary/).fill(command.summary);
@@ -344,6 +347,8 @@ test('staff retry a lost report reply and the manager opens its dashboard review
       await panel.getByRole('button',{name:'Submit report',exact:true}).tap();
       const retry=panel.getByRole('button',{name:'Retry exact request',exact:true});
       await retry.waitFor();
+      await phoneNav.getByRole('button',{name:'More'}).tap();await page.getByRole('dialog',{name:'Workspace menu'}).getByRole('button',{name:'My Staff Profile'}).tap();
+      assert.equal(await retry.isVisible(),true,'retained request stays available after blocked navigation');
       assert.equal(await panel.getByRole('region',{name:'Selected visit assignment',exact:true}).getByText('Completed',{exact:true}).count(),0,'no completion before receipt and readback');
       assert.equal(posted.length,1);
       assert.equal(submissions,1,'fictional provider recorded one report despite losing its response');
@@ -537,6 +542,9 @@ test('saving working partner notes does not log contact or alter follow-up and o
     const working=workingForm.locator('label > textarea[data-field="notes"]');
     assert.equal(await working.inputValue(),initial.notes);
     await working.fill(notes);
+    await page.getByRole('navigation',{name:'Primary navigation'}).getByRole('button',{name:'Today'}).tap();
+    assert.equal(await working.inputValue(),notes,'existing partner draft stays open on mobile navigation');
+    assert.equal(updates,0,'navigation did not save');
     await workingForm.getByRole('button',{name:'Save description and notes',exact:true}).tap();
     await recordEditor.getByText('Saved and confirmed by the server.',{exact:true}).waitFor();
     assert.equal(updates,1);

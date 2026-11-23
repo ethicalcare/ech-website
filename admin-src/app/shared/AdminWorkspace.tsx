@@ -49,6 +49,8 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
   const operationsSection = navigation.section;
   const sharedSchedule = operationsFeatures(session).reads;
   const [visitedOperations,setVisitedOperations]=useState(navigation.view==='operations');
+  const [profileVisitedBy,setProfileVisitedBy]=useState('');
+  useEffect(()=>{if(session?.authenticated && activeView==='staff-profiles')setProfileVisitedBy(session.principal.id);},[session,activeView]);
   useEffect(()=>{if(navigation.view==='operations')setVisitedOperations(true);},[navigation.view]);
   const accountsHeading = useRef<HTMLHeadingElement>(null);
   const accountsToggle = useRef<HTMLButtonElement>(null);
@@ -134,12 +136,20 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
   }, [navigation.contact, navigation.view, operating, actor]);
   useEffect(() => { if (selected?.id) { const frame=requestAnimationFrame(()=>window.scrollTo(0,0)); return()=>cancelAnimationFrame(frame); } }, [selected?.id]);
   function changeView(next: DashboardView, section?: OperationsSection) { if(staffOnly&&next!=='daily'&&next!=='staff-profiles')return; setShowAccounts(false); setSelected(undefined); setCreating(undefined); setAddingPartner(false); if (section) navigation.setOperationsSection(section); else navigation.setView(next); }
+  const [scheduleHeld, setScheduleHeld] = useState(false);
+  const [staffLocation, setStaffLocation] = useState<'home'|'schedule'>('home');
+  const staffScheduleFocus = useRef(false);
+  useEffect(()=>{if(staffScheduleFocus.current && activeView==='daily' && sharedSchedule){staffScheduleFocus.current=false;document.querySelector<HTMLElement>('[aria-label="Shared schedule"] h2')?.focus();}},[activeView,sharedSchedule]);
+  function mobileSafeToLeave() {
+    if (scheduleHeld || selected || creating || addingPartner) { setError('Finish or close the current editor or visit before navigating. Pending and retained work must be resolved in place.'); return false; }
+    return true;
+  }
   function mobileChangeView(next: DashboardView, section?: OperationsSection) {
-    if (creating && !window.confirm('Leave this new inquiry? Unsaved changes will not be accessible from the navigation.')) return;
-    pendingQuickInquiry.current = null; changeView(next, section);
+    if (!mobileSafeToLeave()) return;
+    setStaffLocation('home'); pendingQuickInquiry.current = null; changeView(next, section);
   }
   function mobileAccounts() {
-    if (creating && !window.confirm('Leave this new inquiry? Unsaved changes will not be accessible from the navigation.')) return;
+    if (!mobileSafeToLeave()) return;
     pendingQuickInquiry.current = null; toggleAccounts();
   }
   function closeRecord() { setSelected(undefined); setCreating(undefined); navigation.closeContact(); }
@@ -148,7 +158,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
   useEffect(()=>{document.title=pageTitle;},[pageTitle]);
   const recordView = ['daily','leads','partners','followups'].includes(navigation.view);
   const details = Boolean(navigation.contact || creating);
-  return <div className={`app-shell shared-admin named-shell${session?.authenticated && session.principal.operationalRole === 'manager' ? ' manager-navigation' : ''}${session?.authenticated ? '' : ' signed-out'}`} data-theme={dark ? 'dark' : 'light'}>
+  return <div className={`app-shell shared-admin named-shell${session?.authenticated ? ' manager-navigation' : ''}${session?.authenticated ? '' : ' signed-out'}`} data-theme={dark ? 'dark' : 'light'}>
    {session?.authenticated && <a className="skip-link" href="#workspace-content">Skip to workspace</a>}
    {session?.authenticated && <aside className="sidebar">
     <button className="brand" type="button" onClick={() => changeView(staffOnly?'daily':'overview')}><img className="ech-brand-logo" src={echLogo} alt="Ethical Care at Home" /><span className="brand-workspace">Team workspace</span></button>
@@ -163,7 +173,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
         onClick={()=>changeView('staff-profiles')}><Icon name="users"/>{staffProfilesLabel}</button>}
       {manageAccounts && <button type="button" className={`nav-item ${accountsOpen ? 'active' : ''}`} aria-current={accountsOpen ? 'page' : undefined} onClick={toggleAccounts}><Icon name="users"/>Accounts</button>}
     </div>}</>}</nav>
-    <MobileNavigation view={activeView} staffOnly={staffOnly} section={operationsSection} accountsOpen={accountsOpen} sharedSchedule={sharedSchedule} manageAccounts={manageAccounts} staffProfilesLabel={staffProfilesLabel} titles={titles} onNavigate={mobileChangeView} onAccounts={mobileAccounts} managerMode={session.principal.operationalRole === 'manager'} canCreateInquiry={can(session,'leads.create') && !details && !addingPartner} onCreateInquiry={() => { const id = crypto.randomUUID(); if (navigation.view === 'leads' && !navigation.contact) { changeView('leads'); setCreating(id); } else { pendingQuickInquiry.current = id; changeView('leads'); } }} />
+    <MobileNavigation view={activeView} staffOnly={staffOnly} section={operationsSection} accountsOpen={accountsOpen} sharedSchedule={sharedSchedule} manageAccounts={manageAccounts} staffProfilesLabel={staffProfilesLabel} titles={titles} onNavigate={mobileChangeView} onAccounts={mobileAccounts} managerMode={session.principal.operationalRole === 'manager'} canOperate={operating} staffNavigation={session.principal.operationalRole === 'staff'} staffScheduleAvailable={staffOnly && sharedSchedule} staffLocation={staffLocation} onStaffSchedule={() => { if (!mobileSafeToLeave()) return; setStaffLocation('schedule'); if (activeView !== 'daily') { staffScheduleFocus.current=true; changeView('daily'); } else document.querySelector<HTMLElement>('[aria-label="Shared schedule"] h2')?.focus(); }} mobileBlocked={scheduleHeld} canCreateInquiry={can(session,'leads.create') && !details && !addingPartner} onCreateInquiry={() => { const id = crypto.randomUUID(); if (navigation.view === 'leads' && !navigation.contact) { changeView('leads'); setCreating(id); } else { pendingQuickInquiry.current = id; changeView('leads'); } }} />
     {!staffOnly&&<button className="quick-intake-button" type="button" disabled={!can(session,'leads.create')} onClick={() => { changeView('leads'); setCreating(crypto.randomUUID()); }}><Icon name="plus" />Record new inquiry</button>}
     <div className="sidebar-footer"><small className="workspace-safety">Contact details only. No clinical notes.</small></div>
    </aside>}
@@ -183,10 +193,12 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     {!session && !checking && <section className="panel dashboard-card"><p>Account access could not be verified.</p><button type="button" onClick={() => refresh()}>Reload account status</button></section>}
     {session?.authenticated === false && <SignIn session={session} client={client} onVerified={refresh} />}
 
-    {session?.authenticated && !accountsOpen && activeView==='staff-profiles' && (
-      staffProfilesLabel
+    {session?.authenticated && (activeView==='staff-profiles' || profileVisitedBy===session.principal.id) && (
+     <div hidden={accountsOpen || activeView!=='staff-profiles'}>
+      {staffProfilesLabel
         ? <StaffProfiles key={session.principal.id+':'+manageAccounts} session={session} fetcher={fetcher} onBackToToday={staffOnly?()=>changeView('daily'):undefined}/>
-        : <section className="panel dashboard-card"><p>Staff profiles are not available for this account.</p></section>
+        : <section className="panel dashboard-card"><p>Staff profiles are not available for this account.</p></section>}
+     </div>
     )}
     {session?.authenticated && manageAccounts && <div id="accounts-workspace" hidden={!accountsOpen}>
      <AdminTools key={actor + ':' + can(session, 'backup.export') + ':' + accessScope} session={session} accountDecisionHistoryEnabled={can(session, 'account.history')}
@@ -197,7 +209,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
       {activeView==='daily'&&<section className="day-brief" aria-label="Today at ECH">
         <div><p className="eyebrow">Your daily workspace</p><h2>Your day in focus.</h2><p>Check the care visits assigned to you today.</p></div>
       </section>}
-      {sharedSchedule?<div hidden={activeView!=='daily'}><SharedScheduleRead session={session} fetcher={fetcher} active={activeView==='daily'} todayOnly/></div>
+      {sharedSchedule?<div hidden={activeView!=='daily'}><SharedScheduleRead session={session} fetcher={fetcher} onNavigationHold={setScheduleHeld} active={activeView==='daily'} todayOnly/></div>
         :activeView==='daily'&&<section className="panel dashboard-card" aria-label="Assigned visits"><h2>Assigned visits</h2><p>Your assigned care visits aren’t available in this workspace yet.</p></section>}
     </>}
     <div hidden={accountsOpen || activeView==='staff-profiles'}>
@@ -208,7 +220,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
       <ManagerTodayScheduleAttention key={operationsFeatureScope(session)} actor={session.principal.id} fetcher={fetcher}
        onOpenSchedule={()=>changeView('operations','visits')}/>}
      {['daily','overview'].includes(navigation.view) && !details && <SharedRecordCounts inquiries={inquiries} partners={partners} moreInquiries={!!cursors.inquiry} inquiryRead={checking?'checking':inquiriesVerified?'verified':'unavailable'} onOpenInquiries={()=>changeView('leads')} morePartners={!!cursors.partner}/>}
-     <div hidden={navigation.view !== 'operations'}>{sharedSchedule ? visitedOperations && <SharedScheduleRead session={session} fetcher={fetcher} active={navigation.view === 'operations' && !accountsOpen}/> : visitedOperations && (localOperations || <NamedOperations actor={actor} section={operationsSection} onSectionChange={navigation.replaceOperationsSection} />)}</div>
+     <div hidden={navigation.view !== 'operations'}>{sharedSchedule ? visitedOperations && <SharedScheduleRead session={session} fetcher={fetcher} onNavigationHold={setScheduleHeld} active={navigation.view === 'operations' && !accountsOpen}/> : visitedOperations && (localOperations || <NamedOperations actor={actor} section={operationsSection} onSectionChange={navigation.replaceOperationsSection} />)}</div>
      {navigation.view === 'assessments' && <section className="panel dashboard-card"><h2>Assessments</h2><p>Assessment recording is disabled for this first release. Clinical information must stay in the approved care-record system.</p><button type="button" disabled>Record assessment</button></section>}
      {recordView && <>
       {(selected || creating) && view !== 'followups' && <><nav className="prospect-breadcrumb" aria-label="Contact breadcrumb"><button type="button" onClick={closeRecord}><span aria-hidden="true">←</span> {titles[navigation.view]}</button><span className="breadcrumb-context">{view === 'inquiry' ? 'Inquiry details' : 'Partner details'}</span></nav><RecordEditor key={`${actor}:${view}:${selected?.id || creating}`} kind={view} record={selected} createId={creating || selected!.id} session={session} assignees={assignees} partners={partners} partnerRepository={partnerRepository} onPartnerSaved={row => { if (verified.current?.authenticated && verified.current.principal.id===actor && mayRead(verified.current,row)) setPartners(rows => [row,...rows.filter(item => item.id!==row.id)]); }} onCreatePartner={createPartner} repository={view === 'inquiry' ? inquiryRepository : partnerRepository} drafts={drafts} onSaved={record => saved(record, view, actor)} onClose={closeRecord} onReload={async () => { const record=await (view === 'inquiry' ? inquiryRepository : partnerRepository).detail(selected?.id || creating!); if(record)setSelected(record);return record || undefined; }} /></>}
