@@ -1,5 +1,21 @@
 .shared-admin.named-shell .mobile-navigation{display:none;}
+.shared-admin.named-shell .mobile-navigation--manager{display:block;}
+.mobile-tabbar,.mobile-add-button{display:none;}
+@media(min-width:701px){.shared-admin.named-shell .sidebar .mobile-tabbar{display:none;}}
+.desktop-add-button,.mobile-add-button{place-items:center;width:56px;height:56px;border:2px solid var(--surface);border-radius:50%;background:#74d6d1;color:#173f3b;box-shadow:0 4px 16px #173f3b40;cursor:pointer;z-index:61;}
+.desktop-add-button{display:grid;position:fixed;right:24px;bottom:24px;}
+.desktop-add-button:disabled,.mobile-add-button:disabled{opacity:.55;cursor:not-allowed;}
+.desktop-add-button:focus-visible,.mobile-add-button:focus-visible,.mobile-tabbar button:focus-visible{outline:3px solid var(--green);outline-offset:3px;}
 @media(max-width:700px){
+ .desktop-add-button{display:none;}
+ .shared-admin.named-shell .sidebar .mobile-tabbar{position:fixed;inset:auto 0 0;display:grid;grid-template-columns:1fr 1fr 64px 1fr 1fr;gap:0;align-items:stretch;min-height:70px;padding:4px 4px calc(4px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--surface);z-index:60;}
+ .mobile-tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0;min-height:56px;padding:3px;border:0;background:transparent;color:var(--muted);font-family:inherit;font-size:11px;font-weight:600;line-height:1.2;}
+ .mobile-tabbar button[aria-current=page]{color:var(--green);}
+ .mobile-tabbar button:disabled{opacity:.65;}
+ .mobile-tabbar small{font-size:9px;}
+ .mobile-add-button{display:grid;position:fixed;left:50%;bottom:calc(42px + env(safe-area-inset-bottom));transform:translateX(-50%);}
+ .shared-admin.named-shell.manager-navigation .main-content{padding-bottom:calc(100px + env(safe-area-inset-bottom));}
+
  .shared-admin.named-shell .mobile-navigation{display:block;}
  .mobile-navigation-trigger{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft);color:var(--text);font:inherit;text-align:left;}
  .mobile-navigation-trigger small{margin-left:auto;max-width:55%;overflow-wrap:anywhere;}

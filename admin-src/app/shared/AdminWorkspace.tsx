@@ -77,9 +77,10 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
   useEffect(() => { const frame=requestAnimationFrame(()=>{try {setDark(localStorage.getItem('ech-admin-theme')==='dark');} catch { /* Theme storage is optional. */ }});return()=>cancelAnimationFrame(frame); }, []);
   function toggleTheme() { setDark(value => { try { localStorage.setItem('ech-admin-theme', !value ? 'dark' : 'light'); } catch { /* Theme storage is optional. */ } return !value; }); }
   const [selected, setSelected] = useState<SharedRecord>(); const [creating, setCreating] = useState<string>(); const [addingPartner, setAddingPartner] = useState(false); const [search, setSearch] = useState('');
+  const pendingQuickInquiry = useRef<string | null>(null);
   const [drafts] = useState(() => new Map<string, RetainedDraft>()); const [inlineOperations,setInlineOperations] = useState(() => new Map<string, Command>()); const [inlineReview, setInlineReview] = useState(false); const inlineBusy = useRef(false);
   const client = useMemo(() => createSessionClient(fetcher), [fetcher]);
-  const clearProtected = useCallback(() => { setShowAccounts(false); setInquiriesVerified(false); setInquiries([]); setPartners([]); setAssignees([]); setSelected(undefined); setCreating(undefined); setAddingPartner(false); setCursors({ inquiry: null, partner: null }); setSearch(''); setNotice(''); }, []);
+  const clearProtected = useCallback(() => { pendingQuickInquiry.current = null; setShowAccounts(false); setInquiriesVerified(false); setInquiries([]); setPartners([]); setAssignees([]); setSelected(undefined); setCreating(undefined); setAddingPartner(false); setCursors({ inquiry: null, partner: null }); setSearch(''); setNotice(''); }, []);
   const invalidate = useCallback(() => { epoch.current += 1; verified.current = null; clearVisitTaskResultEntries(); setSession(null); clearProtected(); setError('Session or record access is unverified. Protected views were cleared. Unsaved record drafts remain in this tab for the same authorized account after reload.'); }, [clearProtected]);
   // Repository constructors retain this callback; only asynchronous request failures invoke it.
   // eslint-disable-next-line react-hooks/refs
@@ -125,7 +126,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
   async function createPartner(input: import('../prospects/model').ManualPartnerInput): Promise<SharedPartner | null> { if (inlineBusy.current || inlineOperations.get(actor)) { setError('A partner operation is retained. Review and retry the exact operation using the recovery controls.'); return null; } inlineBusy.current = true; setError(''); const command: Command = { schema:1, operationId:crypto.randomUUID(), expectedRevision:0, command:{ type:'create', id:input.uuid, fields:{organization:input.organization,category:input.category,geography:input.geography,contactRoute:input.contactRoute,stage:'Not contacted',nextAction:'',nextDate:'',notes:''} } }; setInlineOperations(current=>new Map(current).set(actor,command)); setInlineReview(false); try { const result = await partnerRepository.commit(command); setInlineOperations(current=>{const next=new Map(current);next.delete(actor);return next;}); if (verified.current?.authenticated && verified.current.principal.id === actor) { setPartners(rows => [result.record as SharedPartner,...rows.filter(row => row.id !== result.record.id)]); return result.record as SharedPartner; } return null; } catch { setError('Partner save was not confirmed. Draft and operation identity are retained. Reload and review before retrying.'); return null; } finally { inlineBusy.current=false; } }
   const operating = !staffOnly && canOperate(session); const actor = session?.authenticated ? session.principal.id : '';
   useEffect(() => {
-    const frame=requestAnimationFrame(()=>{if (!navigation.contact) { setSelected(undefined); setCreating(undefined); return; }
+    const frame=requestAnimationFrame(()=>{if (!navigation.contact) { setSelected(undefined); const next = navigation.view === 'leads' ? pendingQuickInquiry.current : null; pendingQuickInquiry.current = null; setCreating(next ?? undefined); return; }
     if (operating) void open(view === 'inquiry' ? 'inquiry' : 'partner', navigation.contact);});
     return()=>cancelAnimationFrame(frame);
     // Record requests are scoped again by the repository and current session.
@@ -133,13 +134,21 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
   }, [navigation.contact, navigation.view, operating, actor]);
   useEffect(() => { if (selected?.id) { const frame=requestAnimationFrame(()=>window.scrollTo(0,0)); return()=>cancelAnimationFrame(frame); } }, [selected?.id]);
   function changeView(next: DashboardView, section?: OperationsSection) { if(staffOnly&&next!=='daily'&&next!=='staff-profiles')return; setShowAccounts(false); setSelected(undefined); setCreating(undefined); setAddingPartner(false); if (section) navigation.setOperationsSection(section); else navigation.setView(next); }
+  function mobileChangeView(next: DashboardView, section?: OperationsSection) {
+    if (creating && !window.confirm('Leave this new inquiry? Unsaved changes will not be accessible from the navigation.')) return;
+    pendingQuickInquiry.current = null; changeView(next, section);
+  }
+  function mobileAccounts() {
+    if (creating && !window.confirm('Leave this new inquiry? Unsaved changes will not be accessible from the navigation.')) return;
+    pendingQuickInquiry.current = null; toggleAccounts();
+  }
   function closeRecord() { setSelected(undefined); setCreating(undefined); navigation.closeContact(); }
   const titles: Record<DashboardView,string> = {daily:'Today',leads:'Care Inquiries',partners:'Referral Partners',followups:'Follow-ups',operations:'Operations',overview:'Overview',assessments:'Assessments','staff-profiles':staffProfilesLabel??'Staff Profiles'};
   const pageTitle = session?.authenticated ? `${accountsOpen ? 'Accounts' : titles[activeView]} | ECH Admin` : 'Team sign-in | Ethical Care at Home';
   useEffect(()=>{document.title=pageTitle;},[pageTitle]);
   const recordView = ['daily','leads','partners','followups'].includes(navigation.view);
   const details = Boolean(navigation.contact || creating);
-  return <div className={`app-shell shared-admin named-shell${session?.authenticated ? '' : ' signed-out'}`} data-theme={dark ? 'dark' : 'light'}>
+  return <div className={`app-shell shared-admin named-shell${session?.authenticated && session.principal.operationalRole === 'manager' ? ' manager-navigation' : ''}${session?.authenticated ? '' : ' signed-out'}`} data-theme={dark ? 'dark' : 'light'}>
    {session?.authenticated && <a className="skip-link" href="#workspace-content">Skip to workspace</a>}
    {session?.authenticated && <aside className="sidebar">
     <button className="brand" type="button" onClick={() => changeView(staffOnly?'daily':'overview')}><img className="ech-brand-logo" src={echLogo} alt="Ethical Care at Home" /><span className="brand-workspace">Team workspace</span></button>
@@ -154,7 +163,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
         onClick={()=>changeView('staff-profiles')}><Icon name="users"/>{staffProfilesLabel}</button>}
       {manageAccounts && <button type="button" className={`nav-item ${accountsOpen ? 'active' : ''}`} aria-current={accountsOpen ? 'page' : undefined} onClick={toggleAccounts}><Icon name="users"/>Accounts</button>}
     </div>}</>}</nav>
-    <MobileNavigation view={activeView} staffOnly={staffOnly} section={operationsSection} accountsOpen={accountsOpen} sharedSchedule={sharedSchedule} manageAccounts={manageAccounts} staffProfilesLabel={staffProfilesLabel} titles={titles} onNavigate={changeView} onAccounts={toggleAccounts} />
+    <MobileNavigation view={activeView} staffOnly={staffOnly} section={operationsSection} accountsOpen={accountsOpen} sharedSchedule={sharedSchedule} manageAccounts={manageAccounts} staffProfilesLabel={staffProfilesLabel} titles={titles} onNavigate={mobileChangeView} onAccounts={mobileAccounts} managerMode={session.principal.operationalRole === 'manager'} canCreateInquiry={can(session,'leads.create') && !details && !addingPartner} onCreateInquiry={() => { const id = crypto.randomUUID(); if (navigation.view === 'leads' && !navigation.contact) { changeView('leads'); setCreating(id); } else { pendingQuickInquiry.current = id; changeView('leads'); } }} />
     {!staffOnly&&<button className="quick-intake-button" type="button" disabled={!can(session,'leads.create')} onClick={() => { changeView('leads'); setCreating(crypto.randomUUID()); }}><Icon name="plus" />Record new inquiry</button>}
     <div className="sidebar-footer"><small className="workspace-safety">Contact details only. No clinical notes.</small></div>
    </aside>}
