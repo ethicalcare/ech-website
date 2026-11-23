@@ -29,6 +29,16 @@ async function fixture(browser,{role='manager',create=true,entry='daily',applica
  return {context,page,requests,unexpected,errors,releaseSave,deny:()=>{authorized=false;}};
 }
 const textName='Primary contact name';
+test('Today cards show unavailable destinations and preserve desktop',async()=>{
+ const browser=await chromium.launch({headless:true});try{
+  for(const spec of [{role:'manager'},{role:'owner',applicationAdmin:true}]){const f=await fixture(browser,spec);const p=f.page;const cards=p.getByRole('region',{name:'Today actions'});
+   assert.equal(await cards.isVisible(),true);for(const name of ['Visits Today','Reports to Review','New Care Inquiries','Referral Follow-ups'])assert.equal(await cards.getByRole('button',{name:new RegExp(name)}).isDisabled(),true);
+   if(process.env.ECH_PREVIEW_DIR)await p.screenshot({path:process.env.ECH_PREVIEW_DIR+'/ech-cards-isolated-'+spec.role+'.png'});
+   await p.setViewportSize({width:1200,height:800});assert.equal(await cards.isVisible(),false);assert.equal(await p.locator('.sidebar').isVisible(),true);if(spec.role==='manager')await p.locator('.desktop-add-button').waitFor({state:'visible'});assert.deepEqual(f.unexpected,[]);assert.deepEqual(f.errors,[]);await f.context.close();
+  }
+  const staff=await fixture(browser,{role:'staff',create:false});assert.equal(await staff.page.getByRole('region',{name:'Today actions'}).count(),0);assert.deepEqual(staff.unexpected,[]);await staff.context.close();
+ }finally{await browser.close();}
+});
 test('phone Add opens a menu before inquiry and Escape restores focus',async()=>{
  const browser=await chromium.launch({headless:true});try{
   for(const spec of [{role:'manager',create:true},{role:'owner',applicationAdmin:true,technicalAdmin:true,create:true}]){const f=await fixture(browser,spec);const p=f.page;const plus=p.locator('.mobile-add-button');const before=p.url();

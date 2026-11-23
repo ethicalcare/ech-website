@@ -1,3 +1,4 @@
+.mobile-today-cards{display:none;}
 .admin-staff-mobile-links{display:none;}
 .shared-admin.named-shell .mobile-navigation{display:none;}
 .shared-admin.named-shell .mobile-navigation--manager{display:block;}
@@ -8,6 +9,10 @@
 .desktop-add-button:disabled,.mobile-add-button:disabled{opacity:.55;cursor:not-allowed;}
 .desktop-add-button:focus-visible,.mobile-add-button:focus-visible,.mobile-tabbar button:focus-visible{outline:3px solid var(--green);outline-offset:3px;}
 @media(max-width:700px){
+ .mobile-today-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;}
+ .mobile-today-cards button{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:100px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);font:inherit;text-align:left;}
+ .mobile-today-cards button:disabled{opacity:.65;}
+ .mobile-today-cards button:focus-visible{outline:3px solid var(--green);outline-offset:2px;}
  .admin-staff-mobile-links{display:grid;gap:4px;}
  .shared-admin.named-shell .account-menu--staff-admin .account-actions{max-height:65dvh;overflow-y:auto;overscroll-behavior:contain;}
  .desktop-add-button{display:none;}

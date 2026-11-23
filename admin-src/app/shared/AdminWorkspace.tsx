@@ -222,6 +222,12 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     {session?.authenticated && operating && <>
      {navigation.view === 'overview' && <section className="hero-card"><div><p className="eyebrow">Your shared workspace</p><h2>Keep every next step clear.</h2><p>Review incoming care inquiries, maintain referral relationships and follow up with the right person.</p><div className="hero-actions"><button className="primary-button" type="button" onClick={() => changeView('leads')}>Review care inquiries</button><button className="secondary-button" type="button" onClick={() => changeView('partners')}>View referral partners</button></div></div><div className="flow"><span><b>1</b>Receive</span><i>→</i><span><b>2</b>Follow up</span><i>→</i><span><b>3</b>Record next step</span></div></section>}
      {navigation.view === 'daily' && !details && <section className="day-brief" aria-label="Today at ECH"><div><p className="eyebrow">Your daily workspace</p><h2>Your day, in focus.</h2><p>Keep conversations moving and make the next step clear.</p></div><div className="day-date"><Icon name="calendar-days" /><span><strong>{new Intl.DateTimeFormat('en-CA',{weekday:'long',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(companyDate()+'T12:00:00Z'))}</strong><small>Vancouver calendar day</small></span></div></section>}
+     {navigation.view === 'daily' && !details && !accountsOpen && <section className="mobile-today-cards" aria-label="Today actions">
+      <button type="button" disabled><strong>Visits Today</strong><small>Unavailable</small></button>
+      <button type="button" disabled><strong>Reports to Review</strong><small>Unavailable</small></button>
+      <button type="button" disabled><strong>New Care Inquiries</strong><small>Unavailable</small></button>
+      <button type="button" disabled><strong>Referral Follow-ups</strong><small>Unavailable</small></button>
+     </section>}
      {navigation.view==='daily'&&!details&&!accountsOpen&&!checking&&sharedSchedule&&session.principal.operationalRole==='manager'&&
       <ManagerTodayScheduleAttention key={operationsFeatureScope(session)} actor={session.principal.id} fetcher={fetcher}
        onOpenSchedule={()=>changeView('operations','visits')}/>}
