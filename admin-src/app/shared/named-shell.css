@@ -11,6 +11,13 @@
 .shared-admin.named-shell .named-operations-nav button{border:0;background:transparent;color:var(--text);text-align:left;min-height:37px;padding:7px 10px;border-radius:8px;font-size:12px;}
 .shared-admin.named-shell .named-operations-nav button[aria-current=page]{background:var(--green-soft);color:var(--green);font-weight:650;}
 .shared-admin.named-shell .main-content{margin:0;min-width:0;width:100%;max-width:1600px;padding:24px 26px 48px;}
+/* A static, viewport-fixed atmospheric layer; content and controls remain above it. */
+.shared-admin.named-shell .main-content.today-background{position:relative;isolation:isolate;--muted:#50635f;}
+.shared-admin.named-shell:has(.main-content.today-background) .sidebar{z-index:1;}
+.shared-admin.named-shell .main-content.today-background::before{content:"";position:fixed;inset:0 0 0 246px;z-index:-1;pointer-events:none;background:radial-gradient(ellipse at 89% 18%,rgba(130,205,187,.27),transparent 44%),radial-gradient(ellipse at 24% 83%,rgba(173,214,195,.23),transparent 48%),#f2f6f3;}
+@media(max-width:1100px){.shared-admin.named-shell .main-content.today-background::before{left:210px;}}
+@media(max-width:700px){.shared-admin.named-shell .main-content.today-background::before{left:0;}}
+.shared-admin.named-shell[data-theme=dark] .main-content.today-background::before{display:none;}
 .shared-admin.named-shell .topbar{padding-bottom:22px;border-bottom:1px solid var(--line);margin-bottom:22px;}
 .shared-admin.named-shell .sidebar-footer{border-top:1px solid var(--line);padding-top:16px;}
 .shared-admin.named-shell .account-menu>summary{color:var(--text);border-color:var(--line);font-weight:500;}

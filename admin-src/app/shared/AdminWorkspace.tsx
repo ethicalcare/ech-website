@@ -188,7 +188,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     {!staffOnly&&<button className="quick-intake-button" type="button" disabled={!can(session,'leads.create')} onClick={() => { changeView('leads'); setCreating(crypto.randomUUID()); }}><Icon name="plus" />Record new inquiry</button>}
     <div className="sidebar-footer"><small className="workspace-safety">Contact details only. No clinical notes.</small></div>
    </aside>}
-   <main className="main-content" id="workspace-content" tabIndex={-1}>
+   <main className={`main-content${session?.authenticated && activeView==='daily' && !accountsOpen && !details && !dark ? ' today-background' : ''}`} id="workspace-content" tabIndex={-1}>
     <header className={`topbar${manageAccounts ? ' accounts-topbar' : ''}`}>{session?.authenticated&&<img className="mobile-header-logo" src={echLogo} alt="Ethical Care at Home" />}<div className="topbar-title"><p className="eyebrow">Ethical Care at Home</p><h1 ref={accountsHeading} tabIndex={-1}>{session?.authenticated ? accountsOpen ? 'Accounts' : titles[activeView] : 'Team sign-in'}</h1></div><div className="topbar-actions" style={{ flexWrap: 'wrap' }}>
     {manageAccounts && <button ref={accountsToggle} className="theme-toggle accounts-toggle" type="button"
      aria-controls="accounts-workspace" aria-expanded={accountsOpen} onClick={toggleAccounts}>
