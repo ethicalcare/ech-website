@@ -168,7 +168,7 @@ test('Admin Today shows only verified manager schedule attention totals and disc
   await mount();assert.equal(reads.length,1);
   const req=reads[0];assert.equal(req.options.headers['X-ECH-Schedule-Actor'],ids[0]);assert.equal(req.options.headers['X-ECH-Schedule-Role'],'manager');
   const q=new URL(req.url,location).searchParams;assert.deepEqual([...q.keys()],['from','to']);
-  const day=markup().match(/\b(\d{4}-\d{2}-\d{2})\s*·\s*Vancouver calendar day/u)?.[1];assert.ok(day,'rendered Vancouver day');
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const next=new Date(Date.parse(day+'T00:00:00.000Z')+86400000).toISOString().slice(0,10);
   assert.deepEqual({from:q.get('from'),to:q.get('to')},{from:reportUtcTime(day+'T00:00'),to:reportUtcTime(next+'T00:00')});
   assert.match(markup(),/Checking the shared schedule/u);

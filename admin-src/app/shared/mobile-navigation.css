@@ -4,20 +4,26 @@
 .admin-staff-mobile-links{display:none;}
 .shared-admin.named-shell .mobile-navigation{display:none;}
 .shared-admin.named-shell .mobile-navigation--manager{display:block;}
+.shared-admin.named-shell .topbar-actions{flex-wrap:wrap;}
 .mobile-tabbar,.mobile-add-button{display:none;}
 @media(min-width:701px){.shared-admin.named-shell .sidebar .mobile-tabbar{display:none;}}
 .desktop-add-button,.mobile-add-button{place-items:center;width:56px;height:56px;border:2px solid var(--surface);border-radius:50%;background:#74d6d1;color:#173f3b;box-shadow:0 4px 16px #173f3b40;cursor:pointer;z-index:61;}
 .desktop-add-button{display:grid;position:fixed;right:24px;bottom:24px;}
 .desktop-add-button:disabled,.mobile-add-button:disabled{opacity:.55;cursor:not-allowed;}
 .desktop-add-button:focus-visible,.mobile-add-button:focus-visible,.mobile-tabbar button:focus-visible{outline:3px solid var(--green);outline-offset:3px;}
+.today-empty-mobile-action{display:none;}
 @media(max-width:700px){
+ .shared-admin.named-shell .today-empty-mobile-action{display:inline-block;}
+ .shared-admin.named-shell .today-empty-original-action{display:none;}
  .shared-admin.named-shell .sidebar{height:0;min-height:0;padding:0;border:0;gap:0;}
  .shared-admin.named-shell .sidebar>.brand,.shared-admin.named-shell .sidebar>.sidebar-footer,.shared-admin.named-shell .sidebar>.quick-intake-button{display:none;}
- .shared-admin.named-shell:not(.signed-out) .topbar{min-height:56px;padding:0 0 0 52px;display:flex;align-items:center;justify-content:space-between;}
- .shared-admin.named-shell:not(.signed-out) .mobile-header-logo{display:block;width:104px;height:48px;object-fit:contain;}
+ .shared-admin.named-shell:not(.signed-out) .topbar{position:relative;min-height:56px;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 calc(52px + env(safe-area-inset-left));display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-end;}
+ .shared-admin.named-shell:not(.signed-out) .topbar-actions{display:flex;flex:0 0 auto;flex-wrap:nowrap;align-items:center;width:auto;}
+ .shared-admin.named-shell:not(.signed-out) .topbar-actions .theme-toggle{box-sizing:border-box;flex:0 0 44px;width:44px;min-width:44px;min-height:44px;justify-content:center;padding:0;}
+ .shared-admin.named-shell:not(.signed-out) .mobile-header-logo{display:block;position:absolute;left:50%;transform:translateX(-50%);width:104px;height:48px;object-fit:contain;}
  .shared-admin.named-shell:not(.signed-out) .topbar-title{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);}
  .shared-admin.named-shell:not(.signed-out) .topbar-actions .account-menu,.shared-admin.named-shell:not(.signed-out) .topbar-actions .accounts-toggle,.theme-label,.named-live-notice,.mobile-hide-daily-stats{display:none;}
- .shared-admin.named-shell .mobile-navigation-trigger{display:grid;place-items:center;position:fixed;left:8px;top:8px;width:44px;min-height:44px;padding:0;border:0;background:transparent;font-size:24px;z-index:59;}
+ .shared-admin.named-shell .mobile-navigation-trigger{display:grid;place-items:center;position:absolute;left:calc(8px + env(safe-area-inset-left));top:calc(8px + env(safe-area-inset-top));width:44px;min-height:44px;padding:0;border:0;background:transparent;font-size:24px;z-index:59;}
  .shared-admin.named-shell .day-brief{padding:10px 0;margin:0;background:transparent;border:0;box-shadow:none;}
  .shared-admin.named-shell .day-brief .eyebrow,.shared-admin.named-shell .day-brief div:first-child p:not(.eyebrow){display:none;}
  .mobile-account{border-bottom:1px solid var(--line);padding-bottom:12px;}
