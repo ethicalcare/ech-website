@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { namedSections, type DashboardView, type OperationsSection } from '../dashboard-navigation';
 import { Icon } from './Icon';
 import './mobile-navigation.css';
@@ -13,6 +13,7 @@ type Props = {
   titles: Record<DashboardView, string>;
   onNavigate: (view: DashboardView, section?: OperationsSection) => void;
   onAccounts: () => void;
+  accountContent?: ReactNode;
 };
 
 /** Native modal semantics keep the background inert and contain keyboard focus. */
@@ -22,14 +23,15 @@ export function MobileNavigation(props: Props) {
   const addTrigger = useRef<HTMLButtonElement>(null);
   const [addOpen, setAddOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLButtonElement|null>(null);
   const start = useRef<{x: number; y: number} | null>(null);
   const [open, setOpen] = useState(false);
   const managerMode = props.managerMode === true;
   const scheduleCurrent = !props.accountsOpen && props.view === 'operations' && (props.sharedSchedule || props.section === 'visits');
   const moreCurrent = props.accountsOpen || (props.view !== 'daily' && !scheduleCurrent);
 
-  function close() { dialog.current?.close(); setOpen(false); trigger.current?.focus(); }
-  function openMenu() { if (!dialog.current?.open) { dialog.current?.showModal(); setOpen(true); } }
+  function close() { dialog.current?.close(); setOpen(false); opener.current?.focus(); }
+  function openMenu(event?: React.MouseEvent<HTMLButtonElement>) { if (!dialog.current?.open) { opener.current=event?.currentTarget??trigger.current; dialog.current?.showModal(); setOpen(true); } }
   function navigate(view: DashboardView, section?: OperationsSection) { if (dialog.current?.open) close(); if (section) props.onNavigate(view, section); else props.onNavigate(view); }
   function createInquiry() { if (props.canCreateInquiry) props.onCreateInquiry?.(); }
   const canAdd = !props.staffNavigation && !props.mobileBlocked && props.canCreateInquiry === true;
@@ -45,7 +47,7 @@ export function MobileNavigation(props: Props) {
       if (!dialog.current?.open) return;
       dialog.current.close(); setOpen(false);
       if (wide?.matches) document.getElementById('workspace-content')?.focus();
-      else trigger.current?.focus();
+      else opener.current?.focus();
     };
     const resize = () => { if (wide?.matches) dismiss(); };
     window.addEventListener('popstate', dismiss);
@@ -90,9 +92,9 @@ export function MobileNavigation(props: Props) {
       {managerMode && <button type="button" className="desktop-add-button" aria-label="Record new inquiry" title="Record new inquiry" disabled={!props.canCreateInquiry} onClick={createInquiry}>
         <Icon name="plus" />
       </button>}
-      {!managerMode && <button type="button" className="mobile-navigation-trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls="mobile-workspace-menu" onClick={openMenu}>
-        <span aria-hidden="true">☰</span><span>Menu</span><small>{current}</small>
-      </button>}
+      <button type="button" className="mobile-navigation-trigger" aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={open} aria-controls="mobile-workspace-menu" onClick={openMenu}>
+        <span aria-hidden="true">☰</span>
+      </button>
     </>
     <dialog ref={dialog} id="mobile-workspace-menu" className="mobile-navigation-drawer" aria-labelledby="mobile-navigation-title"
       onClose={() => setOpen(false)} onCancel={() => setOpen(false)}
@@ -100,6 +102,7 @@ export function MobileNavigation(props: Props) {
       onTouchStart={event => { const touch=event.touches[0]; start.current=event.touches.length===1?{x:touch.clientX,y:touch.clientY}:null; }}
       onTouchEnd={event => { const touch=event.changedTouches[0]; const origin=start.current; start.current=null; if(origin&&touch&&origin.x-touch.clientX>80&&Math.abs(origin.y-touch.clientY)<40) close(); }}>
       <header><h2 id="mobile-navigation-title">Workspace menu</h2><button type="button" autoFocus onClick={close} aria-label="Close menu">×</button></header>
+      {props.accountContent}
       <nav aria-label="Mobile workspace navigation">
         <h3>Dashboard</h3>
         {Object.entries(props.titles).filter(([id])=>props.staffOnly?id==='daily':id!=='operations'&&id!=='staff-profiles').map(([id,label])=><button type="button" key={id} aria-current={!props.accountsOpen&&props.view===id?'page':undefined} onClick={()=>navigate(id as DashboardView)}>{label}</button>)}
@@ -108,7 +111,7 @@ export function MobileNavigation(props: Props) {
           {props.staffProfilesLabel&&<button type="button" aria-current={!props.accountsOpen&&props.view==='staff-profiles'?'page':undefined}
             onClick={()=>navigate('staff-profiles')}>{props.staffProfilesLabel}</button>}
           {props.manageAccounts&&<button type="button" aria-current={props.accountsOpen?'page':undefined}
-            onClick={()=>{close();if(!props.accountsOpen)props.onAccounts();}}>Accounts</button>}
+            onClick={()=>{close();props.onAccounts();}}>Accounts</button>}
         </section>}
         {!props.staffOnly&&<><h3>Operations</h3>
         {(props.sharedSchedule?namedSections.slice(0,1):namedSections).map(([id,label])=><button type="button" key={id} aria-current={!props.accountsOpen&&props.view==='operations'&&(props.sharedSchedule?'visits':props.section)===id?'page':undefined} onClick={()=>navigate('operations',id)}>{label}</button>)}</>}

@@ -59,7 +59,7 @@ async function withPhoneFixture({
         if(partnerResponse)return route.fulfill(partnerResponse);
         if(url.pathname==='/api/admin/operations'&&reportFixture){
           if(request.headers()['x-ech-schedule-actor']!==signedIn.principal.id||request.headers()['x-ech-schedule-role']!==signedIn.principal.operationalRole)return reject();
-          const response=reportFixture(request,url);
+          const response=await reportFixture(request,url);
           if(response?.abort===true)return route.abort('failed');
           if(response)return route.fulfill(response);
         }
@@ -266,6 +266,19 @@ test('assigned worker opens approved visit details from My day at phone width',
       });
     });
   });
+
+test('staff held visit blocks drawer sign out through dirty pending and unknown',{timeout:45000},async()=>{
+ const signedIn={...session,principal:{...session.principal,id:staff,email:'fictional.worker@ech-fixture.invalid',operationalRole:'staff'},capabilities:['leads.read_assigned'],operationsFeatures:{...session.operationsFeatures,visitActions:true}};
+ const activeVisit={...visits[0],status:'In progress'};let release;const gate=new Promise(r=>{release=r;});const posted=[];
+ const reportFixture=async(request,url)=>{const h=request.headers();if(request.method()==='POST'&&url.search===''&&h['x-ech-visit-features']==='1'){posted.push(request.postData());await gate;return {abort:true};}if(request.method()!=='GET')return;if(url.search==='?commands=1'&&h['x-ech-visit-features']==='1')return {json:{schema:1,enabled:true,membershipRevision:7}};if(url.searchParams.get('report')===activeVisit.id)return {json:{schema:1,visitId:activeVisit.id,visitRevision:1,reportRevision:0,versions:[],reviews:[]}};};
+ try{await withPhoneFixture({signedIn,fixtureVisits:[activeVisit],now:'2026-01-15T19:05:00.000Z',reportFixture},async({page})=>{
+ const panel=page.getByRole('region',{name:'Selected visit details',exact:true});await page.getByRole('region',{name:'My day',exact:true}).getByRole('button',{name:'Open current visit'}).tap();
+ await panel.getByLabel(/^Factual summary/).fill('Fictional held summary');
+ const attempt=async()=>{await page.getByRole('button',{name:'Open workspace menu'}).tap();const menu=page.getByRole('dialog',{name:'Workspace menu'});await menu.getByRole('button',{name:'Sign out'}).tap();if(await menu.isVisible())await menu.getByRole('button',{name:'Close menu'}).tap();assert.equal(await panel.isVisible(),true,'held visit remains mounted');};
+ await attempt();assert.equal(posted.length,0);await panel.getByLabel('Outcome reported').selectOption('completed');await panel.getByLabel('Completed tasks · one per line, at most 50').fill('Fictional task');await panel.getByLabel('Actual start · Vancouver').fill('2026-01-15T10:10');await panel.getByLabel('Actual end · Vancouver').fill('2026-01-15T11:00');
+ await panel.getByRole('button',{name:'Submit report',exact:true}).tap();await page.waitForFunction(()=>document.querySelector('fieldset:disabled')!==null);await attempt();assert.equal(posted.length,1);release();await panel.getByRole('button',{name:'Retry exact request'}).waitFor();await attempt();assert.equal(posted.length,1);assert.equal(JSON.parse(posted[0]).command.summary,'Fictional held summary');const original=posted[0];await panel.getByRole('button',{name:'Retry exact request'}).tap();for(let i=0;i<50&&posted.length<2;i++)await page.waitForTimeout(50);await panel.getByRole('button',{name:'Retry exact request'}).waitFor();assert.equal(posted.length,2);assert.equal(posted[1],original,'explicit retry keeps byte-identical operation envelope');
+ });}finally{release();}
+});
 
 test('staff retry a lost report reply and the manager opens its dashboard review actions at phone width',
   {timeout:70_000},async()=>{

@@ -80,6 +80,25 @@ test('rendered workspace removes prior schedule before awaiting changed-account 
  }
 });
 
+test('today intent never clears dirty, pending or retained visit',async()=>{
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const actor='00000000-0000-4000-8000-000000000001', client='00000000-0000-4000-8000-000000000002', visit='00000000-0000-4000-8000-000000000003';
+ const session={authenticated:true,principal:{id:actor,email:'fixture@example.invalid',operationalRole:'manager'},capabilities:[],operationsFeatures:{reads:true,scheduleCommands:false,scheduleRecurrence:false,visitActions:false}};
+ const requests=[];const fetcher=(url,options)=>new Promise(resolve=>requests.push({url,options,resolve}));
+ let root;try{
+  await act(async()=>{root=create(React.createElement(SharedScheduleRead,{session,fetcher,todayRequest:0}));});
+  const date=()=>root.root.findAllByType('input').find(node=>node.props.type==='date');
+  await act(async()=>date().props.onChange({currentTarget:{value:'2020-01-02'}}));const request=requests.at(-1);const start='2020-01-02T20:00:00.000Z';
+  await act(async()=>request.resolve(Response.json({schema:1,mode:'shared',clients:[{id:client,name:'Fictional client'}],staff:[],visits:[{id:visit,clientId:client,workerId:null,service:'Home support',start,end:new Date(Date.parse(start)+3600000).toISOString(),status:'Open',revision:1}]})));
+  const button=root.root.findAllByType('button').find(node=>String(node.props['aria-label']||'').startsWith('View visit details for'));
+  assert.ok(button);await act(async()=>button.props.onClick());
+  const visitNode=()=>root.root.findAll(node=>typeof node.type==='function'&&node.type.name==='SharedVisitRead')[0];assert.ok(visitNode());
+  let intent=0;for(const hold of [{dirty:true,pending:false},{dirty:false,pending:true},{dirty:false,pending:false,retained:true}]){
+   await act(async()=>visitNode().props.onLeaveStateChange(hold));await act(async()=>root.update(React.createElement(SharedScheduleRead,{session,fetcher,todayRequest:++intent})));
+   assert.equal(date().props.value,'2020-01-02');assert.ok(visitNode(),'visit remains mounted for held work');
+  }
+ }finally{if(root)await act(async()=>root.unmount());}
+});
 test('rendered schedule clears rows on reload/date change and never renders malformed/error replies',async()=>{
  const actor='00000000-0000-4000-8000-000000000001';
  const session={authenticated:true,principal:{id:actor,email:'fixture@example.invalid',operationalRole:'owner'},capabilities:[],operationsFeatures:{reads:true,scheduleCommands:false,scheduleRecurrence:false,visitActions:false}};

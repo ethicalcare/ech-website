@@ -22,7 +22,7 @@ test('mobile menu closes on selection, preserves current Accounts and restricts 
  await act(async()=>open());assert.equal(modal.open,true);assert.equal(document.body.style.overflow,'hidden');
  await act(async()=>button('Team & settings').props.onClick());assert.deepEqual(routes,[['operations','team']]);assert.equal(modal.open,false);assert.equal(document.body.style.overflow,'');assert.equal(focus,1);
  await act(async()=>root.update(React.createElement(MobileNavigation,{...props,accountsOpen:true,sharedSchedule:true})));
- await act(async()=>button('Accounts').props.onClick());assert.equal(accounts,0);
+ await act(async()=>button('Accounts').props.onClick());assert.equal(accounts,1);
  assert.equal(button('Team & settings'),undefined);assert.ok(button('Schedule'));
  await act(async()=>root.update(React.createElement(MobileNavigation,{...props,staffProfilesLabel:'Staff Profiles',sharedSchedule:true})));
  assert.equal(root.root.findByProps({'aria-label':'Teams & Settings'}).findAllByType('button').length,2);
