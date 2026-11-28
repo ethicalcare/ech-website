@@ -121,7 +121,7 @@ export function StaffProfiles({session,fetcher=fetch,onBackToToday}:{session:Ses
  const apiGeneration=activeDetail.current;
  const saveScope=pendingScope.current;
  const api:ProfileWorkspaceApi={
-  read:async()=>{const generation=apiGeneration;const data=await call('staff-profile?id='+selected);const result=profile(data);if(isCurrent(generation))setSnapshot(data);return result;},
+  read:async options=>{const generation=apiGeneration;const data=await call('staff-profile?id='+encodeURIComponent(selected));if(options?.inspection&&(data?.schema!==1||!Object.hasOwn(data,'pending')||(data.pending!==null&&(!data.pending||typeof data.pending!=='object'||typeof data.pending.id!=='string'||typeof data.pending.submittedAt!=='string'||data.pending.status!=='pending_review'||!data.pending.changes||typeof data.pending.changes!=='object'||Array.isArray(data.pending.changes)||typeof data.pending.stale!=='boolean'))))throw Error('Invalid profile response');const result=profile(data);if(!options?.inspection&&isCurrent(generation))setSnapshot(data);return result;},
   save:async request=>{
     const generation=apiGeneration;
     const data=await call('staff-profile',{action:'save',...request});
