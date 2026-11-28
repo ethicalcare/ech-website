@@ -66,6 +66,8 @@ export function ManagerTodayScheduleAttention({actor,fetcher,onOpenSchedule,onMo
  return <section className="panel dashboard-card today-schedule-attention" aria-label="Today’s visits needing attention">
   <section className="today-schedule-body" aria-label="Today schedule"><h2>Today schedule</h2>{!result&&<p role="status">Checking the shared schedule…</p>}{result?.kind==='unavailable'&&<p role="status">Today’s schedule could not be verified.</p>}{result?.kind==='verified'&&<>{result.snapshot.visits.length===0?<><p>No visits scheduled today.</p><button className="today-empty-mobile-action" type="button" onClick={onMobileOpenSchedule}>Open schedule</button></>:<ul>{[...groups.values()].sort((a,b)=>todayPriority(a.visit,new Date(clock).toISOString())-todayPriority(b.visit,new Date(clock).toISOString())||a.visit.start.localeCompare(b.visit.start)).map(({visit,count})=><li key={todayGroupKey(visit)}>{count} {count===1?'visit':'visits'} · {visit.service} · {todayInstantLabel(visit.start)} – {todayInstantLabel(visit.end)} · {visit.status}{visit.status!=='Cancelled'&&visit.status!=='Completed'&&<> · {todayPhase(visit,new Date(clock).toISOString())}</>}</li>)}</ul>}</>}</section>
   <h2>Today’s visits needing attention</h2>
+  {!result&&<p role="status">Checking visits needing attention…</p>}
+  {result?.kind==='unavailable'&&<p role="status">Visits needing attention could not be verified.</p>}
   {result?.kind==='verified'&&(result.open||result.waiting
    ?<dl><dt>Open / unassigned</dt><dd>{result.open}</dd><dt>Waiting for worker confirmation</dt><dd>{result.waiting}</dd></dl>
    :<p>No visits are unassigned or awaiting worker confirmation.</p>)}
