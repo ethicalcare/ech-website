@@ -14,7 +14,7 @@
     "audit": "node scripts/audit-site.mjs",
     "check": "npm run verify && npm run audit",
     "dev": "node scripts/serve.mjs",
-    "test:browser:phone": "npm run build:admin && node --test tests/browser/selected-visit-phone.test.mjs tests/browser/integrated-assignment-report.test.mjs",
+    "test:browser:phone": "npm run build:admin && node --test tests/browser/selected-visit-phone.test.mjs tests/browser/integrated-assignment-report.test.mjs tests/browser/today-navigation-presentation.test.mjs",
     "build:admin": "node scripts/build-admin.mjs admin-src node_modules",
     "build:release": "npm run build && node scripts/check-release.mjs --output"
   },

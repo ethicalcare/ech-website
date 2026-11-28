@@ -24,7 +24,7 @@ test('Today replaces yesterday’s verified schedule counts at Vancouver date ro
  const markup=()=>JSON.stringify(root.toJSON());
  const from=i=>new URL(reads[i].url,'https://fictional.invalid').searchParams.get('from');
  try{
-  await act(async()=>{root=create(React.createElement(ManagerTodayScheduleAttention,{actor,fetcher,onOpenSchedule(){}}));});
+  await act(async()=>{root=create(React.createElement(ManagerTodayScheduleAttention,{role:'manager',actor,fetcher,onOpenSchedule(){}}));});
   assert.equal(from(0),'2026-07-21T07:00:00.000Z');
   await act(async()=>reads[0].resolve(Response.json(fixture)));
   assert.match(markup(),/No visits are unassigned/u);

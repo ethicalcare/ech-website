@@ -8,13 +8,13 @@ const today = () => scheduleDay(new Date().toISOString());
 
 type Result={kind:'unavailable'}|{kind:'verified';open:number;waiting:number;snapshot:ScheduleSnapshot};
 
-export function ManagerTodayScheduleAttention({actor,fetcher,onOpenSchedule,onMobileOpenSchedule}:{
- actor:string;fetcher:typeof fetch;onOpenSchedule:()=>void;onMobileOpenSchedule:()=>void;
+export function ManagerTodayScheduleAttention({actor,role,fetcher,onOpenSchedule,onMobileOpenSchedule}:{
+ actor:string;role:'manager'|'owner';fetcher:typeof fetch;onOpenSchedule:()=>void;onMobileOpenSchedule:()=>void;
 }){
  const [request,setRequest]=useState(()=>({day:today()}));
  const [clock,setClock]=useState(()=>Date.now());
- const [loaded,setLoaded]=useState<{request:typeof request;fetcher:typeof fetch;result:Result}|null>(null);
-  const result=loaded?.request===request&&loaded.fetcher===fetcher?loaded.result:undefined;
+ const [loaded,setLoaded]=useState<{request:typeof request;fetcher:typeof fetch;actor:string;role:'manager'|'owner';result:Result}|null>(null);
+  const result=loaded?.request===request&&loaded.fetcher===fetcher&&loaded.actor===actor&&loaded.role===role?loaded.result:undefined;
  const groups = new Map<string,{visit:ScheduleSnapshot['visits'][number];count:number}>();
  if(result?.kind==='verified') for(const visit of result.snapshot.visits){
   const key=todayGroupKey(visit);
@@ -49,8 +49,8 @@ export function ManagerTodayScheduleAttention({actor,fetcher,onOpenSchedule,onMo
  },[result,clock]);
  useEffect(()=>{
   const controller=new AbortController(),signal=controller.signal;
-  const publish=(result:Result)=>{if(!signal.aborted){setClock(Date.now());setLoaded({request,fetcher,result});}};
-  void Promise.resolve().then(()=>createScheduleClient(fetcher,'manager',actor)
+  const publish=(result:Result)=>{if(!signal.aborted){setClock(Date.now());setLoaded({request,fetcher,actor,role,result});}};
+  void Promise.resolve().then(()=>createScheduleClient(fetcher,role,actor)
     .loadSchedule(focusedCalendarWindow(request.day,'day'),signal))
     .then(snapshot=>{
       const {visits}=snapshot;
@@ -62,7 +62,7 @@ export function ManagerTodayScheduleAttention({actor,fetcher,onOpenSchedule,onMo
       publish({kind:'verified',open,waiting,snapshot});
     },()=>publish({kind:'unavailable'}));
   return()=>controller.abort();
- },[actor,fetcher,request]);
+ },[actor,role,fetcher,request]);
  return <section className="panel dashboard-card today-schedule-attention" aria-label="Today’s visits needing attention">
   <section className="today-schedule-body" aria-label="Today schedule"><h2>Today schedule</h2>{!result&&<p role="status">Checking the shared schedule…</p>}{result?.kind==='unavailable'&&<p role="status">Today’s schedule could not be verified.</p>}{result?.kind==='verified'&&<>{result.snapshot.visits.length===0?<><p>No visits scheduled today.</p><button className="today-empty-mobile-action" type="button" onClick={onMobileOpenSchedule}>Open schedule</button></>:<ul>{[...groups.values()].sort((a,b)=>todayPriority(a.visit,new Date(clock).toISOString())-todayPriority(b.visit,new Date(clock).toISOString())||a.visit.start.localeCompare(b.visit.start)).map(({visit,count})=><li key={todayGroupKey(visit)}>{count} {count===1?'visit':'visits'} · {visit.service} · {todayInstantLabel(visit.start)} – {todayInstantLabel(visit.end)} · {visit.status}{visit.status!=='Cancelled'&&visit.status!=='Completed'&&<> · {todayPhase(visit,new Date(clock).toISOString())}</>}</li>)}</ul>}</>}</section>
   <h2>Today’s visits needing attention</h2>

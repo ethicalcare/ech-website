@@ -130,6 +130,8 @@ test('rendered schedule clears rows on reload/date change and never renders malf
 
 test('Admin Today shows only verified manager schedule attention totals and discards old-scope responses',async()=>{
  globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const RealDate=globalThis.Date;const fixedNow=RealDate.parse('2026-07-21T19:00:00.000Z');
+ globalThis.Date=class extends RealDate{constructor(...args){super(...(args.length?args:[fixedNow]));}static now(){return fixedNow;}};
  const keys=['window','document','requestAnimationFrame','cancelAnimationFrame','localStorage'];
  const prior=Object.fromEntries(keys.map(k=>[k,globalThis[k]]));
  const frames=new Map();let next=0;
@@ -168,7 +170,7 @@ test('Admin Today shows only verified manager schedule attention totals and disc
   await mount();assert.equal(reads.length,1);
   const req=reads[0];assert.equal(req.options.headers['X-ECH-Schedule-Actor'],ids[0]);assert.equal(req.options.headers['X-ECH-Schedule-Role'],'manager');
   const q=new URL(req.url,location).searchParams;assert.deepEqual([...q.keys()],['from','to']);
-  const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Vancouver',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const day='2026-07-21';
   const next=new Date(Date.parse(day+'T00:00:00.000Z')+86400000).toISOString().slice(0,10);
   assert.deepEqual({from:q.get('from'),to:q.get('to')},{from:reportUtcTime(day+'T00:00'),to:reportUtcTime(next+'T00:00')});
   assert.match(markup(),/Checking the shared schedule/u);
@@ -180,19 +182,25 @@ test('Admin Today shows only verified manager schedule attention totals and disc
   assert.match(markup(),/could not be verified/u);assert.doesNotMatch(markup(),/No visits are unassigned/u);
   await click('Refresh today’s schedule');await resolve(reads[2],[]);
   assert.match(markup(),/No visits are unassigned/u);
-  await click('Refresh today’s schedule');const abandoned=reads[3];
+  await click('Refresh today’s schedule');const oldActorRead=reads[3];
   current=session(ids[1]);await click('Refresh account and records');
-  assert.equal(abandoned.options.signal.aborted,true);assert.equal(reads[4].options.headers['X-ECH-Schedule-Actor'],ids[1]);
-  await resolve(abandoned,['Open','Assigned']);assert.match(markup(),/Checking the shared schedule/u);
+  assert.equal(oldActorRead.options.signal.aborted,true);assert.equal(reads[4].options.headers['X-ECH-Schedule-Actor'],ids[1]);assert.equal(reads[4].options.headers['X-ECH-Schedule-Role'],'manager');
+  await resolve(oldActorRead,['Open','Assigned']);assert.match(markup(),/Checking the shared schedule/u);assert.equal(card().findAllByType('dd').length,0);
   await resolve(reads[4],[]);assert.match(markup(),/No visits are unassigned/u);
+  await click('Refresh today’s schedule');const abandoned=reads[5];
+  current=session(ids[1],'owner');await click('Refresh account and records');
+  assert.equal(abandoned.options.signal.aborted,true);assert.equal(reads[6].options.headers['X-ECH-Schedule-Actor'],ids[1]);assert.equal(reads[6].options.headers['X-ECH-Schedule-Role'],'owner');
+  await resolve(abandoned,['Open','Assigned']);assert.match(markup(),/Checking the shared schedule/u);assert.equal(card().findAllByType('dd').length,0);
+  await resolve(reads[6],[]);assert.match(markup(),/No visits are unassigned/u);
   await click('Open shared schedule');assert.equal(location.searchParams.get('view'),'operations');assert.equal(card(),undefined);
-  assert.match(reads[5].url,/from=/u);
-  for(const state of [session(ids[0],'owner'),session(ids[0],'manager',false),session(ids[0],'staff',false)]){
+  assert.match(reads[7].url,/from=/u);
+  for(const state of [session(ids[0],'manager',false),session(ids[0],'owner',false),session(ids[0],'staff',false)]){
    await act(async()=>root.unmount());root=undefined;const count=reads.length;location.searchParams.set('view','daily');current=state;
    await mount();assert.equal(card(),undefined);assert.equal(reads.length,count);
   }
  }finally{
   if(root)await act(async()=>root.unmount());
+  globalThis.Date=RealDate;
   for(const [k,v]of Object.entries(prior)){if(v===undefined)delete globalThis[k];else globalThis[k]=v;}
  }
 });
