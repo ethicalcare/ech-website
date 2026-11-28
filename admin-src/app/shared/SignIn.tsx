@@ -8,12 +8,13 @@ function SignInCheck({ siteKey, onToken }: { siteKey: string; onToken: (token: s
   const [loadFailed, setLoadFailed] = useState(false);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    let stopped = false; let widget: string | undefined;
+    let stopped = false; let failed = false; let widget: string | undefined;
     const api = () => (window as unknown as { turnstile?: CheckApi }).turnstile;
-    // A retired challenge may still deliver a queued callback after its widget is removed.
-    const acceptToken = (token: string) => { if (!stopped) onToken(token); };
+    // A retired or failed challenge may still deliver a queued callback.
+    const acceptToken = (token: string) => { if (!stopped && !failed) onToken(token); };
     const clearToken = () => acceptToken('');
-    const mount = () => { if (!stopped && element.current && api()) widget = api()!.render(element.current, { sitekey: siteKey, action: 'admin-login', callback: acceptToken, 'expired-callback': clearToken, 'error-callback': clearToken }); };
+    const widgetError = () => { if (!stopped && !failed) { failed = true; onToken(''); setLoadFailed(true); } };
+    const mount = () => { if (!stopped && element.current && api()) { try { widget = api()!.render(element.current, { sitekey: siteKey, action: 'admin-login', callback: acceptToken, 'expired-callback': clearToken, 'error-callback': widgetError }); } catch { widgetError(); } } };
     let script = document.querySelector<HTMLScriptElement>('script[data-admin-login-check]');
     const scriptError = () => { if (!stopped) { script?.remove(); clearToken(); setLoadFailed(true); } };
     if (api()) mount(); else {
@@ -22,7 +23,7 @@ function SignInCheck({ siteKey, onToken }: { siteKey: string; onToken: (token: s
     }
     return () => { stopped = true; script?.removeEventListener('load', mount); script?.removeEventListener('error', scriptError); if (widget !== undefined) api()?.remove(widget); onToken(''); };
   }, [siteKey, onToken, retry]);
-  return <><div ref={element} aria-label="Sign-in security check" />{loadFailed && <p role="alert">The sign-in security check could not load. <button type="button" onClick={() => { setLoadFailed(false); setRetry(value => value + 1); }}>Retry security check</button></p>}</>;
+  return <><div ref={element} role="group" tabIndex={-1} aria-label="Sign-in security check" />{loadFailed && <p role="alert">The sign-in security check could not complete. <button type="button" onClick={() => { element.current?.focus(); setLoadFailed(false); setRetry(value => value + 1); }}>Retry security check</button></p>}</>;
 }
 export function SignIn({ session, client, onVerified }: { session: Extract<Session, {authenticated:false}>; client: ReturnType<typeof createSessionClient>; onVerified: () => Promise<void> }) {
   const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [passwordMode, setPasswordMode] = useState(true); const [token, setToken] = useState(''); const [challenge, setChallenge] = useState(''); const [sent, setSent] = useState(false); const [pending, setPending] = useState(false); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const errorRef = useRef<HTMLParagraphElement>(null); const [attempt, setAttempt] = useState(0); const busy = useRef(false);

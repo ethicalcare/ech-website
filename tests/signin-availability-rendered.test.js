@@ -50,7 +50,7 @@ test('retired security widget callbacks cannot change the active sign-in check',
  }};
  let root;
  try {
-  await act(async()=>{root=create(React.createElement(SignIn,{session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'test-site-key',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')}),{createNodeMock:node=>node.type==='div'?{}:null});});
+  await act(async()=>{root=create(React.createElement(SignIn,{session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'test-site-key',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')}),{createNodeMock:node=>node.type==='div'?{focus(){}}:null});});
   const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
   assert.equal(widgets.length,1);
   await act(async()=>button('Use an email code').props.onClick());
@@ -83,7 +83,7 @@ test('a failed security script can be retried without reloading sign-in', async 
  };
  let root;
  try {
-  await act(async()=>{root=create(React.createElement(SignIn,{session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'test-site-key',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')}),{createNodeMock:node=>node.type==='div'?{}:null});});
+  await act(async()=>{root=create(React.createElement(SignIn,{session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'test-site-key',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')}),{createNodeMock:node=>node.type==='div'?{focus(){}}:null});});
   const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
   await act(async()=>scripts[0].dispatchEvent(new Event('error')));
   assert.equal(button('Sign in').props.disabled,true);
@@ -105,7 +105,7 @@ test('remount after an abandoned script failure can load a fresh security check'
  globalThis.window={location:{search:''}};
  globalThis.document={querySelector:()=>script,createElement:()=>Object.assign(new EventTarget(),{dataset:{},remove(){if(script===this)script=null;}}),head:{appendChild(node){script=node;scripts.push(node);}}};
  const props={session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'test-site-key',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')};
- const options={createNodeMock:node=>node.type==='div'?{}:null};
+ const options={createNodeMock:node=>node.type==='div'?{focus(){}}:null};
  let root;
  try {
   await act(async()=>{root=create(React.createElement(SignIn,props),options);});
@@ -120,4 +120,52 @@ test('remount after an abandoned script failure can load a fresh security check'
   await act(async()=>widgets[0].callback('fictional-check'));
   assert.equal(button('Sign in').props.disabled,false);
  }finally{if(root)await act(async()=>root.unmount());globalThis.document=previousDocument;globalThis.window=previousWindow;}
+});
+
+
+test('a security widget error offers retry and requires a fresh check', async () => {
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const previousDocument=globalThis.document, previousWindow=globalThis.window;
+ const widgets=[], removed=[];
+ globalThis.document={querySelector:()=>null};
+ globalThis.window={location:{search:''},turnstile:{render(_node,options){widgets.push(options);return String(widgets.length);},remove(id){removed.push(id);}}};
+ let root;
+ try {
+  await act(async()=>{root=create(React.createElement(SignIn,{session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'fictional',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')}),{createNodeMock:node=>node.type==='div'?{focus(){}}:null});});
+  const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+  await act(async()=>widgets[0].callback('old-token'));
+  assert.equal(button('Sign in').props.disabled,false);
+  await act(async()=>widgets[0]['error-callback']());
+  assert.equal(button('Sign in').props.disabled,true);
+  assert.ok(button('Retry security check'),'widget error should offer recovery');
+  await act(async()=>widgets[0].callback('late-token'));
+  assert.equal(button('Sign in').props.disabled,true,'failed widget cannot enable sign-in');
+  await act(async()=>button('Retry security check').props.onClick());
+  assert.deepEqual(removed,['1']);
+  assert.equal(widgets.length,2);
+  await act(async()=>widgets[0].callback('retired-token'));
+  assert.equal(button('Sign in').props.disabled,true);
+  await act(async()=>widgets[1].callback('fresh-token'));
+  assert.equal(button('Sign in').props.disabled,false);
+ }finally{if(root)await act(async()=>root.unmount());globalThis.document=previousDocument;globalThis.window=previousWindow;}
+});
+
+
+test('a security widget render exception leaves sign-in available for a safe retry', async () => {
+ globalThis.IS_REACT_ACT_ENVIRONMENT=true;
+ const previousDocument=globalThis.document, previousWindow=globalThis.window;
+ const widgets=[]; let fail=true;
+ globalThis.document={querySelector:()=>null};
+ globalThis.window={location:{search:''},turnstile:{render(_node,options){if(fail)throw Error('fictional widget failure');widgets.push(options);return 'fresh';},remove(){}}};
+ let root;
+ try {
+  await act(async()=>{root=create(React.createElement(SignIn,{session:{authenticated:false,principal:null,capabilities:[],login:{method:'email_password',siteKey:'fictional',googleEnabled:false}},client:{},onVerified:()=>assert.fail('no verification')}),{createNodeMock:node=>node.type==='div'?{focus(){}}:null});});
+  const button=label=>root.root.findAllByType('button').find(b=>b.props.children===label);
+  assert.equal(button('Sign in').props.disabled,true);
+  assert.ok(button('Retry security check'));
+  fail=false; await act(async()=>button('Retry security check').props.onClick());
+  assert.equal(widgets.length,1);
+  await act(async()=>widgets[0].callback('fresh'));
+  assert.equal(button('Sign in').props.disabled,false);
+ } finally {if(root)await act(async()=>root.unmount());globalThis.document=previousDocument;globalThis.window=previousWindow;}
 });
