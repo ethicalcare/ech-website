@@ -36,6 +36,9 @@ function isOrdinaryStaff(session:Session|null):boolean {
 export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?: typeof fetch; localOperations?: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null); const verified = useRef<Session | null>(null); const epoch = useRef(0);
   const refreshing = useRef(false); const lastChecked = useRef(0);
+  const [retryingScheduleAccess,setRetryingScheduleAccess]=useState(false); const retryingScheduleAccessRef=useRef(false);
+  const retryFocusPending=useRef(false); const retryErrorFocus=useRef<HTMLParagraphElement>(null); const retryButtonFocus=useRef<HTMLButtonElement>(null);
+  useEffect(()=>{if(retryingScheduleAccess||!retryFocusPending.current)return;const frame=requestAnimationFrame(()=>{retryFocusPending.current=false;(retryErrorFocus.current||retryButtonFocus.current||accountsHeading.current)?.focus();});return()=>cancelAnimationFrame(frame);},[retryingScheduleAccess]);
   const [checking, setChecking] = useState(true); const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const [pending, setPending] = useState(false);
   const [inquiries, setInquiries] = useState<SharedInquiry[]>([]); const [partners, setPartners] = useState<SharedPartner[]>([]); const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [inquiriesVerified, setInquiriesVerified] = useState(false);
@@ -45,7 +48,7 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
   const activeView=staffOnly&&navigation.view!=='staff-profiles'?'daily':navigation.view;
   const staffRouteBlocked=staffOnly&&(navigation.view!==activeView||Boolean(navigation.contact));
   useEffect(()=>{if(staffRouteBlocked)navigation.replaceView('daily');},[staffRouteBlocked]);
-  const [showAccounts, setShowAccounts] = useState(false);
+  const [showAccounts, setShowAccounts] = useState(false); const [visitedAccounts,setVisitedAccounts]=useState(false);
   const operationsSection = navigation.section;
   const sharedSchedule = operationsFeatures(session).reads;
   const [visitedOperations,setVisitedOperations]=useState(navigation.view==='operations');
@@ -70,7 +73,7 @@ export function AdminWorkspace({ fetcher = fetch, localOperations }: { fetcher?:
       setShowAccounts(false);
       if(window.matchMedia('(max-width: 700px)').matches)document.querySelector<HTMLButtonElement>('.mobile-navigation-trigger')?.focus();else accountsToggle.current?.focus();
     } else {
-      setShowAccounts(true);
+      setVisitedAccounts(true); setShowAccounts(true);
       void accountRequests.reload();
     }
   }
@@ -150,6 +153,15 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     if (scheduleHeld || selected || creating || addingPartner) { setError('Finish or close the current editor or visit before navigating. Pending and retained work must be resolved in place.'); return false; }
     return true;
   }
+  async function retryScheduleAccess() {
+    if(retryingScheduleAccessRef.current || refreshing.current)return;
+    // Hidden workspaces can retain local drafts or uncertain requests without
+    // reporting their custody to this shell. Never unmount them via this retry.
+    if(profileVisitedBy || visitedOperations || visitedAccounts){setError('Account retry is unavailable after opening Accounts, Staff Profiles or Operations in this tab. Resolve work there before starting a new session.');return;}
+    if(!mobileSafeToLeave()||pending||drafts.size!==0||inlineOperations.size!==0||pendingQuickInquiry.current||inlineBusy.current){setError('Finish or resolve retained work before retrying account and records.');return;}
+    retryFocusPending.current=true;retryingScheduleAccessRef.current=true;setRetryingScheduleAccess(true);
+    try {await refresh();} finally {retryingScheduleAccessRef.current=false;setRetryingScheduleAccess(false);}
+  }
   function mobileChangeView(next: DashboardView, section?: OperationsSection) {
     if (!mobileSafeToLeave()) return false;
     setStaffLocation('home'); pendingQuickInquiry.current = null; changeView(next, section); return true;
@@ -169,7 +181,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
   const recordView = ['daily','leads','partners','followups'].includes(navigation.view);
   const matchingInquiries = inquiries.filter(row => (inquiryStatus==='all'||row.status==='New') && (!search || [row.name,row.phone,row.email,row.careRecipient,row.need,row.source].some(value=>value.toLowerCase().includes(search.toLowerCase()))));
   const details = Boolean(navigation.contact || creating);
-  return <div className={`app-shell shared-admin named-shell${session?.authenticated ? ' manager-navigation' : ''}${session?.authenticated ? '' : ' signed-out'}`} data-theme={dark ? 'dark' : 'light'}>
+  return <>{retryingScheduleAccess&&<p role="status">Checking account and records. Please wait.</p>}<div inert={retryingScheduleAccess} className={`app-shell shared-admin named-shell${session?.authenticated ? ' manager-navigation' : ''}${session?.authenticated ? '' : ' signed-out'}`} data-theme={dark ? 'dark' : 'light'}>
    {session?.authenticated && <a className="skip-link" href="#workspace-content">Skip to workspace</a>}
    {session?.authenticated && <aside className="sidebar">
     <button className="brand" type="button" onClick={() => changeView(staffOnly?'daily':'overview')}><img className="ech-brand-logo" src={echLogo} alt="Ethical Care at Home" /><span className="brand-workspace">Team workspace</span></button>
@@ -200,7 +212,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     <button className="theme-toggle" aria-label={`Switch to ${dark ? 'light' : 'dark'} theme`} type="button" onClick={toggleTheme}><Icon name={dark ? 'sun' : 'moon'} /><span className="theme-label">{dark ? 'Light' : 'Dark'}</span></button>
     {session?.authenticated && <details className={`account-menu${session.principal.operationalRole==='staff'&&!staffOnly?' account-menu--staff-admin':''}`}><summary aria-label="My account"><span className="account-avatar" aria-hidden="true">{session.principal.email.slice(0,1).toUpperCase()}</span><span className="account-identity"><strong>My account</strong><small>{session.principal.email}</small></span><span aria-hidden="true">⌃</span></summary><div className="account-actions"><p>Signed in as <strong>{session.principal.email}</strong></p><p className="account-save-note">{staffOnly?'Use Today to check your assigned care visits.':navigation.view === 'operations' && !accountsOpen ? sharedSchedule ? scheduleCapabilityCopy(session.principal.operationalRole,operationsFeatures(session)) : 'Fictional Operations changes save on this device for this account only.' : 'Inquiries, referral partners and account changes save to the shared ECH system.'}</p>{session.principal.operationalRole==='staff'&&staffProfilesLabel&&<button type="button" onClick={event=>mobileAccountNavigate('staff-profiles',event.currentTarget)}>{staffProfilesLabel}</button>}{session.principal.operationalRole==='staff'&&!staffOnly&&<div className="admin-staff-mobile-links" aria-label="Workspace destinations">{([['leads','Care Inquiries'],['partners','Referral Partners'],['followups','Follow-ups'],['operations','Operations'],['overview','Overview'],['assessments','Assessments']] as [DashboardView,string][]).map(([next,label])=><button key={next} type="button" onClick={event=>mobileAccountNavigate(next,event.currentTarget)}>{label}</button>)}</div>}<button type="button" disabled={checking} onClick={() => refresh()}>{staffOnly?'Refresh account':'Refresh account and records'}</button><button type="button" disabled={checking} onClick={logout}>Sign out</button>{!operating && !staffOnly && <p>This account has no operational record access.</p>}</div></details>}</div></header>
     {session?.authenticated && operating && (accountsOpen || navigation.view !== 'operations') && <p className="named-live-notice">Shared ECH workspace. Inquiries, referral partners and account changes use the existing live system. Operations identifies whether its records are shared or fictional.</p>}
-    {error && <p role="alert" className="field-error">{error}</p>}{notice && operating && <p role="status">{notice}</p>}{checking && <p role="status">Checking current server access…</p>}
+    {error && <p ref={retryErrorFocus} tabIndex={-1} role="alert" className="field-error">{error}</p>}{notice && operating && <p role="status">{notice}</p>}{checking && <p role="status">Checking current server access…</p>}
     {!session && !checking && <section className="panel dashboard-card"><p>Account access could not be verified.</p><button type="button" onClick={() => refresh()}>Reload account status</button></section>}
     {session?.authenticated === false && <SignIn session={session} client={client} onVerified={refresh} />}
 
@@ -235,7 +247,7 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
      </section>}
      {navigation.view==='daily'&&!details&&!accountsOpen&&!checking&&session.principal.operationalRole==='manager'&&
       (sharedSchedule ? <ManagerTodayScheduleAttention key={operationsFeatureScope(session)} actor={session.principal.id} fetcher={fetcher}
-       onOpenSchedule={()=>changeView('operations','visits')} onMobileOpenSchedule={()=>{mobileChangeView('operations','visits');}}/> : <section className="panel dashboard-card" aria-label="Today schedule"><h2>Today schedule</h2><p>Schedule is unavailable for this workspace. Visits cannot be verified.</p></section>)}
+       onOpenSchedule={()=>changeView('operations','visits')} onMobileOpenSchedule={()=>{mobileChangeView('operations','visits');}}/> : <section className="panel dashboard-card" aria-label="Today schedule"><h2>Today schedule</h2><p>Schedule is unavailable for this workspace. Visits cannot be verified.</p><button ref={retryButtonFocus} type="button" onClick={()=>void retryScheduleAccess()}>Retry account and records</button></section>)}
      {['daily','overview'].includes(navigation.view) && !details && <div className={navigation.view==='daily'?'mobile-hide-daily-stats':''}><SharedRecordCounts inquiries={inquiries} partners={partners} moreInquiries={!!cursors.inquiry} inquiryRead={checking?'checking':inquiriesVerified?'verified':'unavailable'} onOpenInquiries={()=>changeView('leads')} morePartners={!!cursors.partner}/></div>}
      <div hidden={navigation.view !== 'operations'}>{sharedSchedule ? visitedOperations && <SharedScheduleRead session={session} fetcher={fetcher} todayRequest={scheduleTodayRequest} onNavigationHold={setScheduleHeld} active={navigation.view === 'operations' && !accountsOpen}/> : visitedOperations && (localOperations || <NamedOperations actor={actor} section={operationsSection} onSectionChange={navigation.replaceOperationsSection} />)}</div>
      {navigation.view === 'assessments' && <section className="panel dashboard-card"><h2>Assessments</h2><p>Assessment recording is disabled for this first release. Clinical information must stay in the approved care-record system.</p><button type="button" disabled>Record assessment</button></section>}
@@ -254,5 +266,5 @@ setSelected(record); setCreating(undefined); } } catch { if (ticket === epoch.cu
     </>}
     </div>
    </main>
-  </div>;
+  </div></>;
 }

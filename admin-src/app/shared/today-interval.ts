@@ -3,6 +3,11 @@ import type {ScheduleVisit} from './schedule-client';
 export function todayPhase(visit:Pick<ScheduleVisit,'start'|'end'>,instant:string):string{
  return instant<visit.start?'Later':instant<visit.end?'Active now':'Elapsed';
 }
+export function todayPriority(visit:Pick<ScheduleVisit,'start'|'end'|'status'>,instant:string):number{
+ if(visit.status==='Cancelled'||visit.status==='Completed')return 3;
+ const phase=todayPhase(visit,instant);
+ return phase==='Active now'?0:phase==='Later'?1:2;
+}
 export function todayGroupKey(visit:Pick<ScheduleVisit,'service'|'start'|'end'|'status'>):string{
  return JSON.stringify([visit.service,visit.start,visit.end,visit.status]);
 }
